@@ -1,0 +1,3 @@
+scapy>=2.5.0
+dpkt>=1.9.8
+colorama>=0.4.6
