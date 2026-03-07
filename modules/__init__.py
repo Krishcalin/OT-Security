@@ -1,1 +1,1 @@
-# SAP Ariba SSPM Security Scanner — Modules
+# OT Security Scanner — PCAP-Based ICS/SCADA Protocol Analyzer

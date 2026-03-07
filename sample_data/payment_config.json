@@ -1,7 +1,0 @@
-{
-  "threeWayMatch": false,
-  "duplicateCheck": true,
-  "autoPayEnabled": true,
-  "autoPayApproval": false,
-  "paymentHoldThreshold": 50000
-}

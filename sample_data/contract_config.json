@@ -1,7 +1,0 @@
-{
-  "expiryAlerts": false,
-  "dualApproval": false,
-  "allowNoCompete": true,
-  "maxContractValue": 5000000,
-  "autoRenewalDefault": true
-}

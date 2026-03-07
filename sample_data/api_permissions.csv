@@ -1,9 +1,0 @@
-CLIENT,ENTITY,ACCESS
-erp-integration,PURCHASE_ORDER,WRITE
-erp-integration,INVOICE,WRITE
-legacy-app,SUPPLIER,FULL
-legacy-app,PAYMENT,WRITE
-legacy-app,USER,ADMIN
-reporting-tool,REPORTING,READ
-reporting-tool,CONTRACT,READ
-mobile-app,REQUISITION,READ

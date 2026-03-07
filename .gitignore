@@ -7,6 +7,5 @@ venv/
 *.swp
 .DS_Store
 *.html
-!sample_data/sample_report.html
-exports/
-real_data/
+!sample_pcaps/sample_report.html
+real_captures/
