@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OT/ICS/SCADA — Security Assessment Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: #1a2332;
+    --bg-card-hover: #1f2b3d;
+    --border: #2a3548;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #e11d48;
+    --accent-dim: rgba(56, 189, 248, 0.1);
+    --critical: #ef4444;
+    --critical-bg: rgba(239, 68, 68, 0.08);
+    --high: #f97316;
+    --high-bg: rgba(249, 115, 22, 0.08);
+    --medium: #eab308;
+    --medium-bg: rgba(234, 179, 8, 0.08);
+    --low: #22c55e;
+    --low-bg: rgba(34, 197, 94, 0.08);
+    --info-c: #e11d48;
+    --info-bg: rgba(56, 189, 248, 0.08);
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .noise {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.25rem;
+  }
+
+  .header-left .subtitle {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .header-right {
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .header-right span {
+    display: block;
+  }
+
+  /* Summary Grid */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* Risk Score */
+  .risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .risk-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: #dc2626;
+  }
+
+  .risk-score-ring {
+    width: 140px;
+    height: 140px;
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
+  .risk-score-ring svg {
+    transform: rotate(-90deg);
+    width: 140px;
+    height: 140px;
+  }
+
+  .risk-score-ring .score-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .risk-score-ring .score-number {
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #dc2626;
+    line-height: 1;
+  }
+
+  .risk-score-ring .score-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .risk-level {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #dc2626;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Severity Cards */
+  .severity-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    align-content: start;
+  }
+
+  .sev-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.2s;
+  }
+
+  .sev-card:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .sev-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .sev-card.critical::before { background: var(--critical); }
+  .sev-card.high::before { background: var(--high); }
+  .sev-card.medium::before { background: var(--medium); }
+  .sev-card.low::before { background: var(--low); }
+
+  .sev-card .sev-count {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .sev-card.critical .sev-count { color: var(--critical); }
+  .sev-card.high .sev-count { color: var(--high); }
+  .sev-card.medium .sev-count { color: var(--medium); }
+  .sev-card.low .sev-count { color: var(--low); }
+
+  .sev-card .sev-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.25rem;
+  }
+
+  /* Category breakdown bar */
+  .categories-section {
+    margin-bottom: 2.5rem;
+  }
+
+  .categories-section h2 {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+  }
+
+  .cat-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .cat-bar-row {
+    display: grid;
+    grid-template-columns: 220px 1fr 50px;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .cat-bar-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    text-align: right;
+  }
+
+  .cat-bar-track {
+    height: 20px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .cat-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #818cf8);
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.8s ease-out;
+  }
+
+  .cat-bar-count {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-bar label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 0.5rem;
+  }
+
+  .filter-btn {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filter-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Findings */
+  .findings-section h2 {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+  }
+
+  .finding-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    transition: background 0.2s;
+  }
+
+  .finding-card:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .finding-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sev-badge {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    min-width: 72px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .sev-badge.CRITICAL { background: var(--critical-bg); color: var(--critical); border: 1px solid rgba(239,68,68,0.2); }
+  .sev-badge.HIGH { background: var(--high-bg); color: var(--high); border: 1px solid rgba(249,115,22,0.2); }
+  .sev-badge.MEDIUM { background: var(--medium-bg); color: var(--medium); border: 1px solid rgba(234,179,8,0.2); }
+  .sev-badge.LOW { background: var(--low-bg); color: var(--low); border: 1px solid rgba(34,197,94,0.2); }
+  .sev-badge.INFO { background: var(--info-bg); color: var(--info-c); border: 1px solid rgba(56,189,248,0.2); }
+
+  .finding-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .finding-id {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .finding-chevron {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+
+  .finding-card.open .finding-chevron {
+    transform: rotate(90deg);
+  }
+
+  .finding-body {
+    display: none;
+    padding: 0 1.25rem 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .finding-card.open .finding-body {
+    display: block;
+  }
+
+  .finding-section {
+    margin-top: 1rem;
+  }
+
+  .finding-section-title {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+  }
+
+  .finding-section p {
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .affected-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .affected-list li {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 0.2rem 0;
+    border-bottom: 1px solid rgba(42, 53, 72, 0.5);
+  }
+
+  .affected-list li:last-child { border: none; }
+
+  .ref-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .ref-list li {
+    font-size: 0.8rem;
+    color: var(--accent);
+    padding: 0.15rem 0;
+  }
+
+  .ref-list li::before {
+    content: '→ ';
+    color: var(--text-muted);
+  }
+
+  .remediation-text {
+    background: rgba(34, 197, 94, 0.05);
+    border-left: 3px solid var(--low);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .severity-grid { grid-template-columns: repeat(2, 1fr); }
+    .cat-bar-row { grid-template-columns: 140px 1fr 40px; }
+  }
+
+  /* Print */
+  @media print {
+    body { background: white; color: #111; }
+    .finding-body { display: block !important; }
+    .noise { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>&#x1f6e1; OT/ICS/SCADA</h1>
+      <div class="subtitle">Security Assessment Report</div>
+    </div>
+    <div class="header-right">
+      <span>Scan: 2026-03-07T08:03:54</span>
+      <span>Source: sample_pcaps</span>
+      <span>Modules: modbus, s7, dnp3, bacnet, opcua, enip, iec104, profinet, mqtt, baseline, iec62443, mitre</span>
+    </div>
+  </div>
+
+  <!-- Summary Grid -->
+  <div class="summary-grid">
+    <div class="risk-card">
+      <div class="risk-score-ring">
+        <svg viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="60" fill="none" stroke="#1e293b" stroke-width="10"/>
+          <circle cx="70" cy="70" r="60" fill="none" stroke="#dc2626" stroke-width="10"
+            stroke-dasharray="377.0 0.0"
+            stroke-linecap="round"/>
+        </svg>
+        <div class="score-text">
+          <div class="score-number">100</div>
+          <div class="score-label">Risk Score</div>
+        </div>
+      </div>
+      <div class="risk-level">Critical Risk</div>
+    </div>
+
+    <div class="severity-grid">
+      <div class="sev-card critical">
+        <div class="sev-count">6</div>
+        <div class="sev-label">Critical</div>
+      </div>
+      <div class="sev-card high">
+        <div class="sev-count">20</div>
+        <div class="sev-label">High</div>
+      </div>
+      <div class="sev-card medium">
+        <div class="sev-count">5</div>
+        <div class="sev-label">Medium</div>
+      </div>
+      <div class="sev-card low">
+        <div class="sev-count">3</div>
+        <div class="sev-label">Low</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Breakdown -->
+  <div class="categories-section">
+    <h2>Findings by Category</h2>
+    <div class="cat-bars">
+      
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">Modbus/TCP</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 100.0%"></div></div>
+        <div class="cat-bar-count">6</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">MQTT</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 66.66666666666666%"></div></div>
+        <div class="cat-bar-count">4</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">Network Baseline</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 66.66666666666666%"></div></div>
+        <div class="cat-bar-count">4</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">IEC 62443 Compliance</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 66.66666666666666%"></div></div>
+        <div class="cat-bar-count">4</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">OPC UA</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 50.0%"></div></div>
+        <div class="cat-bar-count">3</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">IEC 60870-5-104</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 50.0%"></div></div>
+        <div class="cat-bar-count">3</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">MITRE ATT&amp;CK ICS</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 50.0%"></div></div>
+        <div class="cat-bar-count">3</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">Siemens S7comm</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 33.33333333333333%"></div></div>
+        <div class="cat-bar-count">2</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">EtherNet/IP</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 33.33333333333333%"></div></div>
+        <div class="cat-bar-count">2</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">DNP3</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 16.666666666666664%"></div></div>
+        <div class="cat-bar-count">1</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">BACnet/IP</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 16.666666666666664%"></div></div>
+        <div class="cat-bar-count">1</div>
+      </div>
+
+      <div class="cat-bar-row">
+        <div class="cat-bar-label">PROFINET</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width: 16.666666666666664%"></div></div>
+        <div class="cat-bar-count">1</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <label>Filter:</label>
+    <button class="filter-btn active" onclick="filterFindings('ALL')">All (34)</button>
+    <button class="filter-btn" onclick="filterFindings('CRITICAL')">Critical (6)</button>
+    <button class="filter-btn" onclick="filterFindings('HIGH')">High (20)</button>
+    <button class="filter-btn" onclick="filterFindings('MEDIUM')">Medium (5)</button>
+    <button class="filter-btn" onclick="filterFindings('LOW')">Low (3)</button>
+  </div>
+
+  <!-- Findings -->
+  <div class="findings-section">
+    <h2>Detailed Findings (34)</h2>
+    
+    <div class="finding-card" data-severity="CRITICAL" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">Modbus diagnostic commands detected (1)</span>
+        <span class="finding-id">MODBUS-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>1 diagnostic commands detected. Sub-function 4 (Force Listen Only) causes a Modbus slave to stop responding — a known DoS attack vector.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>10.0.0.99→192.168.1.10 FC=8 SubFC=4</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Block Modbus FC=8 (Diagnostics) at the OT firewall. Only allow from authorized engineering stations during maintenance.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>NIST SP 800-82 — Modbus Security</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="CRITICAL" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">Modbus Force Listen Only Mode attack detected</span>
+        <span class="finding-id">MODBUS-007</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Force Listen Only Mode (FC=8, SubFC=4) sent from 10.0.0.99 to 192.168.1.10. This disables the slave from responding — a known ICS DoS attack used in real-world incidents.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>10.0.0.99→192.168.1.10</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Immediately block FC=8/SubFC=4 at the OT firewall. Investigate the source IP.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>CVE-2017-6034</li><li>NIST SP 800-82</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="CRITICAL" data-category="Siemens S7comm">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">S7comm CPU STOP/START commands detected (1)</span>
+        <span class="finding-id">S7-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>1 CPU control command(s) detected. CPU STOP halts the PLC program execution, directly impacting physical process control.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>10.0.0.99→192.168.2.10 — CPU STOP command</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Restrict CPU control to authorized engineering workstations only. Enable S7comm+ (TLS) on S7-1500 PLCs. Deploy access protection passwords.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 3.5</li><li>Siemens Security Advisory SSA-731239</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="CRITICAL" data-category="OPC UA">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">OPC UA sessions with SecurityMode=None (2)</span>
+        <span class="finding-id">OPCUA-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>OPC UA sessions detected with SecurityMode set to None. No signing or encryption — all data including credentials transmitted in clear.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (2)</div>
+                  <ul class="affected-list"><li>192.168.5.50→192.168.5.10</li><li>192.168.5.50→192.168.5.10 — SecurityMode=None</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Set SecurityMode to SignAndEncrypt on all OPC UA endpoints. Disable None mode in server configuration.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>OPC 10000-4 — Security Model</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="CRITICAL" data-category="EtherNet/IP">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">EtherNet/IP program operations (2)</span>
+        <span class="finding-id">ENIP-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>CIP program upload/download or execution commands detected.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (2)</div>
+                  <ul class="affected-list"><li>192.168.2.50→192.168.6.10 — CIP program upload/download</li><li>192.168.2.50→192.168.6.10 — CIP Unconnected Send (execute)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Restrict CIP write access. Enable CIP Security (EtherNet/IP Confidentiality).</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>ODVA CIP Security</li><li>IEC 62443-3-3 SR 3.5</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="CRITICAL" data-category="IEC 62443 Compliance">
+      <div class="finding-header">
+        <span class="sev-badge CRITICAL">CRITICAL</span>
+        <span class="finding-title">IEC 62443 SR 5.1: IT/OT on same subnet (2)</span>
+        <span class="finding-id">IEC-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>2 subnet(s) carry both IT and OT traffic — violating zone segmentation.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (2)</div>
+                  <ul class="affected-list"><li>Subnet 192.168.1.0/24: OT ports={502}, IT ports={3389}</li><li>Subnet 10.0.0.0/24: OT ports={47808, 20000, 102, 502}, IT ports={80, 21, 23}</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Segment IT and OT into separate zones per IEC 62443-3-2. Deploy conduit firewalls with DPI between zones.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 5.1 — Network Segmentation</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Modbus write/control operations detected (7)</span>
+        <span class="finding-id">MODBUS-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>7 Modbus write/control commands detected. These can modify PLC outputs, setpoints, and coil states — potentially causing physical harm.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (7)</div>
+                  <ul class="affected-list"><li>192.168.1.50→192.168.1.10:502 FC=5 (Write Single Coil — can toggle outputs), UID=1</li><li>192.168.1.50→192.168.1.10:502 FC=5 (Write Single Coil — can toggle outputs), UID=1</li><li>192.168.1.50→192.168.1.10:502 FC=5 (Write Single Coil — can toggle outputs), UID=1</li><li>192.168.1.50→192.168.1.10:502 FC=5 (Write Single Coil — can toggle outputs), UID=1</li><li>10.0.0.99→192.168.1.10:502 FC=16 (Write Multiple Registers — bulk setpoint change), UID=1</li><li>192.168.1.50→192.168.1.10:502 FC=5 (Write Single Coil — can toggle outputs), UID=1</li><li>10.0.0.99→192.168.1.10:502 FC=8 (Diagnostics — can force listen-only mode (DoS)), UID=1</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement Modbus deep packet inspection (DPI) firewall rules to restrict write function codes to authorized engineering workstations only. Deploy read-only Modbus access for monitoring systems.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 3.5</li><li>NIST SP 800-82 Rev 3</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Modbus device reconnaissance detected (1)</span>
+        <span class="finding-id">MODBUS-006</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>1 device identification/enumeration commands detected. Attackers use these to fingerprint PLC models and firmware versions.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>10.0.0.99→192.168.1.10 FC=43 (Encapsulated Interface Transport — device enumeration)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Block FC 43 (MEI) from non-engineering stations.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 7.6</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Modbus/TCP traffic is unencrypted (by design)</span>
+        <span class="finding-id">MODBUS-008</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>43 Modbus/TCP packets detected. Modbus has no built-in authentication or encryption — all commands, responses, and register values are transmitted in plaintext.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total Modbus packets: 43</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Deploy a Modbus-aware DPI firewall (e.g., Tofino, Bayshore) between zones. Consider Modbus/TCP Security (TLS wrapper) where supported. Implement network segmentation per IEC 62443 zones/conduits.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1</li><li>NIST SP 800-82 Rev 3</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Siemens S7comm">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">S7comm (classic) traffic has no authentication/encryption</span>
+        <span class="finding-id">S7-007</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>10 S7comm packets detected. Classic S7comm (port 102) has no built-in authentication or encryption. Any device on the network can read/write PLC data and control the CPU.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total S7 packets: 10</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Upgrade to S7-1500 with S7comm+ (TLS). For S7-300/400, deploy network segmentation and OT-aware firewalls.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>Siemens Security Guide — S7comm+</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="DNP3">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">DNP3 Secure Authentication not detected</span>
+        <span class="finding-id">DNP3-005</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>21 DNP3 packets without any Secure Authentication (SA) exchanges. Without SA, any device can send control commands to outstations.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total DNP3 packets: 21</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Enable DNP3 Secure Authentication v5 (IEEE 1815-2012). Requires firmware support on both master and outstation.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEEE 1815-2012 — Secure Authentication</li><li>IEC 62351-5</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="BACnet/IP">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">BACnet/IP traffic without BACnet/SC (Secure Connect)</span>
+        <span class="finding-id">BACNET-006</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>28 BACnet packets without BACnet Secure Connect (TLS). Classic BACnet/IP has no authentication or encryption.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total BACnet packets: 28</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Upgrade to BACnet/SC (ASHRAE 135 Addendum BJ) for TLS-based security. For legacy devices, implement network-level segmentation.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>ASHRAE 135 — BACnet/SC</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="OPC UA">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">OPC UA anonymous access detected (1)</span>
+        <span class="finding-id">OPCUA-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Anonymous OPC UA sessions detected. Any client can connect without credentials.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>192.168.5.50→192.168.5.10 — Anonymous session</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Disable anonymous access. Require username/password or X.509 certificate auth.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>OPC 10000-4 — User Authentication</li><li>IEC 62443-3-3 SR 1.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="OPC UA">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">OPC UA sessions on unencrypted port 4840 only</span>
+        <span class="finding-id">OPCUA-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>11 OPC UA packets on port 4840 (unencrypted). No TLS sessions detected.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Unencrypted: 11 packets, TLS: 0 packets</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Enable OPC UA Secure Channel with SignAndEncrypt security policy.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>OPC 10000-6 — Secure Channel</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="EtherNet/IP">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">EtherNet/IP traffic is unencrypted</span>
+        <span class="finding-id">ENIP-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>2 unencrypted EtherNet/IP packets. Classic EtherNet/IP has no built-in security.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total packets: 2</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Enable CIP Security (ODVA EtherNet/IP Confidentiality Profile). Segment with OT-aware firewalls.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>ODVA CIP Security</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="IEC 60870-5-104">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">IEC 104 control commands detected (10)</span>
+        <span class="finding-id">IEC104-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>10 IEC 104 control/setpoint commands detected.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (10)</div>
+                  <ul class="affected-list"><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li><li>192.168.7.100→192.168.7.10 — TypeID=45 (control command)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement IEC 62351 for authentication. Restrict control to authorized masters.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62351-5</li><li>IEC 62443-3-3 SR 3.5</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="IEC 60870-5-104">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">IEC 104 traffic without IEC 62351 security</span>
+        <span class="finding-id">IEC104-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>18 IEC 104 packets without encryption/authentication.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total: 18</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement IEC 62351 (TLS for SCADA). Deploy bump-in-the-wire encryptors.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62351-3/5</li><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="PROFINET">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">PROFINET traffic is unencrypted</span>
+        <span class="finding-id">PN-003</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>1 unencrypted PROFINET packets detected.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Total: 1</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement PROFINET Security Classes (Class 2/3 for encryption). Deploy network segmentation.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1</li><li>PROFINET Security Guideline</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="MQTT">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Unencrypted MQTT traffic (3 packets)</span>
+        <span class="finding-id">MQTT-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>MQTT running on port 1883 (unencrypted). Credentials, telemetry data, and control commands are transmitted in plaintext.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>Unencrypted MQTT: 3 packets</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Migrate to MQTT over TLS (port 8883). Enable client certificate auth.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1</li><li>OWASP IoT — Insecure Communication</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="MQTT">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">MQTT anonymous connections (1)</span>
+        <span class="finding-id">MQTT-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>MQTT CONNECT packets without username/password authentication.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>192.168.8.50→192.168.8.10 — Anonymous CONNECT</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Require authentication on all MQTT connections. Use client certificates.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 1.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Network Baseline">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">IT/OT protocol crossover detected (4 hosts)</span>
+        <span class="finding-id">NET-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>4 host(s) use both IT and OT protocols. This indicates potential flat network without IT/OT segmentation (Purdue model violation).</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (4)</div>
+                  <ul class="affected-list"><li>192.168.3.10: IT=ftp + OT=dnp3</li><li>192.168.1.10: IT=telnet,rdp + OT=modbus</li><li>10.0.0.99: IT=ftp,telnet,http + OT=s7comm,modbus,bacnet,dnp3</li><li>192.168.2.10: IT=http + OT=s7comm</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement Purdue model zones: separate IT (L4-5) from OT (L0-2) with DMZ (L3.5). No direct IT-to-OT communication.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 5.1</li><li>Purdue Model — Zone Segmentation</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="Network Baseline">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Insecure IT protocols on OT network (4 types)</span>
+        <span class="finding-id">NET-003</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Insecure plaintext protocols detected on the OT network.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (4)</div>
+                  <ul class="affected-list"><li>TELNET: 1 unique flows</li><li>FTP: 1 unique flows</li><li>HTTP: 1 unique flows</li><li>RDP: 1 unique flows</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Replace Telnet→SSH, FTP→SFTP, HTTP→HTTPS. Disable VNC/RDP or tunnel through encrypted VPN.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1</li><li>NIST SP 800-82 Rev 3</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="IEC 62443 Compliance">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">IEC 62443 SR 4.1: Unencrypted OT conduits (7 protocols)</span>
+        <span class="finding-id">IEC-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Multiple OT protocols running without encryption.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (7)</div>
+                  <ul class="affected-list"><li>dnp3: 21 unencrypted packets</li><li>modbus: 43 unencrypted packets</li><li>bacnet: 28 unencrypted packets</li><li>iec104: 18 unencrypted packets</li><li>s7comm: 10 unencrypted packets</li><li>enip: 2 unencrypted packets</li><li>profinet: 1 unencrypted packets</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement TLS wrappers, VPN tunnels, or protocol-native security (DNP3-SA, OPC UA SecureChannel, BACnet/SC, CIP Security).</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1 — Confidentiality of Information in Transit</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="IEC 62443 Compliance">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">IEC 62443 SR 1.1: OT protocols without authentication (4)</span>
+        <span class="finding-id">IEC-003</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>OT protocols detected that have no built-in authentication mechanism.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (4)</div>
+                  <ul class="affected-list"><li>s7comm: No auth (classic S7)</li><li>modbus: No built-in auth</li><li>bacnet: No auth (classic BACnet/IP)</li><li>enip: No auth (classic CIP)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Deploy compensating controls: OT-aware firewalls with DPI, source IP allowlists, and network segmentation.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 1.1 — Human User Identification &amp; Authentication</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="MITRE ATT&amp;CK ICS">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">T0886 Remote Services to OT devices (3 flows)</span>
+        <span class="finding-id">MITRE-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>IT remote access protocols targeting OT devices. This is a primary initial access vector in ICS attacks.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (3)</div>
+                  <ul class="affected-list"><li>192.168.1.200→192.168.1.10:3389 (rdp) to OT device</li><li>10.0.0.99→192.168.2.10:80 (http) to OT device</li><li>10.0.0.99→192.168.1.10:23 (telnet) to OT device</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Disable direct remote access to OT devices. Use jump servers in DMZ.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>MITRE ATT&amp;CK T0886</li><li>IEC 62443-3-3 SR 1.13</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="HIGH" data-category="MITRE ATT&amp;CK ICS">
+      <div class="finding-header">
+        <span class="sev-badge HIGH">HIGH</span>
+        <span class="finding-title">Multi-protocol OT access from single hosts (2)</span>
+        <span class="finding-id">MITRE-003</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>2 host(s) communicate using multiple OT protocols. This may indicate lateral movement or a compromised engineering workstation.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (2)</div>
+                  <ul class="affected-list"><li>10.0.0.99: accesses s7comm,modbus,bacnet,dnp3</li><li>192.168.2.50: accesses s7comm,enip</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Investigate these hosts. Engineering workstations should be monitored. Implement network segmentation per protocol zone.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>MITRE ATT&amp;CK T0867 — Lateral Tool Transfer</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="MEDIUM" data-category="Modbus/TCP">
+      <div class="finding-header">
+        <span class="sev-badge MEDIUM">MEDIUM</span>
+        <span class="finding-title">Excessive Modbus exception responses (15)</span>
+        <span class="finding-id">MODBUS-005</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>15 Modbus exception responses detected. High exception rates may indicate scanning, fuzzing, or unauthorized access attempts.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (15)</div>
+                  <ul class="affected-list"><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li><li>192.168.1.10→10.0.0.99 FC=0x83 ExceptionCode=2</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Investigate source IPs generating exceptions. Deploy IDS with Modbus signatures.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>NIST SP 800-82 — ICS Monitoring</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="MEDIUM" data-category="IEC 60870-5-104">
+      <div class="finding-header">
+        <span class="sev-badge MEDIUM">MEDIUM</span>
+        <span class="finding-title">Excessive IEC 104 interrogation commands (8)</span>
+        <span class="finding-id">IEC104-002</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Many general interrogation commands may indicate scanning.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (8)</div>
+                  <ul class="affected-list"><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li><li>192.168.7.100→192.168.7.10 — General Interrogation</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Monitor interrogation frequency. Rate-limit per source.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 7.6</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="MEDIUM" data-category="MQTT">
+      <div class="finding-header">
+        <span class="sev-badge MEDIUM">MEDIUM</span>
+        <span class="finding-title">MQTT wildcard subscriptions (1)</span>
+        <span class="finding-id">MQTT-003</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Wildcard MQTT subscriptions (# or +) capture all messages on the broker.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>192.168.8.50 — Wildcard subscribe (#/+)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Implement topic-level ACLs. Restrict wildcard subscriptions.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>MQTT Security Best Practices</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="MEDIUM" data-category="MQTT">
+      <div class="finding-header">
+        <span class="sev-badge MEDIUM">MEDIUM</span>
+        <span class="finding-title">MQTT traffic with sensitive OT topics (1)</span>
+        <span class="finding-id">MQTT-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>MQTT messages reference sensitive OT topics (PLC, SCADA, control, setpoint).</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (1)</div>
+                  <ul class="affected-list"><li>192.168.8.50 — topic contains &#x27;plc&#x27;</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Encrypt MQTT (TLS). Implement topic-level authorization.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 4.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="MEDIUM" data-category="IEC 62443 Compliance">
+      <div class="finding-header">
+        <span class="sev-badge MEDIUM">MEDIUM</span>
+        <span class="finding-title">IEC 62443 SR 6.1: No syslog/SNMP trap traffic detected</span>
+        <span class="finding-id">IEC-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>No syslog (514) or SNMP trap (162) traffic detected. OT device events may not be forwarded to a central monitoring system.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (2)</div>
+                  <ul class="affected-list"><li>No syslog traffic detected</li><li>No SNMP trap traffic detected</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Configure syslog forwarding to a centralized SIEM/log collector. Deploy OT-aware monitoring (e.g., Dragos, Claroty, Nozomi).</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 6.1 — Audit Log Accessibility</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="LOW" data-category="Network Baseline">
+      <div class="finding-header">
+        <span class="sev-badge LOW">LOW</span>
+        <span class="finding-title">OT asset inventory — 20 devices discovered</span>
+        <span class="finding-id">NET-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>20 OT devices identified using industrial protocols.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (20)</div>
+                  <ul class="affected-list"><li>10.0.0.99: protocols=modbus,http,s7comm,ftp,telnet,bacnet,dnp3, peers=5, packets=50</li><li>192.168.1.10: protocols=modbus,rdp,telnet, peers=4, packets=45</li><li>192.168.1.100: protocols=modbus, peers=1, packets=20</li><li>192.168.1.50: protocols=modbus, peers=1, packets=5</li><li>192.168.2.10: protocols=s7comm,http, peers=2, packets=11</li><li>192.168.2.50: protocols=s7comm,enip, peers=2, packets=11</li><li>192.168.3.10: protocols=dnp3,ftp, peers=2, packets=22</li><li>192.168.3.100: protocols=dnp3, peers=1, packets=20</li><li>192.168.4.10: protocols=bacnet, peers=2, packets=3</li><li>192.168.4.100: protocols=bacnet, peers=1, packets=1</li><li>192.168.4.255: protocols=bacnet, peers=1, packets=25</li><li>192.168.5.10: protocols=opcua, peers=1, packets=11</li><li>192.168.5.50: protocols=opcua, peers=1, packets=11</li><li>192.168.6.10: protocols=enip, peers=1, packets=2</li><li>192.168.7.10: protocols=iec104, peers=1, packets=18</li><li>192.168.7.100: protocols=iec104, peers=1, packets=18</li><li>192.168.8.10: protocols=mqtt, peers=1, packets=3</li><li>192.168.8.50: protocols=mqtt, peers=1, packets=3</li><li>192.168.9.10: protocols=profinet, peers=1, packets=1</li><li>192.168.9.50: protocols=profinet, peers=1, packets=1</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Maintain an authoritative OT asset inventory. Compare against baseline.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-2-1 SR 4.2</li><li>NIST SP 800-82 Rev 3</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="LOW" data-category="Network Baseline">
+      <div class="finding-header">
+        <span class="sev-badge LOW">LOW</span>
+        <span class="finding-title">Top communication pairs (baseline reference)</span>
+        <span class="finding-id">NET-004</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Top 10 communication pairs by packet count for baseline establishment.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (10)</div>
+                  <ul class="affected-list"><li>10.0.0.99↔192.168.4.255: 25 packets</li><li>192.168.3.10↔192.168.3.100: 20 packets</li><li>192.168.1.10↔192.168.1.100: 20 packets</li><li>10.0.0.99↔192.168.1.10: 19 packets</li><li>192.168.7.10↔192.168.7.100: 18 packets</li><li>192.168.5.10↔192.168.5.50: 11 packets</li><li>192.168.2.10↔192.168.2.50: 9 packets</li><li>192.168.1.10↔192.168.1.50: 5 packets</li><li>192.168.8.10↔192.168.8.50: 3 packets</li><li>192.168.2.50↔192.168.6.10: 2 packets</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Document as baseline. Alert on new communication pairs not in baseline.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>IEC 62443-3-3 SR 6.1</li></ul>
+                </div>
+      </div>
+    </div>
+
+    <div class="finding-card" data-severity="LOW" data-category="MITRE ATT&amp;CK ICS">
+      <div class="finding-header">
+        <span class="sev-badge LOW">LOW</span>
+        <span class="finding-title">MITRE ATT&amp;CK for ICS technique coverage (8 techniques)</span>
+        <span class="finding-id">MITRE-001</span>
+        <span class="finding-chevron">&#9654;</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <p>Traffic patterns map to these MITRE ATT&amp;CK for ICS techniques.</p>
+        </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Affected Items (8)</div>
+                  <ul class="affected-list"><li>T0846 — Remote System Discovery: 115 related packets (OT device enumeration via protocol-specific scanning)</li><li>T0830 — Man in the Middle: 107 related packets (Unencrypted OT protocols vulnerable to interception)</li><li>T0855 — Unauthorized Command Message: 94 related packets (Control commands sent to PLCs/RTUs)</li><li>T0836 — Modify Parameter: 84 related packets (Process parameter modification via write commands)</li><li>T0814 — Denial of Service: 71 related packets (DoS attacks against OT devices)</li><li>T0812 — Default Credentials: 12 related packets (Access attempts using default/no credentials)</li><li>T0843 — Program Download: 12 related packets (PLC program transfer/modification)</li><li>T0886 — Remote Services: 3 related packets (Remote access to OT systems via IT management protocols)</li></ul>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">Remediation</div>
+                  <div class="remediation-text">Use MITRE ATT&amp;CK for ICS to prioritize detection rules and incident response playbooks.</div>
+                </div>
+        
+                <div class="finding-section">
+                  <div class="finding-section-title">References</div>
+                  <ul class="ref-list"><li>MITRE ATT&amp;CK for ICS — https://attack.mitre.org/techniques/ics/</li></ul>
+                </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    OT/ICS/SCADA Security Scanner &middot; Generated 2026-03-07T08:03:54 &middot;
+    For authorized security assessments only
+  </div>
+</div>
+
+<script>
+// Toggle finding details
+document.querySelectorAll('.finding-header').forEach(el => {
+  el.addEventListener('click', () => {
+    el.parentElement.classList.toggle('open');
+  });
+});
+
+// Severity filter
+function filterFindings(sev) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.finding-card').forEach(card => {
+    if (sev === 'ALL' || card.dataset.severity === sev) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+// Expand all for print
+window.addEventListener('beforeprint', () => {
+  document.querySelectorAll('.finding-card').forEach(c => c.classList.add('open'));
+});
+</script>
+</body>
+</html>
