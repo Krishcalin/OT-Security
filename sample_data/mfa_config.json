@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "adminMfa": false,
+  "allowBypass": true,
+  "methods": [
+    "TOTP",
+    "SMS",
+    "Email"
+  ],
+  "gracePeriodDays": 30,
+  "rememberedDeviceDays": 90
+}

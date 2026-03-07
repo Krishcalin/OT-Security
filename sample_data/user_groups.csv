@@ -1,0 +1,30 @@
+USERNAME,GROUP,ASSIGNED_DATE
+admin,Customer Administrator,2020-01-15
+admin,Full Access,2020-01-15
+admin,Requisition Creator,2020-01-15
+admin,Requisition Approver,2020-01-15
+admin,Purchase Order Creator,2020-01-15
+admin,Purchase Order Approver,2020-01-15
+admin,Invoice Reconciliation,2020-01-15
+admin,Payment Processing,2020-01-15
+admin,Supplier Manager,2020-02-01
+admin,Contract Manager,2020-02-01
+jsmith,Requisition Creator,2021-03-20
+jsmith,Requisition Approver,2021-05-01
+jsmith,Purchase Order Creator,2021-07-01
+jsmith,Purchase Order Approver,2022-01-15
+jsmith,Catalog Manager,2022-03-01
+mwilson,Invoice Reconciliation,2022-01-10
+mwilson,Payment Processing,2022-01-10
+rjones,Requisition Creator,2021-06-15
+rjones,Supplier Manager,2021-08-01
+rjones,Contract Manager,2022-02-01
+ldavis,Requisition Creator,2020-09-01
+shared_procurement,Requisition Creator,2019-05-01
+generic_ap,Invoice Reconciliation,2020-02-01
+tlee,Requisition Creator,2022-05-20
+pwang,Customer Administrator,2023-01-15
+pwang,Full Access,2023-01-15
+pwang,System Admin,2023-02-01
+kbrown,Requisition Creator,2021-04-10
+agarcia,Invoice Reconciliation,2022-08-01

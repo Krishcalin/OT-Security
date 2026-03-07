@@ -1,0 +1,11 @@
+{
+  "thresholds": {
+    "poAutoApproveLimit": 25000,
+    "invoiceAutoPostLimit": 5000
+  },
+  "allowMaverickSpend": true,
+  "requirePreApproval": false,
+  "bulkExportEnabled": true,
+  "retroactivePOAllowed": true,
+  "punchoutRestrictions": false
+}

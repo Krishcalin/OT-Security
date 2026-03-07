@@ -1,138 +1,137 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="OT Security Scanner" width="900"/>
+  <img src="docs/banner.svg" alt="SAP Ariba SSPM Security Scanner" width="900"/>
 </p>
 
 <p align="center">
-  <strong>A PCAP-based offline security assessment tool for ICS/SCADA/OT networks</strong>
+  <strong>A Python-based SaaS Security Posture Management (SSPM) scanner for SAP Ariba</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue?style=flat-square&logo=python&logoColor=white"/>
   <img src="https://img.shields.io/badge/dependencies-zero-brightgreen?style=flat-square"/>
   <img src="https://img.shields.io/badge/license-MIT-orange?style=flat-square"/>
-  <img src="https://img.shields.io/badge/protocols-9-e11d48?style=flat-square"/>
-  <img src="https://img.shields.io/badge/IEC_62443-aligned-red?style=flat-square"/>
-  <img src="https://img.shields.io/badge/MITRE_ATT%26CK-ICS-dc2626?style=flat-square"/>
+  <img src="https://img.shields.io/badge/checks-47%2B-6366f1?style=flat-square"/>
+  <img src="https://img.shields.io/badge/SSPM-compliant-818cf8?style=flat-square"/>
 </p>
 
 ---
 
 ## Overview
 
-**OT Security Scanner** analyzes PCAP/PCAPNG packet captures from ICS/SCADA/OT networks to detect security vulnerabilities, protocol abuse, misconfigurations, and attack patterns. It covers 9 industrial protocols across 12 analysis modules with findings mapped to IEC 62443 and MITRE ATT&CK for ICS.
+**SAP Ariba SSPM Security Scanner** performs offline security posture assessment of SAP Ariba procurement environments. Modeled after commercial SaaS Security Posture Management (SSPM) tools (AppOmni, Obsidian, Adaptive Shield, Nudge Security), it evaluates configuration exports for misconfigurations, access risks, compliance gaps, and security drift.
 
-- **PCAP-based** — analyzes packet captures offline, no live network access needed
-- **Pure Python** — zero external dependencies (no scapy, dpkt, or tshark)
-- **9 industrial protocols** — Modbus, S7comm, DNP3, BACnet, OPC UA, EtherNet/IP, IEC 104, PROFINET, MQTT
-- **12 analysis modules** — protocol-specific + network baseline + compliance + threat mapping
-- **IEC 62443 + MITRE ATT&CK ICS** — all findings mapped to industry frameworks
-
----
-
-## Supported Protocols & Devices
-
-| Protocol | Port | Devices | Module |
-|----------|------|---------|--------|
-| **Modbus/TCP** | 502 | PLCs, RTUs, FRTUs (Schneider, ABB, Wago) | `modbus` |
-| **Siemens S7comm** | 102 | Siemens S7-300/400/1200/1500 PLCs | `s7` |
-| **DNP3** | 20000 | RTUs, outstations, SCADA masters (power/water) | `dnp3` |
-| **BACnet/IP** | 47808 | Building automation controllers (Johnson, Honeywell) | `bacnet` |
-| **OPC UA** | 4840/4843 | Industrial servers, historians, DCS | `opcua` |
-| **EtherNet/IP (CIP)** | 44818 | Rockwell/Allen-Bradley PLCs, drives | `enip` |
-| **IEC 60870-5-104** | 2404 | Power grid RTUs, substation automation | `iec104` |
-| **PROFINET** | 34962-34964 | Siemens I/O, drives, controllers | `profinet` |
-| **MQTT** | 1883/8883 | IIoT gateways, edge devices, sensors | `mqtt` |
+- **SSPM-aligned** — identity security, configuration management, data protection, compliance
+- **47+ security checks** across 10 audit modules
+- **Offline analysis** — reads JSON/CSV configuration exports, no live API access required
+- **Zero dependencies** — Python 3.8+ stdlib only
+- **Compliance mapped** — SOX, GDPR, ISO 27001, SOC 2
 
 ---
 
-## Analysis Modules (12)
+## SSPM Audit Modules (10)
 
-| Module | Key | Focus |
-|--------|-----|-------|
-| 🔌 **Modbus/TCP** | `modbus` | Write operations, diagnostic abuse, Force Listen Only (DoS), reconnaissance, broadcast |
-| ⚙️ **Siemens S7comm** | `s7` | CPU stop/start, program upload/download, write variables, auth brute-force, SZL enumeration |
-| 🔋 **DNP3** | `dnp3` | Cold/warm restart, file transfer, control operations, Secure Auth detection |
-| 🏢 **BACnet/IP** | `bacnet` | WriteProperty, ReinitializeDevice, DeviceCommunicationControl (DoS), Who-Is scanning |
-| 🔧 **OPC UA** | `opcua` | SecurityMode=None, anonymous access, write operations, unencrypted sessions |
-| 🏭 **EtherNet/IP** | `enip` | Program operations, configuration changes, unauthorized access |
-| ⚡ **IEC 60870-5-104** | `iec104` | Control commands, setpoint changes, interrogation scanning |
-| 📡 **PROFINET** | `profinet` | DCP identification, configuration changes, unencrypted traffic |
-| 🌐 **MQTT** | `mqtt` | Unencrypted connections, anonymous access, wildcard subscriptions, sensitive topics |
-| 📊 **Network Baseline** | `baseline` | Asset discovery, IT/OT crossover, insecure protocols, communication matrix |
-| 🛡️ **IEC 62443 Compliance** | `iec62443` | Zone segmentation violations, unencrypted conduits, authentication gaps, audit trail |
-| 🎯 **MITRE ATT&CK ICS** | `mitre` | Technique coverage mapping, initial access vectors, lateral movement detection |
+| # | Module | Key | Checks | Focus |
+|---|--------|-----|--------|-------|
+| 1 | 🔑 **Identity & Access** | `iam` | 8 | Dormant accounts, admin sprawl, SoD conflicts, privilege creep, terminated access, shared accounts, orphaned users |
+| 2 | 🔒 **Authentication & SSO** | `auth` | 6 | SAML SSO enforcement, MFA coverage, password policy, session timeout, IP restrictions, certificate expiry |
+| 3 | 🔌 **API & Integration** | `api` | 5 | OAuth scope sprawl, deprecated grant types, stale API clients, webhook security, integration auth, rate limiting |
+| 4 | 📋 **Procurement Controls** | `procurement` | 6 | Approval workflows, auto-approve thresholds, contract controls, catalog governance, payment 3-way match, maverick spend |
+| 5 | 🛡️ **Data Protection** | `data` | 6 | External data sharing, field-level encryption, retention policies, PII field classification, export controls, supplier data isolation |
+| 6 | 🏭 **Supplier Management** | `supplier` | 4 | Onboarding controls, supplier MFA, bank detail verification, continuous risk monitoring |
+| 7 | 📊 **Audit & Compliance** | `audit` | 5 | Audit logging, event type coverage, log retention, SIEM integration, compliance framework mapping |
+| 8 | 🌐 **Network Security** | `network` | 3 | Ariba Network profile privacy, TLS version, document auto-sharing |
+| 9 | 🔔 **Notification & Alerting** | `notification` | 2 | Security alert rules, notification channels |
+| 10 | ⚠️ **Configuration Drift** | `drift` | 2 | Critical security settings baseline, configuration drift detection |
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Krishcalin/OT-Security.git
-cd OT-Security
+git clone https://github.com/Krishcalin/SAP-Ariba-Security-Scanner.git
+cd SAP-Ariba-Security-Scanner
 
-# Generate sample PCAP with synthetic OT traffic
-python generate_sample_pcap.py
+# Generate sample data with deliberate security issues
+python generate_sample_data.py
 
 # Run the scanner
-python ot_scanner.py --data-dir ./sample_pcaps --output report.html
+python ariba_scanner.py --data-dir ./sample_data --output report.html
 
-# Scan specific protocols
-python ot_scanner.py --data-dir ./captures --modules modbus s7 dnp3
+# Scan specific modules
+python ariba_scanner.py --data-dir ./exports --modules iam auth procurement
 
-# High severity only
-python ot_scanner.py --data-dir ./captures --severity HIGH
-```
+# Filter severity
+python ariba_scanner.py --data-dir ./exports --severity HIGH
 
-### Getting PCAPs from Your OT Network
-
-```bash
-# Using tcpdump on a SPAN/mirror port
-tcpdump -i eth0 -w ot_capture.pcap -c 100000
-
-# Using Wireshark/tshark with OT protocol filters
-tshark -i eth0 -f "port 502 or port 102 or port 20000 or port 47808 or port 44818" -w ot_capture.pcap
+# Drift detection against a baseline
+python ariba_scanner.py --data-dir ./exports --config baseline.json
 ```
 
 ---
 
-## Available Modules
+## Data Export Guide
 
-```
-modbus    — Modbus/TCP protocol analysis
-s7        — Siemens S7comm protocol analysis
-dnp3      — DNP3 protocol analysis
-bacnet    — BACnet/IP protocol analysis
-opcua     — OPC UA protocol analysis
-enip      — EtherNet/IP (CIP) protocol analysis
-iec104    — IEC 60870-5-104 protocol analysis
-profinet  — PROFINET protocol analysis
-mqtt      — MQTT protocol analysis
-baseline  — Network baseline & asset discovery
-iec62443  — IEC 62443 compliance assessment
-mitre     — MITRE ATT&CK for ICS technique mapping
-all       — Run everything (default)
-```
+Export the following from your SAP Ariba tenant (via Ariba Administrator or API):
+
+| File | Source | Description |
+|------|--------|-------------|
+| `users.csv` | User Management | All users with login dates, status, department |
+| `user_groups.csv` | Group Management | User-to-group assignments |
+| `sso_config.json` | SAML SSO settings | SSO provider, assertions, enforcement |
+| `mfa_config.json` | MFA configuration | MFA methods, bypass, enforcement |
+| `password_policy.json` | Password settings | Complexity, lockout, history |
+| `api_clients.json` | API/OAuth clients | Client IDs, scopes, grant types |
+| `api_permissions.csv` | API access matrix | Client-to-entity permissions |
+| `integration_config.json` | Integration setup | Connectors, webhooks, auth |
+| `approval_workflows.json` | Approval flow rules | Thresholds, auto-approve |
+| `procurement_policies.json` | Procurement policies | Spend limits, controls |
+| `supplier_config.json` | Supplier management | Onboarding, verification |
+| `data_sharing.json` | Sharing settings | External sharing rules |
+| `audit_config.json` | Audit log config | Event types, retention, SIEM |
+| `encryption_config.json` | Certificates & TLS | Cert expiry, field encryption |
+| `ip_restrictions.json` | IP allowlists | Access restrictions |
+| `contract_config.json` | Contract settings | Approval, expiry alerts |
+| `payment_config.json` | Payment controls | 3-way match, duplicate check |
+| `custom_fields.csv` | Custom field list | PII classification |
+| `notification_config.json` | Alert rules | Security event notifications |
+
+---
+
+## SSPM Security Categories
+
+### 🔑 Identity Security (IAM-001 through IAM-008)
+Detects dormant accounts (configurable threshold, default 90 days), excessive administrator group membership, orphaned users without group assignments, terminated employees retaining active access, Segregation of Duties (SoD) conflicts across the procurement lifecycle (Req Creator/Approver, PO Creator/Approver, Invoice/Payment, Supplier/Contract), shared/generic accounts, and privilege creep.
+
+### 🔒 Authentication Posture (AUTH-001 through AUTH-008)
+Validates SAML 2.0 SSO configuration (signed assertions, encrypted assertions, IDP-initiated risk, SSO enforcement), MFA enforcement (admin-specific MFA, SMS deprecation, bypass controls), password policy strength (length, complexity, history, lockout), session timeout limits, IP-based access restrictions, and X.509 certificate lifecycle.
+
+### 🔌 API & Integration Risk (API-001 through API-007)
+Identifies overly broad OAuth scopes (wildcard, admin, full access), deprecated grant types (password, implicit), stale API clients unused for 180+ days, sensitive entity write permissions, unauthenticated integrations, HTTP webhooks without HMAC verification, and missing rate limiting.
+
+### 📋 Procurement Controls (PROC-001 through PROC-007)
+Evaluates approval workflow completeness, auto-approve threshold values ($25K+ flagged), contract management controls (expiry alerts, dual approval, competitive bidding), catalog change governance, payment controls (three-way match, duplicate detection, auto-payment approval), and maverick/off-catalog spend policies.
+
+### 🛡️ Data Protection (DATA-001 through DATA-006)
+Assesses external data sharing scope (ALL/PUBLIC flagged), field-level encryption for sensitive data, data retention/purge policies, custom field PII classification (auto-detects SSN, Tax ID, Bank Account, etc. in field names), bulk export restrictions, and supplier portal data isolation.
+
+### 🏭 Supplier Security (SUPP-001 through SUPP-004)
+Reviews supplier onboarding workflows (approval, due diligence, risk assessment, self-registration), supplier portal authentication (MFA), bank detail change verification (BEC/invoice fraud prevention), and continuous supplier risk monitoring.
 
 ---
 
 ## Project Structure
 
 ```
-OT-Security/
-├── ot_scanner.py                   # Main entry point
-├── generate_sample_pcap.py         # Sample PCAP generator for testing
+SAP-Ariba-Security-Scanner/
+├── ariba_scanner.py                # Main entry point
+├── generate_sample_data.py         # Sample data generator
 ├── modules/
-│   ├── pcap_parser.py             # Pure-Python PCAP/PCAPNG reader
-│   ├── modbus_analyzer.py         # Modbus/TCP analysis
-│   ├── s7comm_analyzer.py         # Siemens S7comm analysis
-│   ├── dnp3_analyzer.py           # DNP3 analysis
-│   ├── bacnet_analyzer.py         # BACnet/IP analysis
-│   ├── opcua_analyzer.py          # OPC UA analysis
-│   ├── protocol_analyzers.py      # EtherNet/IP, IEC 104, MQTT
-│   ├── network_baseline.py        # Network baseline + PROFINET
-│   ├── compliance_mitre.py        # IEC 62443 + MITRE ATT&CK ICS
-│   └── report_generator.py        # HTML dashboard
-├── sample_pcaps/                   # Generated test captures
+│   ├── base.py                     # Data loader & base auditor
+│   ├── identity_access.py          # Identity & Access Management
+│   ├── core_modules.py             # Auth, API, Procurement, Data
+│   ├── extended_modules.py         # Supplier, Audit, Network, Alerts, Drift
+│   └── report_generator.py         # HTML dashboard report
+├── sample_data/                    # 23 demo config files
 ├── docs/
 │   └── banner.svg
 ├── .gitignore
@@ -145,18 +144,18 @@ OT-Security/
 
 ## References
 
-- [IEC 62443 Series — Industrial Cybersecurity Standards](https://www.isa.org/standards-and-publications/isa-standards/isa-iec-62443-series-of-standards)
-- [NIST SP 800-82 Rev 3 — Guide to OT Security](https://csrc.nist.gov/publications/detail/sp/800-82/rev-3/final)
-- [MITRE ATT&CK for ICS](https://attack.mitre.org/techniques/ics/)
-- [ICS-CERT / CISA Advisories](https://www.cisa.gov/news-events/ics-advisories)
-- [Modbus Protocol Specification](https://modbus.org/specs.php)
-- [IEEE 1815-2012 (DNP3 Secure Authentication)](https://standards.ieee.org/standard/1815-2012.html)
-- [OPC UA Security Model (OPC 10000-4)](https://reference.opcfoundation.org/)
-- [ASHRAE 135 — BACnet/SC](https://www.ashrae.org/technical-resources/bookstore/bacnet)
+- [SAP Ariba Security Guide](https://help.sap.com/docs/ariba)
+- [SAP Ariba Cloud Security Assessment (CSA)](https://www.sap.com/about/trust-center/certification-compliance/sap-ariba-csa-pack.html)
+- [SAP Ariba SOC 2 Audit Report](https://www.sap.com/about/trust-center/certification-compliance.html)
+- [SSPM — AppOmni](https://appomni.com/learn/saas-security-fundamentals/sspm/)
+- [SSPM — Obsidian Security](https://www.obsidiansecurity.com/sspm-saas-security-posture-management)
+- [CIS Controls v8](https://www.cisecurity.org/controls)
+- [NIST SP 800-53 Rev 5](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final)
+- [SOX IT Controls — Procurement](https://www.sarbanes-oxley-101.com/)
 
 ## Disclaimer
 
-This tool is for **authorized OT security assessments only**. It performs offline PCAP analysis and does not connect to any live OT/ICS network or device. Always obtain proper authorization before capturing OT network traffic.
+This tool is for **authorized security assessments only**. It performs offline configuration analysis and does not connect to any live SAP Ariba tenant.
 
 ## License
 

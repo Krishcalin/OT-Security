@@ -2,117 +2,89 @@
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#04080f"/>
-      <stop offset="40%" style="stop-color:#0f0a1e"/>
-      <stop offset="100%" style="stop-color:#0b0515"/>
+      <stop offset="40%" style="stop-color:#0c0821"/>
+      <stop offset="100%" style="stop-color:#0a0520"/>
     </linearGradient>
     <linearGradient id="topBar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#e11d48"/>
-      <stop offset="50%" style="stop-color:#f43f5e"/>
-      <stop offset="100%" style="stop-color:#dc2626"/>
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="50%" style="stop-color:#818cf8"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
     </linearGradient>
-    <linearGradient id="shieldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#e11d48"/>
-      <stop offset="100%" style="stop-color:#f43f5e"/>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#818cf8"/>
     </linearGradient>
     <linearGradient id="shieldFill" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" style="stop-color:#e11d48;stop-opacity:0.1"/>
-      <stop offset="100%" style="stop-color:#e11d48;stop-opacity:0.01"/>
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.01"/>
     </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#e11d48;stop-opacity:0.06"/>
-      <stop offset="100%" style="stop-color:#e11d48;stop-opacity:0"/>
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.06"/>
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0"/>
     </radialGradient>
-    <filter id="softGlow"><feGaussianBlur stdDeviation="2.5" result="b"/>
+    <filter id="sf"><feGaussianBlur stdDeviation="2.5" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <clipPath id="clip"><rect width="900" height="230" rx="14"/></clipPath>
   </defs>
   <rect width="900" height="230" rx="14" fill="url(#bg)"/>
   <rect width="900" height="3" rx="1.5" fill="url(#topBar)" clip-path="url(#clip)"/>
   <ellipse cx="100" cy="115" rx="110" ry="100" fill="url(#glow)"/>
-
-  <!-- Shield with industrial gears -->
-  <g transform="translate(42, 30)" filter="url(#softGlow)">
+  <g transform="translate(42, 30)" filter="url(#sf)">
     <path d="M56 8 L100 26 L100 82 C100 114 80 134 56 144 C32 134 12 114 12 82 L12 26 Z"
-          fill="url(#shieldFill)" stroke="url(#shieldStroke)" stroke-width="2"/>
-    <!-- PLC/RTU symbol -->
-    <rect x="30" y="35" width="52" height="38" rx="4" fill="none" stroke="#e11d48" stroke-width="1.5" opacity="0.7"/>
-    <!-- LED indicators -->
-    <circle cx="38" cy="43" r="2.5" fill="#22c55e" opacity="0.8"/>
-    <circle cx="46" cy="43" r="2.5" fill="#22c55e" opacity="0.6"/>
-    <circle cx="54" cy="43" r="2.5" fill="#eab308" opacity="0.8"/>
-    <circle cx="62" cy="43" r="2.5" fill="#e11d48" opacity="0.8"/>
-    <!-- Terminal blocks -->
-    <rect x="34" y="52" width="4" height="8" rx="1" fill="#e11d48" opacity="0.4"/>
-    <rect x="42" y="52" width="4" height="8" rx="1" fill="#e11d48" opacity="0.4"/>
-    <rect x="50" y="52" width="4" height="8" rx="1" fill="#e11d48" opacity="0.4"/>
-    <rect x="58" y="52" width="4" height="8" rx="1" fill="#e11d48" opacity="0.4"/>
-    <rect x="66" y="52" width="4" height="8" rx="1" fill="#e11d48" opacity="0.4"/>
-    <!-- Wires going down -->
-    <line x1="36" y1="60" x2="36" y2="72" stroke="#f43f5e" stroke-width="1" opacity="0.3"/>
-    <line x1="44" y1="60" x2="44" y2="72" stroke="#f43f5e" stroke-width="1" opacity="0.3"/>
-    <line x1="52" y1="60" x2="52" y2="72" stroke="#f43f5e" stroke-width="1" opacity="0.3"/>
-    <line x1="60" y1="60" x2="60" y2="72" stroke="#f43f5e" stroke-width="1" opacity="0.3"/>
-    <line x1="68" y1="60" x2="68" y2="72" stroke="#f43f5e" stroke-width="1" opacity="0.3"/>
-    <!-- Network connection -->
-    <rect x="38" y="80" width="36" height="10" rx="2" fill="none" stroke="#f43f5e" stroke-width="1" opacity="0.5"/>
-    <text x="56" y="88" font-family="monospace" font-size="6" fill="#f43f5e" text-anchor="middle" opacity="0.7">PCAP</text>
-    <!-- Magnifying glass -->
-    <circle cx="56" cy="108" r="10" fill="none" stroke="#e11d48" stroke-width="1.8" opacity="0.6"/>
-    <line x1="63" y1="115" x2="72" y2="124" stroke="#e11d48" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-    <path d="M52 105 L55 108 L60 103" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+          fill="url(#shieldFill)" stroke="url(#shieldGrad)" stroke-width="2"/>
+    <!-- Cart / procurement icon -->
+    <path d="M34 50 L40 50 L50 80 L72 80 L78 58 L44 58" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    <circle cx="52" cy="88" r="3" fill="#6366f1" opacity="0.6"/>
+    <circle cx="68" cy="88" r="3" fill="#6366f1" opacity="0.6"/>
+    <!-- Checkmark on shield -->
+    <path d="M48 100 L54 106 L66 92" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    <!-- Lock -->
+    <rect x="50" y="35" width="12" height="10" rx="2" fill="#6366f1" opacity="0.5"/>
+    <path d="M53 35 V30 C53 26 59 26 59 30 V35" fill="none" stroke="#6366f1" stroke-width="1.5" opacity="0.6"/>
+    <circle cx="56" cy="40" r="1.5" fill="#0c0821"/>
   </g>
-
-  <!-- Text -->
-  <text x="220" y="52" font-family="'Courier New', monospace" font-size="10" fill="#e11d48" letter-spacing="4.5" opacity="0.6">ICS / SCADA / OT</text>
-  <text x="220" y="92" font-family="'Segoe UI', 'Helvetica Neue', sans-serif" font-size="34" font-weight="700" fill="#f1f5f9">OT Security Scanner</text>
-  <text x="220" y="126" font-family="'Courier New', monospace" font-size="20" fill="#e11d48" font-weight="700" letter-spacing="1.5">PCAP-Based Assessment</text>
-  <line x1="220" y1="140" x2="520" y2="140" stroke="#1e293b" stroke-width="1"/>
-
-  <!-- Protocol list -->
-  <g transform="translate(220, 150)">
-    <text x="0" y="12" font-family="monospace" font-size="10" fill="#94a3b8">Modbus</text>
-    <circle cx="46" cy="9" r="1.2" fill="#334155"/>
-    <text x="52" y="12" font-family="monospace" font-size="10" fill="#94a3b8">S7comm</text>
-    <circle cx="100" cy="9" r="1.2" fill="#334155"/>
-    <text x="106" y="12" font-family="monospace" font-size="10" fill="#94a3b8">DNP3</text>
-    <circle cx="138" cy="9" r="1.2" fill="#334155"/>
-    <text x="144" y="12" font-family="monospace" font-size="10" fill="#94a3b8">BACnet</text>
-    <circle cx="192" cy="9" r="1.2" fill="#334155"/>
-    <text x="198" y="12" font-family="monospace" font-size="10" fill="#94a3b8">OPC UA</text>
-    <circle cx="250" cy="9" r="1.2" fill="#334155"/>
-    <text x="256" y="12" font-family="monospace" font-size="10" fill="#94a3b8">ENIP</text>
-    <circle cx="286" cy="9" r="1.2" fill="#334155"/>
-    <text x="292" y="12" font-family="monospace" font-size="10" fill="#94a3b8">IEC104</text>
+  <text x="220" y="52" font-family="'Courier New', monospace" font-size="10" fill="#6366f1" letter-spacing="4.5" opacity="0.6">SAP ARIBA · SSPM</text>
+  <text x="220" y="92" font-family="'Segoe UI', 'Helvetica Neue', sans-serif" font-size="34" font-weight="700" fill="#f1f5f9">Ariba Security Scanner</text>
+  <text x="220" y="126" font-family="'Courier New', monospace" font-size="20" fill="#818cf8" font-weight="700" letter-spacing="1.5">Posture Management</text>
+  <line x1="220" y1="140" x2="510" y2="140" stroke="#1e293b" stroke-width="1"/>
+  <text x="220" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">Identity</text>
+  <circle cx="268" cy="157" r="1.2" fill="#334155"/>
+  <text x="278" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">SSO/MFA</text>
+  <circle cx="330" cy="157" r="1.2" fill="#334155"/>
+  <text x="340" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">API</text>
+  <circle cx="362" cy="157" r="1.2" fill="#334155"/>
+  <text x="372" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">Procurement</text>
+  <circle cx="446" cy="157" r="1.2" fill="#334155"/>
+  <text x="456" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">Data</text>
+  <circle cx="484" cy="157" r="1.2" fill="#334155"/>
+  <text x="494" y="160" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">Supplier</text>
+  <g transform="translate(220, 174)">
+    <rect x="0" y="0" width="66" height="22" rx="5" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-width="0.6"/>
+    <text x="33" y="15" font-family="monospace" font-size="8.5" fill="#6366f1" text-anchor="middle">SOX</text>
+    <rect x="74" y="0" width="66" height="22" rx="5" fill="rgba(129,140,248,0.06)" stroke="#818cf8" stroke-width="0.6"/>
+    <text x="107" y="15" font-family="monospace" font-size="8.5" fill="#818cf8" text-anchor="middle">GDPR</text>
+    <rect x="148" y="0" width="80" height="22" rx="5" fill="rgba(79,70,229,0.06)" stroke="#4f46e5" stroke-width="0.6"/>
+    <text x="188" y="15" font-family="monospace" font-size="8.5" fill="#4f46e5" text-anchor="middle">ISO 27001</text>
+    <rect x="236" y="0" width="80" height="22" rx="5" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-width="0.6"/>
+    <text x="276" y="15" font-family="monospace" font-size="8.5" fill="#6366f1" text-anchor="middle">SOC 2</text>
   </g>
-
-  <!-- Badges -->
-  <g transform="translate(220, 178)">
-    <rect x="0" y="0" width="82" height="22" rx="5" fill="rgba(225,29,72,0.06)" stroke="#e11d48" stroke-width="0.6"/>
-    <text x="41" y="15" font-family="monospace" font-size="8.5" fill="#e11d48" text-anchor="middle">IEC 62443</text>
-    <rect x="90" y="0" width="95" height="22" rx="5" fill="rgba(244,63,94,0.06)" stroke="#f43f5e" stroke-width="0.6"/>
-    <text x="137" y="15" font-family="monospace" font-size="8.5" fill="#f43f5e" text-anchor="middle">NIST SP 800-82</text>
-    <rect x="193" y="0" width="110" height="22" rx="5" fill="rgba(220,38,38,0.06)" stroke="#dc2626" stroke-width="0.6"/>
-    <text x="248" y="15" font-family="monospace" font-size="8.5" fill="#dc2626" text-anchor="middle">MITRE ATT&amp;CK ICS</text>
-  </g>
-
-  <!-- Version + Stats -->
   <g transform="translate(770, 50)">
-    <rect x="0" y="0" width="80" height="30" rx="15" fill="rgba(225,29,72,0.07)" stroke="#e11d48" stroke-width="0.8"/>
-    <text x="40" y="20" font-family="monospace" font-size="14" fill="#e11d48" text-anchor="middle" font-weight="700">v1.0</text>
+    <rect x="0" y="0" width="80" height="30" rx="15" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="0.8"/>
+    <text x="40" y="20" font-family="monospace" font-size="14" fill="#6366f1" text-anchor="middle" font-weight="700">v1.0</text>
   </g>
   <g transform="translate(740, 100)">
     <rect x="0" y="0" width="120" height="30" rx="6" fill="rgba(15,23,42,0.6)" stroke="#1e293b" stroke-width="0.6"/>
-    <text x="12" y="20" font-family="monospace" font-size="18" fill="#e11d48" font-weight="700">12</text>
+    <text x="12" y="20" font-family="monospace" font-size="18" fill="#6366f1" font-weight="700">10</text>
     <text x="38" y="20" font-family="'Segoe UI', sans-serif" font-size="10" fill="#64748b">modules</text>
   </g>
   <g transform="translate(740, 138)">
     <rect x="0" y="0" width="120" height="30" rx="6" fill="rgba(15,23,42,0.6)" stroke="#1e293b" stroke-width="0.6"/>
-    <text x="12" y="20" font-family="monospace" font-size="18" fill="#f43f5e" font-weight="700">9</text>
-    <text x="28" y="20" font-family="'Segoe UI', sans-serif" font-size="10" fill="#64748b">protocols</text>
+    <text x="12" y="20" font-family="monospace" font-size="18" fill="#818cf8" font-weight="700">47+</text>
+    <text x="52" y="20" font-family="'Segoe UI', sans-serif" font-size="10" fill="#64748b">checks</text>
   </g>
   <g transform="translate(740, 176)">
     <rect x="0" y="0" width="120" height="30" rx="6" fill="rgba(15,23,42,0.6)" stroke="#1e293b" stroke-width="0.6"/>
-    <text x="12" y="20" font-family="monospace" font-size="14" fill="#dc2626" font-weight="700">0</text>
+    <text x="12" y="20" font-family="monospace" font-size="14" fill="#4f46e5" font-weight="700">0</text>
     <text x="28" y="20" font-family="'Segoe UI', sans-serif" font-size="10" fill="#64748b">dependencies</text>
   </g>
 </svg>

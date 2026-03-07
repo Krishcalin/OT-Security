@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "loggedEvents": [
+    "user_login",
+    "config_change",
+    "po_create",
+    "po_approve"
+  ],
+  "retentionDays": 180,
+  "siemExport": false,
+  "alertOnAdminActions": false
+}

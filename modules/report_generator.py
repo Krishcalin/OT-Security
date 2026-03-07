@@ -55,7 +55,7 @@ class ReportGenerator:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OT/ICS/SCADA — Security Assessment Report</title>
+<title>SAP Ariba — Security Assessment Report</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 
@@ -68,7 +68,7 @@ class ReportGenerator:
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
-    --accent: #e11d48;
+    --accent: #6366f1;
     --accent-dim: rgba(56, 189, 248, 0.1);
     --critical: #ef4444;
     --critical-bg: rgba(239, 68, 68, 0.08);
@@ -78,7 +78,7 @@ class ReportGenerator:
     --medium-bg: rgba(234, 179, 8, 0.08);
     --low: #22c55e;
     --low-bg: rgba(34, 197, 94, 0.08);
-    --info-c: #e11d48;
+    --info-c: #6366f1;
     --info-bg: rgba(56, 189, 248, 0.08);
     --font-sans: 'DM Sans', -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -557,7 +557,7 @@ class ReportGenerator:
 
   <div class="header">
     <div class="header-left">
-      <h1>&#x1f6e1; OT/ICS/SCADA</h1>
+      <h1>&#x1f6e1; SAP Ariba</h1>
       <div class="subtitle">Security Assessment Report</div>
     </div>
     <div class="header-right">
@@ -630,7 +630,7 @@ class ReportGenerator:
   </div>
 
   <div class="footer">
-    OT/ICS/SCADA Security Scanner &middot; Generated {html.escape(self.meta.get('scan_time', '')[:19])} &middot;
+    SAP Ariba Security Scanner &middot; Generated {html.escape(self.meta.get('scan_time', '')[:19])} &middot;
     For authorized security assessments only
   </div>
 </div>

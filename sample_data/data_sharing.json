@@ -1,0 +1,28 @@
+{
+  "externalSharing": [
+    {
+      "name": "Partner-Reports",
+      "scope": "APPROVED_PARTNERS",
+      "entities": [
+        "PO",
+        "Invoice"
+      ]
+    },
+    {
+      "name": "Public-Catalog",
+      "scope": "ALL",
+      "entities": [
+        "Catalog"
+      ]
+    },
+    {
+      "name": "Supplier-Portal",
+      "scope": "ALL",
+      "entities": [
+        "Contract",
+        "PO",
+        "RFP"
+      ]
+    }
+  ]
+}
