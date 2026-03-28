@@ -10,9 +10,9 @@
 <p align="center">
   <a href="#unified-ot-scanner-v20"><img src="https://img.shields.io/badge/version-2.0.0-22c55e?style=flat-square" alt="Version"></a>
   <a href="#supported-protocols"><img src="https://img.shields.io/badge/protocols-16-3b82f6?style=flat-square" alt="Protocols"></a>
-  <a href="#vulnerability-detection"><img src="https://img.shields.io/badge/vuln%20rules-34-f97316?style=flat-square" alt="Rules"></a>
-  <a href="#ics-cve-database"><img src="https://img.shields.io/badge/ICS%20CVEs-76-ef4444?style=flat-square" alt="CVEs"></a>
-  <a href="#threat-detection--mitre-attck"><img src="https://img.shields.io/badge/malware%20sigs-7-dc2626?style=flat-square" alt="Malware Sigs"></a>
+  <a href="#vulnerability-detection"><img src="https://img.shields.io/badge/vuln%20rules-29-f97316?style=flat-square" alt="Rules"></a>
+  <a href="#ics-cve-database"><img src="https://img.shields.io/badge/ICS%20CVEs-90-ef4444?style=flat-square" alt="CVEs"></a>
+  <a href="#threat-detection--mitre-attck"><img src="https://img.shields.io/badge/malware%20sigs-9-dc2626?style=flat-square" alt="Malware Sigs"></a>
   <a href="#compliance-assessment"><img src="https://img.shields.io/badge/compliance-35%20controls-8b5cf6?style=flat-square" alt="Compliance"></a>
   <a href="#integration-ecosystem"><img src="https://img.shields.io/badge/exports-11%20formats-0ea5e9?style=flat-square" alt="Exports"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6c7086?style=flat-square" alt="License"></a>
@@ -30,7 +30,7 @@ The project includes a **unified scanner** (v2.0) that merges and extends two ea
 
 | Scanner | Directory | Version | Lines | Description |
 |---------|-----------|---------|------:|-------------|
-| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 16 protocols, 34 vuln rules, 76 CVEs, 7 malware sigs, 9 analysis engines, 11 export formats |
+| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 16 protocols, 29 vuln rules, 90 CVEs, 9 malware sigs, 9 analysis engines, 11 export formats |
 | **PLC Passive Scanner** | [`plc_passive_scanner/`](plc_passive_scanner/) | 1.0 | ~1,500 | Device identification scanner for PLCs (7 protocols, vendor fingerprinting) |
 | **RTU Passive Scanner** | [`rtu_passive_scanner/`](rtu_passive_scanner/) | 1.0 | ~2,500 | Vulnerability scanner for RTUs/IEDs (21 vuln rules, GOOSE/MMS) |
 
@@ -96,7 +96,7 @@ Project file devices receive `vendor_confidence = "ground_truth"` and bypass fin
 
 ### Vulnerability Detection
 
-**34 behavioral vulnerability rules** across 4 protocol-specific check modules, plus 5 zone violation rules and 5 IT/OT convergence rules.
+**29 behavioral vulnerability rules** across 4 protocol-specific check modules, plus 5 zone violation rules.
 
 | Category | Rules | Vuln ID Prefix | Examples |
 |----------|------:|----------------|----------|
@@ -108,7 +108,7 @@ Project file devices receive `vendor_confidence = "ground_truth"` and bypass fin
 
 ### ICS CVE Database
 
-**76 curated CVEs** across 11 vendor groups with **EPSS scores**, **CISA KEV flags**, and **exploit maturity** ratings. Each matched CVE receives a **Now / Next / Never priority** classification.
+**90 curated CVEs** across 19 vendor groups with **EPSS scores**, **CISA KEV flags**, and **exploit maturity** ratings. Each matched CVE receives a **Now / Next / Never priority** classification.
 
 | Vendor | CVEs | Key Products |
 |--------|-----:|-------------|
@@ -140,7 +140,7 @@ Composite risk scoring (0-100) combining multiple intelligence sources:
 
 ### Threat Detection & MITRE ATT&CK
 
-**7 ICS malware behavioral signatures** matched against observed traffic patterns:
+**9 ICS malware behavioral signatures** matched against observed traffic patterns:
 
 | Malware | Year | Target | MITRE Technique |
 |---------|------|--------|----------------|
@@ -151,6 +151,8 @@ Composite risk scoring (0-100) combining multiple intelligence sources:
 | **Pipedream/Incontroller** | 2022 | S7comm + Modbus multi-vector | T0836, T0855 |
 | **Stuxnet** | 2010 | S7comm program injection | T0843, T0845 |
 | **FrostyGoop** | 2024 | Modbus register manipulation | T0855 |
+| **Fuxnet** | 2024 | Modbus flood writes + diagnostics (PLC bricking) | T0831 |
+| **IOControl** | 2024 | MQTT C2 + IT protocols on IoT gateways | T0869 |
 
 **4 detection modules**: unauthorized command detection, malware signature matching, reconnaissance detection, behavioral baseline anomalies. **14 MITRE ATT&CK for ICS techniques** mapped.
 
@@ -290,11 +292,11 @@ ot_scanner/
     │   ├── it_detect.py            IT protocol detector (36+ protocols)
     │   └── behavior.py             Deep packet inspection statistics
     ├── fingerprint/                7-step vendor fingerprinting pipeline
-    ├── vuln/                       34 vulnerability rules (4 check modules)
+    ├── vuln/                       29 vulnerability rules (4 check modules)
     ├── topology/                   Purdue zones, violations, GraphML
     ├── cvedb/                      76 ICS CVEs with EPSS + CISA KEV
     ├── risk/                       Composite risk scoring (0-100)
-    ├── threat/                     7 ICS malware sigs + anomaly baselines
+    ├── threat/                     9 ICS malware sigs + anomaly baselines
     ├── attack/                     Multi-hop attack path analysis
     ├── access/                     Secure access audit (CIP-005 R2)
     ├── config/                     Configuration snapshots + drift detection

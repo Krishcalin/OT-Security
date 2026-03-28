@@ -56,7 +56,7 @@ class ElasticECSExporter:
     def to_ecs_ndjson(self, path: str) -> None:
         """Write ECS-compliant NDJSON events."""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now().isoformat() + "Z"
 
         with open(path, "w", encoding="utf-8") as fh:
             # Device inventory

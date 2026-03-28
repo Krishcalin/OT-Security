@@ -156,19 +156,19 @@
     <!-- Vuln Rules card -->
     <rect x="100" y="0" width="92" height="72" rx="10" fill="#1e293b" opacity="0.5"/>
     <rect x="100" y="0" width="92" height="72" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
-    <text x="146" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#f97316" text-anchor="middle">34</text>
+    <text x="146" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#f97316" text-anchor="middle">29</text>
     <text x="146" y="52" font-family="'Inter','Segoe UI',sans-serif" font-size="8.5" fill="#64748b" text-anchor="middle" letter-spacing="1">VULN RULES</text>
 
     <!-- CVEs card -->
     <rect x="200" y="0" width="92" height="72" rx="10" fill="#1e293b" opacity="0.5"/>
     <rect x="200" y="0" width="92" height="72" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
-    <text x="246" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#ef4444" text-anchor="middle">76</text>
+    <text x="246" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#ef4444" text-anchor="middle">90</text>
     <text x="246" y="52" font-family="'Inter','Segoe UI',sans-serif" font-size="8.5" fill="#64748b" text-anchor="middle" letter-spacing="1">ICS CVEs</text>
 
     <!-- Malware Sigs card -->
     <rect x="300" y="0" width="92" height="72" rx="10" fill="#1e293b" opacity="0.5"/>
     <rect x="300" y="0" width="92" height="72" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
-    <text x="346" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#dc2626" text-anchor="middle">7</text>
+    <text x="346" y="34" font-family="'Inter','Segoe UI',sans-serif" font-size="26" font-weight="800" fill="#dc2626" text-anchor="middle">9</text>
     <text x="346" y="52" font-family="'Inter','Segoe UI',sans-serif" font-size="8.5" fill="#64748b" text-anchor="middle" letter-spacing="1">MALWARE SIGS</text>
   </g>
 

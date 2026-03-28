@@ -65,7 +65,7 @@ ot_scanner/
 │   │   └── engine.py               # CompositeRiskEngine — multi-factor 0-100 scoring
 │   ├── threat/
 │   │   ├── engine.py               # ThreatDetectionEngine — 4 detection modules
-│   │   └── signatures.py           # 7 ICS malware behavioral signatures
+│   │   └── signatures.py           # 9 ICS malware behavioral signatures
 │   ├── attack/
 │   │   └── engine.py               # AttackPathEngine — BFS pathfinding + kill chain
 │   ├── access/
@@ -81,7 +81,7 @@ ot_scanner/
 │   ├── topology/
 │   │   └── engine.py               # Purdue zones, zone violations, GraphML export
 │   ├── cvedb/
-│   │   ├── ics_cves.py             # 76 ICS CVEs with EPSS + CISA KEV + exploit maturity
+│   │   ├── ics_cves.py             # 90 ICS CVEs with EPSS + CISA KEV + exploit maturity
 │   │   └── matcher.py              # CVEMatcher with Now/Next/Never + KEV/EPSS boost
 │   ├── export/
 │   │   ├── siem.py                 # CEF + LEEF syslog export
@@ -173,14 +173,14 @@ PCAP File
 | Engine | Module | Purpose |
 |--------|--------|---------|
 | CompositeRiskEngine | `risk/engine.py` | Multi-factor 0-100 risk scoring (CVSS, EPSS, KEV, criticality, exposure) |
-| ThreatDetectionEngine | `threat/engine.py` | 7 ICS malware signatures, anomaly baselines, recon detection |
+| ThreatDetectionEngine | `threat/engine.py` | 9 ICS malware signatures, anomaly baselines, recon detection |
 | AttackPathEngine | `attack/engine.py` | BFS pathfinding, crown jewel identification, kill chain mapping |
 | SecureAccessEngine | `access/engine.py` | Remote access audit, jump server detection, CIP-005 compliance |
 | ConfigSnapshotEngine | `config/engine.py` | Persistent snapshots, drift detection, LKG baselines |
 | PolicyEngine | `policy/engine.py` | 6-stage firewall rule generation, 4 export formats |
 | ProjectFileEngine | `project_files/engine.py` | ICS project file parsing (TIA Portal, L5X, XEF, CSV, JSON) |
 | TopologyEngine | `topology/engine.py` | Purdue zones, violation detection, GraphML |
-| VulnerabilityEngine | `vuln/engine.py` | 34 behavioral rules, risk scoring, role inference |
+| VulnerabilityEngine | `vuln/engine.py` | 29 behavioral rules, risk scoring, role inference |
 
 ### ICS Malware Signatures (threat/signatures.py)
 
@@ -193,6 +193,8 @@ PCAP File
 | Pipedream/Incontroller | 2022 | S7comm download + Modbus writes | T0836, T0855 |
 | Stuxnet | 2010 | S7comm upload + download (different sources) | T0843, T0845 |
 | FrostyGoop | 2024 | Modbus writes from higher Purdue zone | T0855 |
+| Fuxnet | 2024 | Modbus flood writes + diagnostics (PLC bricking) | T0831 |
+| IOControl | 2024 | MQTT C2 + IT protocols on IoT gateways | T0869 |
 
 ### MITRE ATT&CK for ICS Techniques (14 mapped)
 
