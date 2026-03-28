@@ -96,6 +96,19 @@ ot_scanner/
 │   │   └── engine.py               # Baseline diff analysis
 │   └── report/
 │       └── generator.py            # JSON, CSV, HTML, GraphML reports
+├── tests/                          # 57 unit tests (pytest)
+│   ├── conftest.py                 # Shared fixtures (mock devices, zones, CVEs)
+│   ├── test_models.py              # Dataclass validation
+│   ├── test_risk_engine.py         # Composite scoring
+│   ├── test_threat_engine.py       # 9 malware signatures
+│   ├── test_attack_engine.py       # Attack path analysis
+│   ├── test_access_engine.py       # Secure access audit
+│   ├── test_config_engine.py       # Config snapshots + drift
+│   ├── test_policy_engine.py       # Firewall rule generation
+│   ├── test_cve_matcher.py         # CVE matching pipeline
+│   └── test_exporters.py           # Integration exporters
+├── pytest.ini                      # Test configuration
+└── requirements-dev.txt            # pytest>=7.0
 ```
 
 ### Data Flow
@@ -296,6 +309,30 @@ Filtering & analysis:
 - HTML reports use Catppuccin Mocha dark theme
 - Exit code 1 on CRITICAL/HIGH for CI/CD gating
 - Deterministic STIX UUIDs (uuid5)
+
+## Testing
+
+**57 unit tests** across 9 test files covering all analysis engines. Tests use mock data only — no PCAP files required.
+
+```bash
+cd ot_scanner
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+```
+
+| Test File | Tests | Coverage |
+|-----------|------:|----------|
+| `test_models.py` | 9 | Dataclass to_dict(), field defaults |
+| `test_risk_engine.py` | 5 | Composite scoring, multipliers, compensating controls |
+| `test_threat_engine.py` | 7 | All 9 malware signatures + unauthorized command alerts |
+| `test_attack_engine.py` | 6 | BFS pathfinding, crown jewels, path scoring, kill chain |
+| `test_access_engine.py` | 4 | CIP-005 compliance, jump server detection |
+| `test_config_engine.py` | 8 | Snapshot capture/save/load/diff, baseline, drift detection |
+| `test_policy_engine.py` | 5 | Rule generation, priority ordering, safety isolation |
+| `test_cve_matcher.py` | 9 | 90 CVEs loaded, EPSS/KEV propagation, matching pipeline |
+| `test_exporters.py` | 4 | ServiceNow, Splunk HEC, Elastic ECS, Webhook payloads |
+
+**CI Pipeline**: GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR against Python 3.8, 3.10, and 3.12.
 
 ## Legacy Scanners
 

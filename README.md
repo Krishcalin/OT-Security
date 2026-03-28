@@ -112,17 +112,24 @@ Project file devices receive `vendor_confidence = "ground_truth"` and bypass fin
 
 | Vendor | CVEs | Key Products |
 |--------|-----:|-------------|
-| Siemens | 15 | S7-1200, S7-1500, SIPROTEC, SICAM |
+| Siemens | 16 | S7-1200, S7-1500, SIPROTEC, SICAM, SIMATIC RTLS |
 | Rockwell Automation | 10 | ControlLogix, CompactLogix, MicroLogix |
 | Schneider Electric | 10 | Modicon M340/M580, EcoStruxure, SCADAPack |
-| ABB | 8 | RTU560, RTU500, REF615, REL670 |
+| ABB | 10 | RTU560, RTU500, REF615, REL670, RMC-100 |
 | GE / GE Grid Solutions | 6 | D20MX, UR-series, Mark VIe |
 | SEL (Schweitzer) | 5 | SEL-3505, SEL-651R, SEL-421 |
 | Omron | 5 | CJ-series, NJ-series, CP-series |
 | Mitsubishi Electric | 5 | MELSEC iQ-R, GX Works |
 | Honeywell | 4 | RTU2020, Experion PKS |
 | Yokogawa | 3 | CENTUM VP, ProSafe-RS |
-| Cross-vendor / Protocol | 5 | DNP3 SA bypass, Modbus/TCP, OPC-UA |
+| Trane | 2 | Tracer SC/SC+ (Building Automation) |
+| Danfoss | 2 | AK-SM8xxA (Refrigeration) |
+| Copeland | 2 | XWEB Pro 300D/500D (Refrigeration) |
+| Johnson Controls | 2 | Frick Quantum HD (Industrial HVAC) |
+| METZ CONNECT | 2 | EWIO2 (Industrial I/O Modules) |
+| EnOcean | 1 | SmartServer IoT (BAS Gateway) |
+| OPC Foundation | 3 | OPC-UA .NET Standard |
+| Cross-vendor / Protocol | 5 | DNP3 SA bypass, Modbus/TCP, D-Link DCS |
 
 ### Enhanced Risk Scoring
 
@@ -294,7 +301,7 @@ ot_scanner/
     ├── fingerprint/                7-step vendor fingerprinting pipeline
     ├── vuln/                       29 vulnerability rules (4 check modules)
     ├── topology/                   Purdue zones, violations, GraphML
-    ├── cvedb/                      76 ICS CVEs with EPSS + CISA KEV
+    ├── cvedb/                      90 ICS CVEs with EPSS + CISA KEV
     ├── risk/                       Composite risk scoring (0-100)
     ├── threat/                     9 ICS malware sigs + anomaly baselines
     ├── attack/                     Multi-hop attack path analysis
@@ -332,11 +339,38 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ---
 
+## Testing & CI
+
+**57 unit tests** covering all 9 analysis engines, running in < 0.2 seconds with no PCAP dependencies.
+
+```bash
+cd ot_scanner
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+```
+
+| Test File | Tests | Engine Covered |
+|-----------|------:|----------------|
+| `test_models.py` | 9 | All dataclass to_dict() + defaults |
+| `test_risk_engine.py` | 5 | Composite scoring, multipliers, controls |
+| `test_threat_engine.py` | 7 | All 9 malware sigs + unauthorized commands |
+| `test_attack_engine.py` | 6 | Pathfinding, crown jewels, scoring |
+| `test_access_engine.py` | 4 | CIP-005 compliance, jump server detection |
+| `test_config_engine.py` | 8 | Snapshot capture/save/load, drift detection |
+| `test_policy_engine.py` | 5 | Rule generation, priorities, safety isolation |
+| `test_cve_matcher.py` | 9 | 90 CVEs, EPSS/KEV, matching pipeline |
+| `test_exporters.py` | 4 | ServiceNow, Splunk, Elastic, Webhook |
+
+**GitHub Actions CI** runs on every push and PR against Python 3.8, 3.10, and 3.12.
+
+---
+
 ## Requirements
 
 - Python **3.8+**
 - **scapy >= 2.5.0** (recommended) or **dpkt >= 1.9.8** (fallback)
 - Optional: **colorama >= 0.4.6** (coloured terminal output)
+- Dev: **pytest >= 7.0** (testing only)
 
 ```bash
 pip install scapy dpkt colorama
