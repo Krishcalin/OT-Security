@@ -74,6 +74,7 @@ def _check_no_tls(
             "ENTSO-E Network Code on Cybersecurity -- Article 33",
             "NERC CIP-005-6 R2 -- Electronic Security Perimeter",
         ],
+        mitre_attack=["T0842", "T0830"],  # Network Sniffing, Man in the Middle
         first_seen=min((s.first_seen for s in sessions if s.first_seen), default=None),
         packet_count=total_pkts,
     )]
@@ -120,6 +121,7 @@ def _check_multiple_masters(
                 "IEC 62351-3 -- Mutual TLS Authentication",
                 "NERC CIP-005-6 R2.4",
             ],
+            mitre_attack=["T0848"],  # Rogue Master
             first_seen=min((s.first_seen for s in sessions if s.first_seen), default=None),
             packet_count=sum(s.packet_count for s in sessions),
         ))
@@ -174,6 +176,7 @@ def _check_unauthenticated_control(
                     "IEC 62351-5 \u00a78 -- Authenticated Control Commands",
                     "ICS-CERT Advisory ICSA-14-084 -- IEC 104 Replay Vulnerability",
                 ],
+                mitre_attack=["T0855", "T0831"],  # Unauthorized Cmd Msg, Manipulation of Control
                 first_seen=sess.first_seen,
                 packet_count=total_ctrl,
             ))
@@ -219,6 +222,7 @@ def _check_clock_sync(
                     "IEC 60870-5-104:2006 \u00a78.9 -- Clock Synchronization",
                     "IEC 62351-3 -- Session Authentication",
                 ],
+                mitre_attack=["T0836"],  # Modify Parameter
                 first_seen=sess.first_seen,
                 packet_count=sess.clock_syncs,
             ))
@@ -259,6 +263,7 @@ def _check_general_interrogation(
                     "unexpected, investigate and block at the firewall."
                 ),
                 references=["IEC 60870-5-104:2006 \u00a78.8 -- General Interrogation"],
+                mitre_attack=["T0801", "T0814"],  # Monitor Process State, Denial of Service
                 first_seen=sess.first_seen,
                 packet_count=sess.general_interrogations,
             ))

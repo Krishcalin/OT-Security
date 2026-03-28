@@ -274,6 +274,19 @@ class PCAPAnalyzer:
         # Track IPs seen doing MMS (for IEC 61850 MMS vuln check)
         self._mms_ips: Set[str] = set()
 
+        # Project file devices (injected via set_project_devices before analyze)
+        self._project_devices: Dict[str, OTDevice] = {}
+
+    def set_project_devices(self, devices: Dict[str, OTDevice]) -> None:
+        """
+        Inject ground-truth devices from ICS project file analysis.
+
+        Must be called BEFORE analyze().  Devices are merged into the PCAP
+        device registry during _finalise(), so PCAP traffic for matching IPs
+        is fully correlated with project file identity data.
+        """
+        self._project_devices = devices
+
     def set_cve_database(self, path: str) -> None:
         """Load an external CVE database JSON file to supplement built-in CVEs."""
         if _HAS_CVE_MATCHER:
@@ -612,9 +625,12 @@ class PCAPAnalyzer:
         if goose_pubs:
             self._link_goose_to_devices(goose_pubs)
 
-        # ── Fingerprinting ───────────────────────────────────────────────
+        # ── Merge project file ground-truth devices ─────────────────────
+        self._merge_project_devices()
+
+        # ── Fingerprinting (skip ground-truth devices) ───────────────────
         for device in self._devices.values():
-            if self._fingerprinter:
+            if self._fingerprinter and device.vendor_confidence != "ground_truth":
                 self._fingerprinter.fingerprint(device)
 
             # Attach logical device names from MMS analyzer
@@ -641,11 +657,22 @@ class PCAPAnalyzer:
                 except Exception:
                     pass
 
-        # ── Filter: only devices with protocol detections or OT ports ────
+        # ── Asset criticality inference ──────────────────────────────
+        for device in self._devices.values():
+            self._infer_criticality(device)
+
+        # ── Communication profile computation ────────────────────────
+        for device in self._devices.values():
+            self._compute_communication_profile(device)
+
+        # ── Filter: OT devices + ground-truth project-file devices ────
         results = [
             d for d in self._devices.values()
-            if (d.protocols or d.open_ports)
-            and d.packet_count >= self.min_packets
+            if (
+                (d.protocols or d.open_ports)
+                and d.packet_count >= self.min_packets
+            )
+            or d.vendor_confidence == "ground_truth"
         ]
 
         # ── Vulnerability assessment ─────────────────────────────────────
@@ -702,6 +729,57 @@ class PCAPAnalyzer:
             except Exception as exc:
                 if self.verbose:
                     print(f"  [!] Topology analysis error: {exc}")
+
+        # ── Composite risk scoring (needs zones for exposure multiplier) ──
+        try:
+            from .risk.engine import CompositeRiskEngine
+            _risk_engine = CompositeRiskEngine(zones=zones)
+            for device in devices_sorted:
+                _risk_engine.score_device(device)
+        except ImportError:
+            pass
+        except Exception as exc:
+            if self.verbose:
+                print(f"  [!] Composite risk scoring error: {exc}")
+
+        # ── Threat detection & behavioral baselining ─────────────────────
+        try:
+            from .threat.engine import ThreatDetectionEngine
+            _threat_engine = ThreatDetectionEngine(
+                devices=devices_sorted,
+                flows=flows_sorted,
+                zones=zones,
+                edges=edges,
+                dnp3_sessions=dnp3_sessions,
+                iec104_sessions=iec104_sessions,
+                goose_publishers=goose_pubs,
+            )
+            alerts_by_ip = _threat_engine.analyze()
+            for device in devices_sorted:
+                device.threat_alerts = alerts_by_ip.get(device.ip, [])
+        except ImportError:
+            pass
+        except Exception as exc:
+            if self.verbose:
+                print(f"  [!] Threat detection error: {exc}")
+
+        # ── Secure access audit ────────────────────────────────────────
+        try:
+            from .access.engine import SecureAccessEngine
+            _access_engine = SecureAccessEngine(
+                devices=devices_sorted,
+                flows=flows_sorted,
+                zones=zones,
+                edges=edges,
+            )
+            sessions_by_ip = _access_engine.audit()
+            for device in devices_sorted:
+                device.remote_access_sessions = sessions_by_ip.get(device.ip, [])
+        except ImportError:
+            pass
+        except Exception as exc:
+            if self.verbose:
+                print(f"  [!] Secure access audit error: {exc}")
 
         return devices_sorted, flows_sorted, zones, violations, edges
 
@@ -794,6 +872,216 @@ class PCAPAnalyzer:
 
         device.risk_factors = factors
         device.risk_score = score
+
+    # ──────────────────── project file merging ─────────────────────────
+
+    def _merge_project_devices(self) -> None:
+        """
+        Merge project-file ground-truth devices into the PCAP device registry.
+
+        Three cases:
+          1. IP in both: project data overrides identity fields, enriches context
+          2. IP only in project: added as new entry (ground_truth, no PCAP traffic)
+          3. IP only in PCAP: unchanged
+        """
+        if not self._project_devices:
+            return
+
+        for ip, proj_dev in self._project_devices.items():
+            if ip in self._devices:
+                self._apply_ground_truth(self._devices[ip], proj_dev)
+            else:
+                proj_dev.vendor_confidence = "ground_truth"
+                self._devices[ip] = proj_dev
+
+    @staticmethod
+    def _apply_ground_truth(pcap_dev: OTDevice, proj_dev: OTDevice) -> None:
+        """
+        Apply ground-truth project data onto a PCAP-discovered device.
+
+        Ground-truth fields OVERRIDE whatever fingerprinting would have set.
+        Business context fields are ADDED (they never come from PCAP).
+        """
+        _OVERRIDE = [
+            "vendor", "make", "model", "firmware", "serial_number",
+            "hardware_version", "product_code", "rack", "slot",
+            "cpu_info", "device_type", "role",
+        ]
+        for attr in _OVERRIDE:
+            proj_val = getattr(proj_dev, attr, None)
+            if proj_val is not None and proj_val != "" and proj_val != "unknown":
+                setattr(pcap_dev, attr, proj_val)
+
+        pcap_dev.vendor_confidence = "ground_truth"
+
+        _ENRICH = ["asset_owner", "location", "asset_tag", "device_criticality"]
+        for attr in _ENRICH:
+            cur = getattr(pcap_dev, attr, None)
+            proj_val = getattr(proj_dev, attr, None)
+            if (
+                (cur is None or cur == "" or cur == "unknown")
+                and proj_val
+                and proj_val != "unknown"
+            ):
+                setattr(pcap_dev, attr, proj_val)
+
+        if proj_dev.modules:
+            pcap_dev.modules.extend(proj_dev.modules)
+        pcap_dev.notes.extend(proj_dev.notes)
+
+    # ────────────────────────── deep asset profiling ──────────────────────
+
+    def _infer_criticality(self, device: OTDevice) -> None:
+        """
+        Auto-infer device_criticality from protocol evidence and behaviour.
+
+        Categories (most critical first):
+          safety_system   — SIS protocols, GOOSE trip logic, safety PLC vendors
+          process_control — PLCs/RTUs with active control/write commands
+          monitoring      — Read-heavy devices, historians, HMIs
+          support         — Engineering stations, gateways, IT-heavy devices
+          unknown         — Default
+        """
+        if device.device_criticality != "unknown":
+            return  # already set externally
+
+        proto_names = set(device.get_protocol_names())
+
+        # ── Safety system indicators ──
+        is_safety = False
+
+        # CIP Safety device types
+        for proto in device.protocols:
+            cip_dt = proto.details.get("cip_device_type")
+            if cip_dt and isinstance(cip_dt, str) and "safety" in cip_dt.lower():
+                is_safety = True
+                break
+
+        # GOOSE with trip / protection related IDs
+        if not is_safety and device.goose_ids:
+            safety_kw = {
+                "trip", "prot", "cbfail", "busbar", "diff",
+                "dist", "overcurrent", "oc", "ef",
+            }
+            for gid in device.goose_ids:
+                if any(kw in gid.lower() for kw in safety_kw):
+                    is_safety = True
+                    break
+
+        # Safety PLC vendor names
+        if not is_safety:
+            safety_vendors = {"pilz", "hima", "triconex", "tricon", "prosafe"}
+            combined_id = " ".join(
+                filter(None, [device.vendor, device.make, device.model])
+            ).lower()
+            if any(sv in combined_id for sv in safety_vendors):
+                is_safety = True
+
+        if is_safety:
+            device.device_criticality = "safety_system"
+            return
+
+        # ── Process control indicators ──
+        has_control = False
+        for ps in device.protocol_stats:
+            if ps.write_count > 0 or ps.control_count > 0:
+                has_control = True
+                break
+
+        if has_control and device.role in (
+            "plc", "rtu", "frtu", "ied", "relay",
+        ):
+            device.device_criticality = "process_control"
+            return
+
+        # ── Monitoring indicators ──
+        if device.role == "historian":
+            device.device_criticality = "monitoring"
+            return
+
+        if device.role in ("hmi", "master_station"):
+            device.device_criticality = "process_control" if has_control else "monitoring"
+            return
+
+        if device.role in ("plc", "rtu", "frtu", "ied"):
+            read_total = sum(ps.read_count for ps in device.protocol_stats)
+            if read_total > 0 and not has_control:
+                device.device_criticality = "monitoring"
+            else:
+                device.device_criticality = "process_control"
+            return
+
+        # ── Support indicators ──
+        if device.role in ("engineering_station", "gateway"):
+            device.device_criticality = "support"
+            return
+
+        if device.it_protocols:
+            device.device_criticality = "support"
+            return
+
+    def _compute_communication_profile(self, device: OTDevice) -> None:
+        """
+        Compute a communication profile summary for the device.
+
+        Aggregates flow data, behavioural stats, and master/slave
+        relationships into a single dict on device.communication_profile.
+        """
+        peer_count = len(device.communicating_with)
+        protocol_list = device.get_protocol_names()
+
+        # Aggregate bytes from flows
+        total_bytes_out = 0
+        total_bytes_in = 0
+        for flow in self._flows.values():
+            if flow.src_ip == device.ip:
+                total_bytes_out += flow.byte_count
+            elif flow.dst_ip == device.ip:
+                total_bytes_in += flow.byte_count
+
+        # Aggregate read/write/control from behaviour stats
+        total_reads = sum(ps.read_count for ps in device.protocol_stats)
+        total_writes = sum(ps.write_count for ps in device.protocol_stats)
+        total_controls = sum(ps.control_count for ps in device.protocol_stats)
+        total_ops = total_reads + total_writes + total_controls
+
+        control_ratio = round(total_controls / total_ops, 3) if total_ops > 0 else 0.0
+        if total_writes > 0:
+            rw_ratio: object = round(total_reads / total_writes, 2)
+        elif total_reads > 0:
+            rw_ratio = "read_only"
+        else:
+            rw_ratio = 0.0
+
+        # Master/slave classification
+        sends_controls = total_controls > 0 and len(device.master_stations) == 0
+        receives_controls = len(device.master_stations) > 0
+
+        if sends_controls and not receives_controls:
+            role_class = "master"
+        elif receives_controls and not sends_controls:
+            role_class = "slave"
+        else:
+            role_class = "peer"
+
+        # Detect program events from behaviour stats
+        for ps in device.protocol_stats:
+            if ps.has_program_upload and not device.last_program_event:
+                device.last_program_event = "upload"
+            if ps.has_program_download:
+                device.last_program_event = "download"  # download overrides
+
+        device.communication_profile = {
+            "peer_count":      peer_count,
+            "protocols":       protocol_list,
+            "total_bytes_out": total_bytes_out,
+            "total_bytes_in":  total_bytes_in,
+            "control_ratio":   control_ratio,
+            "read_write_ratio": rw_ratio,
+            "is_master":       role_class == "master",
+            "is_slave":        role_class == "slave",
+            "is_peer":         role_class == "peer",
+        }
 
     # ─────────────────────────────────────────────────────── helpers ──────
 

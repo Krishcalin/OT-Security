@@ -86,6 +86,7 @@ def _check_no_secure_auth(
                 "NERC CIP-005-6 R2 -- Electronic Security Perimeter",
                 "ICS-CERT Advisory ICSA-20-049",
             ],
+            mitre_attack=["T0859", "T0869"],  # Valid Accounts, Std App Layer Protocol
             first_seen=min((s.first_seen for s in sessions if s.first_seen),
                            default=None),
             packet_count=total_pkts,
@@ -140,6 +141,7 @@ def _check_unauthenticated_control(
                     "IEC 62351-5 \u00a78 -- Authenticated Operations",
                     "NERC CIP-007-6 R5 -- System Access Controls",
                 ],
+                mitre_attack=["T0855"],  # Unauthorized Command Message
                 first_seen=sess.first_seen,
                 packet_count=sess.packet_count,
             ))
@@ -188,6 +190,7 @@ def _check_direct_operate(
                     "IEC 62351-5 \u00a79 -- Control Command Security",
                     "NERC CIP-007-6 R5",
                 ],
+                mitre_attack=["T0855", "T0831"],  # Unauthorized Cmd Msg, Manipulation of Control
                 first_seen=sess.first_seen,
                 packet_count=do_count,
             ))
@@ -246,6 +249,7 @@ def _check_restart_commands(
                     "IEC 62351-5 \u00a78.3 -- Authentication for Critical Functions",
                     "NERC CIP-010-3 -- Configuration Change Management",
                 ],
+                mitre_attack=["T0816", "T0881"],  # Device Restart/Shutdown, Service Stop
                 first_seen=sess.first_seen,
                 packet_count=total,
             ))
@@ -305,6 +309,7 @@ def _check_file_transfer(
                     "IEC 62351-5 \u00a710 -- File Transfer Security",
                     "ICS-CERT Advisory ICSA-16-084 -- DNP3 File Transfer Vulnerability",
                 ],
+                mitre_attack=["T0839", "T0843"],  # Module Firmware, Program Download
                 first_seen=sess.first_seen,
                 packet_count=total,
             ))
@@ -350,6 +355,7 @@ def _check_multiple_masters(
                 "NERC CIP-005-6 R2.4 -- Deny by default",
                 "ICS-CERT Alert TA18-074A -- Rogue HMI",
             ],
+            mitre_attack=["T0848"],  # Rogue Master
             first_seen=min((s.first_seen for s in sessions if s.first_seen),
                            default=None),
             packet_count=sum(s.packet_count for s in sessions),
@@ -391,6 +397,7 @@ def _check_dnp3_over_udp(
                 "IEEE 1815-2012 \u00a710 -- DNP3 over UDP",
                 "IEC 62351-5 \u00a77.2 -- Transport Independence",
             ],
+            mitre_attack=["T0830"],  # Man in the Middle
             first_seen=min((s.first_seen for s in udp_sessions if s.first_seen),
                            default=None),
             packet_count=sum(s.packet_count for s in udp_sessions),

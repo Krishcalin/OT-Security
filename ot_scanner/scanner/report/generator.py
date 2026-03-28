@@ -265,20 +265,31 @@ class ReportGenerator:
         fields = [
             "ip", "mac", "vendor", "make", "model", "firmware",
             "serial_number", "hardware_version", "product_code",
-            "device_type", "role",
+            "rack", "slot", "cpu_info", "modules_count",
+            "device_type", "role", "device_criticality",
             "dnp3_address", "iec104_common_address",
             "protocols", "open_ports", "goose_ids",
             "communicating_with_count", "master_stations",
+            "comm_peer_count", "comm_role",
             "first_seen", "last_seen", "packet_count",
-            "risk_level", "risk_score",
+            "risk_level", "risk_score", "composite_risk_score",
+            "compensating_controls_count", "cve_kev_count",
             "vuln_count", "critical_vulns", "high_vulns",
             "vuln_ids",
+            "threat_alert_count", "critical_threat_alerts",
+            "remote_access_sessions", "ra_compliant", "ra_non_compliant",
+            "config_drift_alerts", "config_drift_critical",
+            "attack_paths_targeting", "critical_attack_paths",
         ]
         with open(path, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=fields)
             w.writeheader()
             for d in self.devices:
                 sev = Counter(v.severity for v in d.vulnerabilities)
+                cp = d.communication_profile
+                comm_role = ("master" if cp.get("is_master")
+                             else "slave" if cp.get("is_slave")
+                             else "peer") if cp else ""
                 w.writerow({
                     "ip":                      d.ip,
                     "mac":                     d.mac or "",
@@ -289,8 +300,13 @@ class ReportGenerator:
                     "serial_number":           d.serial_number or "",
                     "hardware_version":        d.hardware_version or "",
                     "product_code":            d.product_code or "",
+                    "rack":                    d.rack if d.rack is not None else "",
+                    "slot":                    d.slot if d.slot is not None else "",
+                    "cpu_info":                d.cpu_info or "",
+                    "modules_count":           len(d.modules),
                     "device_type":             d.device_type,
                     "role":                    d.role,
+                    "device_criticality":      d.device_criticality,
                     "dnp3_address":            d.dnp3_address or "",
                     "iec104_common_address":   d.iec104_common_address or "",
                     "protocols":               " | ".join(d.get_protocol_names()),
@@ -298,15 +314,29 @@ class ReportGenerator:
                     "goose_ids":               " | ".join(sorted(d.goose_ids)),
                     "communicating_with_count": len(d.communicating_with),
                     "master_stations":         " | ".join(sorted(d.master_stations)),
+                    "comm_peer_count":         cp.get("peer_count", "") if cp else "",
+                    "comm_role":               comm_role,
                     "first_seen":              d.first_seen.isoformat() if d.first_seen else "",
                     "last_seen":               d.last_seen.isoformat()  if d.last_seen  else "",
                     "packet_count":            d.packet_count,
                     "risk_level":              d.risk_level,
                     "risk_score":              d.risk_score,
+                    "composite_risk_score":    d.composite_risk_score,
+                    "compensating_controls_count": len(d.compensating_controls),
+                    "cve_kev_count":           sum(1 for c in d.cve_matches if c.is_cisa_kev),
                     "vuln_count":              len(d.vulnerabilities),
                     "critical_vulns":          sev.get("critical", 0),
                     "high_vulns":              sev.get("high", 0),
                     "vuln_ids":                " | ".join(v.vuln_id for v in d.vulnerabilities),
+                    "threat_alert_count":       len(d.threat_alerts),
+                    "critical_threat_alerts":   sum(1 for a in d.threat_alerts if a.severity == "critical"),
+                    "remote_access_sessions":  len(d.remote_access_sessions),
+                    "ra_compliant":            sum(1 for s in d.remote_access_sessions if s.compliance_status == "compliant"),
+                    "ra_non_compliant":        sum(1 for s in d.remote_access_sessions if s.compliance_status == "non_compliant"),
+                    "config_drift_alerts":     len(d.config_drift_alerts),
+                    "config_drift_critical":   sum(1 for a in d.config_drift_alerts if a.severity == "critical"),
+                    "attack_paths_targeting":  len(d.attack_paths),
+                    "critical_attack_paths":   sum(1 for p in d.attack_paths if p.severity == "critical"),
                 })
 
     # ──────────────────────────────────────────────────────── GraphML ──
@@ -1078,6 +1108,192 @@ function toggle(id){{
             )
         return "\n".join(parts)
 
+    @staticmethod
+    def _comm_summary(dev: OTDevice) -> str:
+        """One-line communication profile summary for HTML."""
+        cp = dev.communication_profile
+        if not cp:
+            return "-"
+        role = ("master" if cp.get("is_master")
+                else "slave" if cp.get("is_slave") else "peer")
+        peers = cp.get("peer_count", 0)
+        cr = cp.get("control_ratio", 0)
+        return f"{role} | {peers} peers | control_ratio={cr}"
+
+    @staticmethod
+    def _risk_breakdown_html(dev: OTDevice) -> str:
+        """Risk score breakdown table + compensating controls for HTML card."""
+        bd = dev.risk_score_breakdown
+        if not bd:
+            return ""
+
+        # Score bar color
+        score = dev.composite_risk_score
+        if score >= 70:
+            bar_color = SEVERITY_COLOR["critical"]
+        elif score >= 40:
+            bar_color = SEVERITY_COLOR["high"]
+        elif score >= 15:
+            bar_color = SEVERITY_COLOR["medium"]
+        else:
+            bar_color = SEVERITY_COLOR["low"]
+
+        rows = f"""
+    <div style="margin-top:.5rem">
+      <div style="background:#313244;border-radius:4px;height:8px;margin-bottom:.4rem">
+        <div style="background:{bar_color};height:100%;width:{min(score, 100)}%;border-radius:4px"></div>
+      </div>
+      <table style="font-size:.72rem;width:100%;border-collapse:collapse">
+        <tr><td style="color:#9399b2">Base score</td><td style="text-align:right">{bd.get('base_score', 0)}</td></tr>
+        <tr><td style="color:#9399b2">Protocol penalties</td><td style="text-align:right">+{bd.get('protocol_penalties', 0)}</td></tr>
+        <tr><td style="color:#9399b2">Criticality mult</td><td style="text-align:right">&times;{bd.get('criticality_multiplier', 1.0)}</td></tr>
+        <tr><td style="color:#9399b2">Exposure mult</td><td style="text-align:right">&times;{bd.get('exposure_multiplier', 1.0)}</td></tr>
+        <tr><td style="color:#9399b2">KEV boost</td><td style="text-align:right">&times;{bd.get('kev_boost', 1.0)}</td></tr>
+        <tr><td style="color:#9399b2">EPSS boost</td><td style="text-align:right">&times;{bd.get('epss_boost', 1.0)}</td></tr>
+        <tr><td style="color:#9399b2">Controls factor</td><td style="text-align:right">&times;{bd.get('controls_factor', 1.0)}</td></tr>
+      </table>"""
+
+        # Compensating controls
+        ctrls = dev.compensating_controls
+        if ctrls:
+            rows += '\n      <div style="margin-top:.3rem;font-size:.72rem;color:#a6e3a1">'
+            for c in ctrls:
+                rows += f'<div>&#x2713; {_h(c)}</div>'
+            rows += "</div>"
+
+        rows += "\n    </div>"
+        return rows
+
+    @staticmethod
+    def _threat_alerts_html(dev: OTDevice) -> str:
+        """Render threat alert cards for HTML device detail."""
+        if not dev.threat_alerts:
+            return ""
+        parts: List[str] = []
+        for a in dev.threat_alerts:
+            sc = SEVERITY_COLOR.get(a.severity, SEVERITY_COLOR["unknown"])
+            sb = SEVERITY_BG.get(a.severity, SEVERITY_BG["unknown"])
+            mitre = f' <span style="color:#89b4fa;font-size:.7rem">[{a.mitre_technique}]</span>' if a.mitre_technique else ""
+            type_badge = f'<span style="background:#31324480;padding:1px 6px;border-radius:3px;font-size:.68rem">{a.alert_type}</span>'
+            parts.append(
+                f'<div style="background:{sb};border-left:3px solid {sc};'
+                f'padding:.4rem .6rem;margin-bottom:.3rem;border-radius:0 4px 4px 0">'
+                f'<span style="color:{sc};font-weight:700;font-size:.75rem">'
+                f'{a.severity.upper()}</span> {type_badge}{mitre} '
+                f'<span style="font-size:.78rem">{_h(a.title)}</span>'
+                f'<div style="font-size:.72rem;color:#9399b2;margin-top:.2rem">'
+                f'{_h(a.description[:200])}</div>'
+                f'</div>'
+            )
+        return "\n    ".join(parts)
+
+    # ──────────────────────────────────────────────── device row builder ──
+
+    @staticmethod
+    def _remote_access_html(dev: OTDevice) -> str:
+        """Render remote access sessions for HTML device detail."""
+        if not dev.remote_access_sessions:
+            return ""
+        parts: List[str] = []
+        for s in dev.remote_access_sessions:
+            # Compliance badge color
+            if s.compliance_status == "compliant":
+                badge_c, badge_bg = "#a6e3a1", "#a6e3a120"
+                badge_text = "COMPLIANT"
+            elif s.compliance_status == "non_compliant":
+                badge_c, badge_bg = "#f38ba8", "#f38ba820"
+                badge_text = "NON-COMPLIANT"
+            else:
+                badge_c, badge_bg = "#fab387", "#fab38720"
+                badge_text = "REVIEW"
+
+            vpn_tag = ' <span style="color:#89b4fa;font-size:.68rem">[VPN]</span>' if s.is_vpn else ""
+            enc_tag = ' <span style="color:#a6e3a1;font-size:.68rem">[ENC]</span>' if s.is_encrypted else ' <span style="color:#f38ba8;font-size:.68rem">[CLEARTEXT]</span>'
+
+            dur = f"{s.duration_seconds:.0f}s" if s.duration_seconds else "N/A"
+            issues_html = ""
+            if s.compliance_issues:
+                issues_html = '<div style="font-size:.7rem;color:#f38ba8;margin-top:.15rem">'
+                for issue in s.compliance_issues:
+                    issues_html += f"<div>&#x2717; {_h(issue)}</div>"
+                issues_html += "</div>"
+
+            parts.append(
+                f'<div style="background:{badge_bg};border-left:3px solid {badge_c};'
+                f'padding:.4rem .6rem;margin-bottom:.3rem;border-radius:0 4px 4px 0">'
+                f'<span style="color:{badge_c};font-weight:700;font-size:.72rem">'
+                f'{badge_text}</span> '
+                f'<span style="font-size:.78rem">{s.protocol} from {s.src_ip}'
+                f' → {s.dst_ip}:{s.port}</span>{vpn_tag}{enc_tag}'
+                f'<div style="font-size:.72rem;color:#9399b2;margin-top:.15rem">'
+                f'Duration: {dur} | Packets: {s.packet_count:,} | '
+                f'Bytes: {s.byte_count:,} | L{s.src_purdue}→L{s.dst_purdue}</div>'
+                f'{issues_html}'
+                f'</div>'
+            )
+        return "\n    ".join(parts)
+
+    @staticmethod
+    def _config_drift_html(dev: OTDevice) -> str:
+        """Render config drift alerts for HTML device detail."""
+        if not dev.config_drift_alerts:
+            return ""
+        parts: List[str] = []
+        for a in dev.config_drift_alerts:
+            sc = SEVERITY_COLOR.get(a.severity, SEVERITY_COLOR["unknown"])
+            sb = SEVERITY_BG.get(a.severity, SEVERITY_BG["unknown"])
+            mitre = f' <span style="color:#89b4fa;font-size:.7rem">[{a.mitre_technique}]</span>' if a.mitre_technique else ""
+            parts.append(
+                f'<div style="background:{sb};border-left:3px solid {sc};'
+                f'padding:.4rem .6rem;margin-bottom:.3rem;border-radius:0 4px 4px 0">'
+                f'<span style="color:{sc};font-weight:700;font-size:.75rem">'
+                f'{a.severity.upper()}</span>{mitre} '
+                f'<span style="font-size:.78rem">{_h(a.title)}</span>'
+                f'<div style="font-size:.72rem;color:#9399b2;margin-top:.15rem">'
+                f'{_h(a.old_value)} &rarr; {_h(a.new_value)}</div>'
+                f'</div>'
+            )
+        return "\n    ".join(parts)
+
+    @staticmethod
+    def _attack_paths_html(dev: OTDevice) -> str:
+        """Render attack paths targeting this device for HTML detail card."""
+        if not dev.attack_paths:
+            return ""
+        parts: List[str] = []
+        for p in dev.attack_paths:
+            sc = SEVERITY_COLOR.get(p.severity, SEVERITY_COLOR["unknown"])
+            sb = SEVERITY_BG.get(p.severity, SEVERITY_BG["unknown"])
+
+            # Path visualization: entry → hop1 → hop2 → TARGET
+            hop_chain = " &rarr; ".join(
+                f'<span style="color:{"#f38ba8" if i == len(p.hops)-1 else "#cdd6f4"}">'
+                f'{h["ip"]} (L{h.get("purdue_level", "?")})</span>'
+                for i, h in enumerate(p.hops)
+            )
+
+            # Kill chain badges
+            kc_badges = " ".join(
+                f'<span style="background:#31324480;padding:1px 5px;border-radius:3px;'
+                f'font-size:.65rem;color:#89b4fa">{k["technique"]}</span>'
+                for k in p.mitre_kill_chain
+            )
+
+            parts.append(
+                f'<div style="background:{sb};border-left:3px solid {sc};'
+                f'padding:.5rem .6rem;margin-bottom:.4rem;border-radius:0 4px 4px 0">'
+                f'<span style="color:{sc};font-weight:700;font-size:.75rem">'
+                f'{p.severity.upper()}</span> '
+                f'<span style="font-size:.75rem">Score: {p.path_score}/100</span> '
+                f'<span style="font-size:.7rem;color:#9399b2">'
+                f'| {p.hop_count} hops | {p.auth_gaps} auth gaps | '
+                f'{p.encryption_gaps} enc gaps</span>'
+                f'<div style="font-size:.75rem;margin-top:.3rem">{hop_chain}</div>'
+                f'<div style="margin-top:.2rem">{kc_badges}</div>'
+                f'</div>'
+            )
+        return "\n    ".join(parts)
+
     # ──────────────────────────────────────────────── device row builder ──
 
     def _device_row(self, dev: OTDevice) -> str:
@@ -1139,6 +1355,11 @@ function toggle(id){{
     <span class="dl">Hardware Version</span><div class="dv">{_h(dev.hardware_version or '-')}</div>
     <span class="dl">Serial Number</span><div class="dv">{_h(dev.serial_number or '-')}</div>
     <span class="dl">Product Code</span><div class="dv">{_h(dev.product_code or '-')}</div>
+    <span class="dl">Rack / Slot</span><div class="dv">{f"{dev.rack} / {dev.slot}" if dev.rack is not None else '-'}</div>
+    <span class="dl">CPU Info</span><div class="dv">{_h(dev.cpu_info or '-')}</div>
+    <span class="dl">Modules</span><div class="dv">{f"{len(dev.modules)} module(s)" if dev.modules else '-'}</div>
+    <span class="dl">Device Criticality</span><div class="dv">{_h(dev.device_criticality)}</div>
+    <span class="dl">Comm Profile</span><div class="dv">{_h(self._comm_summary(dev))}</div>
     <span class="dl">DNP3 Address</span><div class="dv">{dev.dnp3_address or '-'}</div>
     <span class="dl">IEC-104 Common Address</span><div class="dv">{dev.iec104_common_address or '-'}</div>
     <span class="dl">GOOSE IDs</span><div class="dv">{_h(goose_str)}</div>
@@ -1151,6 +1372,8 @@ function toggle(id){{
       {dev.last_seen.strftime('%H:%M:%S') if dev.last_seen else '-'}
     </div>
     <span class="dl">Risk Score</span><div class="dv">{dev.risk_score}</div>
+    <span class="dl">Composite Risk</span><div class="dv">{dev.composite_risk_score}/100</div>
+    {self._risk_breakdown_html(dev)}
   </div>
   <div>
     <span class="dl">Protocol Details</span>
@@ -1163,6 +1386,14 @@ function toggle(id){{
     <div style="margin-top:.3rem">{self._cve_matches_html(dev) or '<em style="color:#a6e3a1">No known CVEs matched</em>'}</div>
     <span class="dl" style="margin-top:.8rem;display:block">IT Protocols ({len(dev.it_protocols)})</span>
     <div style="margin-top:.3rem">{self._it_protocols_detail(dev) or '<em style="color:#a6e3a1">No IT protocols detected</em>'}</div>
+    <span class="dl" style="margin-top:.8rem;display:block">Threat Alerts ({len(dev.threat_alerts)})</span>
+    <div style="margin-top:.3rem">{self._threat_alerts_html(dev) or '<em style="color:#a6e3a1">No threat alerts</em>'}</div>
+    <span class="dl" style="margin-top:.8rem;display:block">Remote Access Sessions ({len(dev.remote_access_sessions)})</span>
+    <div style="margin-top:.3rem">{self._remote_access_html(dev) or '<em style="color:#a6e3a1">No remote access detected</em>'}</div>
+    <span class="dl" style="margin-top:.8rem;display:block">Configuration Drift ({len(dev.config_drift_alerts)})</span>
+    <div style="margin-top:.3rem">{self._config_drift_html(dev) or '<em style="color:#a6e3a1">No configuration changes</em>'}</div>
+    <span class="dl" style="margin-top:.8rem;display:block">Attack Paths ({len(dev.attack_paths)})</span>
+    <div style="margin-top:.3rem">{self._attack_paths_html(dev) or '<em style="color:#a6e3a1">No attack paths identified</em>'}</div>
   </div>
 </div>"""
 

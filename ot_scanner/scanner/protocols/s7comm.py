@@ -250,26 +250,147 @@ class S7CommAnalyzer(BaseProtocolAnalyzer):
         return details
 
     def _parse_szl_ack(self, data: bytes, param_len: int, data_len: int) -> dict:
-        """Try to extract CPU model info from a SZL response."""
+        """Parse SZL response data from an S7 Ack-Data PDU."""
         details = {}
-        payload_start = 10 + param_len + 4   # skip error bytes
-        if payload_start >= len(data):
+        param_start = 10
+        if param_start + param_len > len(data):
             return details
 
-        # Scan for printable ASCII that looks like a CPU name
-        text_chunk = data[payload_start:].decode("latin-1", errors="replace")
+        # Data block follows parameter block
+        data_start = param_start + param_len
+
+        # Ack-Data header: return_code(1) + transport_size(1) + data_length(2)
+        # then SZL header: szl_id(2) + szl_index(2) + ...
+        if data_start + 8 > len(data):
+            return details
+
+        return_code = data[data_start]
+        if return_code != 0xFF:  # 0xFF = success
+            return details
+
+        szl_id = struct.unpack_from(">H", data, data_start + 4)[0]
+        details["szl_id"] = f"0x{szl_id:04X}"
+
+        payload = data[data_start + 8:]
+
+        if szl_id == SZL_CPU_ID:
+            self._parse_szl_0011(payload, details)
+        elif szl_id == SZL_COMP_ID:
+            self._parse_szl_001c(payload, details)
+        else:
+            self._parse_szl_fallback(payload, details)
+
+        return details
+
+    def _parse_szl_0011(self, payload: bytes, details: dict) -> None:
+        """Parse SZL 0x0011 (Module Identification) records.
+
+        Each record is typically 28 bytes:
+          index(2) + order_number(20) + reserved(2) + firmware_version(4)
+        """
+        if len(payload) < 4:
+            self._parse_szl_fallback(payload, details)
+            return
+
+        record_len = struct.unpack_from(">H", payload, 0)[0]
+        record_count = struct.unpack_from(">H", payload, 2)[0]
+
+        if record_len < 28 or record_count == 0:
+            self._parse_szl_fallback(payload, details)
+            return
+
+        offset = 4
+        for _ in range(record_count):
+            if offset + record_len > len(payload):
+                break
+            rec = payload[offset:offset + record_len]
+            idx = struct.unpack_from(">H", rec, 0)[0]
+            order_number = rec[2:22].decode("latin-1", errors="replace") \
+                .strip("\x00").strip()
+            fw_bytes = rec[24:28]
+
+            fw_str = None
+            if len(fw_bytes) >= 3 and any(b != 0 for b in fw_bytes[:3]):
+                fw_str = f"V{fw_bytes[0]}.{fw_bytes[1]}.{fw_bytes[2]}"
+
+            if idx == 1:  # Index 1 = CPU module
+                if order_number:
+                    details["order_number"] = order_number
+                    details["plc_vendor"] = "Siemens"
+                    self._model_from_order_number(order_number, details)
+                if fw_str:
+                    details["firmware_version"] = fw_str
+            elif idx == 7:  # Index 7 = serial number (some CPUs)
+                serial = rec[2:22].decode("latin-1", errors="replace") \
+                    .strip("\x00").strip()
+                if serial and not serial.isspace():
+                    details["serial_number"] = serial
+
+            offset += record_len
+
+    def _parse_szl_001c(self, payload: bytes, details: dict) -> None:
+        """Parse SZL 0x001C (Component Identification) records.
+
+        Provides a list of all modules in the rack — used for module inventory.
+        """
+        if len(payload) < 4:
+            self._parse_szl_fallback(payload, details)
+            return
+
+        record_len = struct.unpack_from(">H", payload, 0)[0]
+        record_count = struct.unpack_from(">H", payload, 2)[0]
+
+        if record_len < 4 or record_count == 0:
+            self._parse_szl_fallback(payload, details)
+            return
+
+        name_end = min(record_len, 26)  # name field up to 24 bytes
+        modules = []
+        offset = 4
+        for _ in range(record_count):
+            if offset + record_len > len(payload):
+                break
+            rec = payload[offset:offset + record_len]
+            idx = struct.unpack_from(">H", rec, 0)[0]
+            name = rec[2:name_end].decode("latin-1", errors="replace") \
+                .strip("\x00").strip()
+
+            if name:
+                modules.append({
+                    "slot": idx,
+                    "name": name,
+                    "type": "CPU" if idx == 1 else "Module",
+                })
+                if idx == 1:
+                    details["cpu_info"] = name
+                    details["plc_vendor"] = "Siemens"
+
+            offset += record_len
+
+        if modules:
+            details["modules"] = modules
+
+    def _parse_szl_fallback(self, payload: bytes, details: dict) -> None:
+        """Fallback: scan for printable ASCII in unrecognised SZL payloads."""
+        text_chunk = payload.decode("latin-1", errors="replace")
         for hint_key, model_family in CPU_MODEL_HINTS.items():
             if hint_key in text_chunk:
-                details["cpu_family"]  = model_family
-                details["plc_vendor"]  = "Siemens"
-                # Try to extract full CPU string (32 chars max)
+                details["cpu_family"] = model_family
+                details["plc_vendor"] = "Siemens"
                 idx = text_chunk.find(hint_key)
                 start = max(0, idx - 4)
-                raw_model = text_chunk[start: start + 32].strip()
+                raw_model = text_chunk[start:start + 32].strip()
                 details["cpu_model_hint"] = raw_model
                 break
 
-        return details
+    def _model_from_order_number(self, order_number: str, details: dict) -> None:
+        """Infer CPU model family from a Siemens MLFB order number."""
+        if not order_number:
+            return
+        for hint_key, model_family in CPU_MODEL_HINTS.items():
+            if hint_key in order_number:
+                details["cpu_family"] = model_family
+                break
 
 
 def _rosctr_name(rosctr: int) -> str:

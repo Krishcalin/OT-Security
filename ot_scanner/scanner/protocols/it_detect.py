@@ -63,6 +63,13 @@ IT_PORTS: Dict[int, Dict] = {
     5900:  {"protocol": "VNC",            "risk": "high",   "category": "remote_access"},
     5901:  {"protocol": "VNC-1",          "risk": "high",   "category": "remote_access"},
     5938:  {"protocol": "TeamViewer",     "risk": "high",   "category": "remote_access"},
+    7070:  {"protocol": "AnyDesk",        "risk": "high",   "category": "remote_access"},
+    4899:  {"protocol": "Radmin",         "risk": "high",   "category": "remote_access"},
+    6000:  {"protocol": "X11",            "risk": "high",   "category": "remote_access"},
+    # VPN / Encrypted tunnels
+    500:   {"protocol": "IKE/IPsec",      "risk": "medium", "category": "vpn"},
+    1194:  {"protocol": "OpenVPN",        "risk": "medium", "category": "vpn"},
+    1723:  {"protocol": "PPTP",           "risk": "high",   "category": "vpn"},
     # File sharing
     445:   {"protocol": "SMB",            "risk": "high",   "category": "file_sharing"},
     139:   {"protocol": "NetBIOS-SSN",    "risk": "high",   "category": "file_sharing"},

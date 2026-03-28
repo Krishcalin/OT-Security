@@ -109,9 +109,18 @@ TOPOLOGY
   Automatic Purdue model zone classification and cross-zone violation detection.
   GraphML export for visualization in Gephi, yEd, or Cytoscape.
 
+POLICY EXPORT
+  --policy DIR      Generate firewall rules (Palo Alto XML, Fortinet CLI, Cisco ACL, JSON)
+
 SIEM INTEGRATION
   --cef FILE        CEF format for Splunk, ArcSight, Elastic SIEM
   --leef FILE       LEEF format for IBM QRadar
+
+PLATFORM INTEGRATIONS
+  --servicenow FILE   ServiceNow CMDB import JSON (CIs + relationships)
+  --splunk-hec FILE   Splunk HTTP Event Collector NDJSON events
+  --elastic-ecs FILE  Elastic Common Schema NDJSON for Elasticsearch/Kibana
+  --webhook FILE      Webhook notification payload JSON (Slack, Teams, PagerDuty)
 
 COMPLIANCE
   --compliance FILE  Generates NERC CIP, IEC 62443, NIST 800-82 assessment report
@@ -178,6 +187,31 @@ DELTA ANALYSIS
         dest="stix_file",
         help="Export findings as STIX 2.1 JSON bundle",
     )
+    # Integration platform exports
+    parser.add_argument(
+        "--servicenow",
+        metavar="FILE",
+        dest="servicenow_file",
+        help="Export ServiceNow CMDB import JSON (Configuration Items + relationships)",
+    )
+    parser.add_argument(
+        "--splunk-hec",
+        metavar="FILE",
+        dest="splunk_hec_file",
+        help="Export Splunk HEC-compatible NDJSON events",
+    )
+    parser.add_argument(
+        "--elastic-ecs",
+        metavar="FILE",
+        dest="elastic_ecs_file",
+        help="Export Elastic Common Schema (ECS) NDJSON events",
+    )
+    parser.add_argument(
+        "--webhook",
+        metavar="FILE",
+        dest="webhook_file",
+        help="Export webhook notification payload JSON (for Slack, Teams, PagerDuty)",
+    )
     # Compliance
     parser.add_argument(
         "--compliance",
@@ -191,6 +225,19 @@ DELTA ANALYSIS
         metavar="FILE",
         dest="delta_baseline",
         help="Compare against a baseline JSON scan file (delta analysis)",
+    )
+    # Configuration snapshots
+    parser.add_argument(
+        "--snapshot-dir",
+        metavar="DIR",
+        dest="snapshot_dir",
+        help="Directory for persistent configuration snapshots (drift detection)",
+    )
+    parser.add_argument(
+        "--set-baseline",
+        action="store_true",
+        dest="set_baseline",
+        help="Mark current scan as 'last known good' configuration baseline",
     )
 
     # Directory-based output
@@ -226,6 +273,21 @@ DELTA ANALYSIS
         default=2,
         metavar="N",
         help="Minimum packet count to include a device (default: 2)",
+    )
+    parser.add_argument(
+        "--project-dir",
+        metavar="DIR",
+        dest="project_dir",
+        help="Directory containing ICS project files "
+             "(TIA Portal .zap16/.ap16, Studio 5000 .L5X, EcoStruxure .XEF) "
+             "and/or CSV/JSON asset inventory for ground-truth enrichment",
+    )
+    parser.add_argument(
+        "--policy",
+        metavar="DIR",
+        dest="policy_dir",
+        help="Generate firewall policy recommendations to DIR "
+             "(creates paloalto/, fortinet/, cisco/, json/ subdirectories)",
     )
     parser.add_argument(
         "--version",
@@ -349,6 +411,31 @@ def main() -> None:
             analyzer.set_cve_database(args.cve_db_file)
             print(f"[*] External CVE DB: {args.cve_db_file}")
 
+    # ── Project file enrichment ──────────────────────────────────────
+    if args.project_dir:
+        proj_dir = Path(args.project_dir)
+        if not proj_dir.is_dir():
+            print(f"[WARN] Project directory not found: {proj_dir}")
+        else:
+            try:
+                from scanner.project_files.engine import ProjectFileEngine
+                proj_engine = ProjectFileEngine()
+                parsed_count = proj_engine.load_directory(str(proj_dir))
+                proj_devices = proj_engine.get_devices()
+                if proj_devices:
+                    analyzer.set_project_devices(proj_devices)
+                    print(f"[*] Project files: {parsed_count} file(s) parsed, "
+                          f"{len(proj_devices)} device(s) loaded (ground-truth)")
+                else:
+                    print(f"[*] Project files: {parsed_count} file(s) parsed, "
+                          "no devices with IP addresses found")
+                for err in proj_engine.parse_errors[:5]:
+                    print(f"    [WARN] {err}")
+            except ImportError:
+                print("[WARN] Project file module not available")
+            except Exception as exc:
+                print(f"[WARN] Project file loading failed: {exc}")
+
     devices, flows, zones, violations, edges = analyzer.analyze(str(pcap_path))
 
     if not devices:
@@ -367,6 +454,55 @@ def main() -> None:
         print(f"[+] Identified {len(zones)} network zone(s) (Purdue model)")
     if violations:
         print(f"[!] Detected {len(violations)} zone segmentation violation(s)")
+
+    total_alerts = sum(len(d.threat_alerts) for d in devices)
+    if total_alerts:
+        crit_alerts = sum(1 for d in devices for a in d.threat_alerts if a.severity == "critical")
+        malware_alerts = sum(1 for d in devices for a in d.threat_alerts if a.alert_type == "malware_signature")
+        msg = f"[!] Threat detection: {total_alerts} alert(s)"
+        if crit_alerts:
+            msg += f" ({crit_alerts} CRITICAL)"
+        if malware_alerts:
+            msg += f", {malware_alerts} malware signature match(es)"
+        print(msg)
+
+    total_ra = sum(len(d.remote_access_sessions) for d in devices)
+    if total_ra:
+        non_compliant = sum(
+            1 for d in devices for s in d.remote_access_sessions
+            if s.compliance_status == "non_compliant"
+        )
+        jump_servers = sum(1 for d in devices if d.role == "jump_server")
+        msg = f"[!] Remote access: {total_ra} session(s)"
+        if non_compliant:
+            msg += f" ({non_compliant} NON-COMPLIANT)"
+        if jump_servers:
+            msg += f", {jump_servers} jump server(s) identified"
+        print(msg)
+
+    # ── Attack path analysis ────────────────────────────────────────────
+    try:
+        from scanner.attack.engine import AttackPathEngine
+        _ap_engine = AttackPathEngine(devices, flows, zones, edges, violations)
+        attack_paths = _ap_engine.analyze()
+        if attack_paths:
+            # Attach paths to target devices
+            _dev_map = {d.ip: d for d in devices}
+            for ap in attack_paths:
+                tgt = _dev_map.get(ap.target_ip)
+                if tgt:
+                    tgt.attack_paths.append(ap)
+            crit_paths = sum(1 for p in attack_paths if p.severity == "critical")
+            crown_jewels = len({p.target_ip for p in attack_paths})
+            msg = f"[!] Attack paths: {len(attack_paths)} path(s) to {crown_jewels} crown jewel(s)"
+            if crit_paths:
+                msg += f" ({crit_paths} CRITICAL)"
+            print(msg)
+    except ImportError:
+        pass
+    except Exception as exc:
+        if args.verbose:
+            print(f"  [!] Attack path analysis error: {exc}")
 
     total_cves = sum(len(d.cve_matches) for d in devices)
     if total_cves:
@@ -436,6 +572,38 @@ def main() -> None:
             written.append(args.stix_file)
         except ImportError:
             print("[WARN] STIX export module not available")
+
+    if args.servicenow_file:
+        try:
+            from scanner.export.servicenow import ServiceNowExporter
+            ServiceNowExporter(devices, zones=zones, violations=violations).to_cmdb_json(args.servicenow_file)
+            written.append(args.servicenow_file)
+        except ImportError:
+            print("[WARN] ServiceNow export module not available")
+
+    if args.splunk_hec_file:
+        try:
+            from scanner.export.splunk import SplunkHECExporter
+            SplunkHECExporter(devices, zones=zones, violations=violations).to_hec_json(args.splunk_hec_file)
+            written.append(args.splunk_hec_file)
+        except ImportError:
+            print("[WARN] Splunk HEC export module not available")
+
+    if args.elastic_ecs_file:
+        try:
+            from scanner.export.elastic import ElasticECSExporter
+            ElasticECSExporter(devices, zones=zones, violations=violations).to_ecs_ndjson(args.elastic_ecs_file)
+            written.append(args.elastic_ecs_file)
+        except ImportError:
+            print("[WARN] Elastic ECS export module not available")
+
+    if args.webhook_file:
+        try:
+            from scanner.export.webhook import WebhookExporter
+            WebhookExporter(devices, flows=flows, zones=zones, violations=violations, pcap_file=str(pcap_path)).to_payload_json(args.webhook_file)
+            written.append(args.webhook_file)
+        except ImportError:
+            print("[WARN] Webhook export module not available")
 
     if args.compliance_file:
         try:
@@ -520,6 +688,76 @@ def main() -> None:
             print("[WARN] Delta analysis module not available")
         except Exception as exc:
             print(f"[WARN] Delta analysis failed: {exc}")
+
+    # ── Policy recommendation engine ──────��─────────────────────────────
+    if args.policy_dir:
+        try:
+            from scanner.policy.engine import PolicyEngine
+            from scanner.policy.exporters import export_all_formats
+
+            policy_engine = PolicyEngine(
+                devices=devices,
+                flows=flows,
+                zones=zones,
+                violations=violations,
+                edges=edges,
+                pcap_file=str(pcap_path),
+            )
+            ruleset = policy_engine.generate()
+            policy_files = export_all_formats(ruleset, args.policy_dir)
+            written.extend(policy_files)
+
+            print(f"\n[+] Policy recommendations: {ruleset.total_rules} rule(s) "
+                  f"across {ruleset.zone_count} zone(s)")
+            print(f"    Formats: Palo Alto XML, Fortinet CLI, Cisco ACL, JSON")
+            for pf in policy_files:
+                print(f"    {Path(pf).resolve()}")
+        except ImportError:
+            print("[WARN] Policy recommendation module not available")
+        except Exception as exc:
+            print(f"[WARN] Policy generation failed: {exc}")
+
+    # ── Configuration snapshot & drift detection ────────────────────────
+    if args.snapshot_dir:
+        try:
+            from scanner.config.engine import ConfigSnapshotEngine
+
+            snap_engine = ConfigSnapshotEngine(args.snapshot_dir)
+            current_configs = snap_engine.capture(devices)
+
+            # Load previous snapshot for drift comparison
+            previous_configs = snap_engine.load_latest()
+            if previous_configs:
+                drift_by_ip = snap_engine.diff(previous_configs, current_configs)
+                total_drift = sum(len(a) for a in drift_by_ip.values())
+                if total_drift:
+                    crit_drift = sum(
+                        1 for alerts in drift_by_ip.values()
+                        for a in alerts if a.severity == "critical"
+                    )
+                    # Attach to devices
+                    for dev in devices:
+                        dev.config_drift_alerts = drift_by_ip.get(dev.ip, [])
+                    print(f"\n[!] Config drift: {total_drift} change(s) detected"
+                          + (f" ({crit_drift} CRITICAL)" if crit_drift else ""))
+                else:
+                    print("\n[+] Config drift: no changes from previous snapshot")
+            else:
+                print("\n[+] Config snapshot: first scan (no baseline for comparison)")
+
+            # Save current snapshot
+            snap_path = snap_engine.save_snapshot(current_configs, str(pcap_path))
+            written.append(snap_path)
+
+            # Set as baseline if requested
+            if args.set_baseline:
+                snap_engine.set_baseline(snap_path)
+                print(f"[+] Baseline set: {snap_path}")
+
+        except ImportError:
+            print("[WARN] Configuration snapshot module not available")
+        except Exception as exc:
+            print(f"[WARN] Configuration snapshot failed: {exc}")
 
     # ── Exit advisory ────────────────────────────────────────────────────
     all_vulns = [v for d in devices for v in d.vulnerabilities]

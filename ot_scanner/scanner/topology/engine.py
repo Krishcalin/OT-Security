@@ -319,6 +319,13 @@ class TopologyEngine:
 
             zone.purdue_label = PURDUE_LABELS.get(zone.purdue_level, "Unknown")
 
+        # Criticality-based override (safety_system → L0, process_control → L1)
+        for zone in zones:
+            crit_level = self._criticality_purdue_override(zone, device_map)
+            if crit_level is not None:
+                zone.purdue_level = crit_level
+                zone.purdue_label = PURDUE_LABELS.get(crit_level, "Unknown")
+
         # Second pass: detect DMZ zones (zones bridging low and high levels)
         zone_by_id: Dict[str, NetworkZone] = {z.zone_id: z for z in zones}
         for zone in zones:
@@ -348,6 +355,41 @@ class TopologyEngine:
         """Return a Purdue level if the role maps directly, else None."""
         if role in ROLE_TO_PURDUE:
             return ROLE_TO_PURDUE[role]
+        return None
+
+    def _criticality_purdue_override(
+        self,
+        zone: NetworkZone,
+        device_map: Dict[str, OTDevice],
+    ) -> "int | None":
+        """Override Purdue level if device_criticality gives a strong signal.
+
+        Returns a level (int) if the majority of devices in the zone share
+        a safety_system or process_control criticality, else None.
+        """
+        criticalities = []
+        for ip in zone.device_ips:
+            dev = device_map.get(ip)
+            if dev and dev.device_criticality != "unknown":
+                criticalities.append(dev.device_criticality)
+
+        if not criticalities:
+            return None
+
+        # Safety-system majority → Level 0
+        safety_count = criticalities.count("safety_system")
+        if safety_count > 0 and safety_count >= len(criticalities) / 2:
+            zone.notes.append(
+                f"Purdue level forced to 0: {safety_count}/{len(criticalities)} "
+                f"devices classified as safety_system."
+            )
+            return 0
+
+        # Process-control majority → reinforce Level 1
+        pc_count = criticalities.count("process_control")
+        if pc_count > 0 and pc_count >= len(criticalities) / 2:
+            return 1
+
         return None
 
     def _purdue_from_protocols(

@@ -197,6 +197,9 @@ class CVEMatcher:
             ics_cert_advisory=entry.ics_cert_advisory,
             remediation=entry.remediation,
             references=list(entry.references),
+            epss_score=entry.epss_score,
+            is_cisa_kev=entry.is_cisa_kev,
+            exploit_maturity=entry.exploit_maturity,
         )
 
     def _match_vendor(self, device: OTDevice, entry: CVEEntry) -> bool:
@@ -329,19 +332,24 @@ class CVEMatcher:
 
           now   -- CVE with known public exploit AND device is
                    network-reachable AND confidence >= medium
+                   OR CISA KEV regardless of exploit status
+                   OR high EPSS (>0.5) with medium+ confidence
           next  -- CVE confirmed (confidence >= medium) but no public
                    exploit, or not network-reachable
           never -- Low confidence match, or theoretical-only risk
         """
         if confidence == "low":
             return "never"
-        if (
-            cve.has_public_exploit
-            and network_reachable
-            and confidence in ("high", "medium")
-        ):
-            return "now"
         if confidence in ("high", "medium"):
+            # CISA KEV entries are always "now" when confidence is sufficient
+            if cve.is_cisa_kev and network_reachable:
+                return "now"
+            # High EPSS (>0.5) with reachable device → "now"
+            if cve.epss_score > 0.5 and network_reachable:
+                return "now"
+            # Original: public exploit + reachable
+            if cve.has_public_exploit and network_reachable:
+                return "now"
             return "next"
         return "never"
 
@@ -543,6 +551,9 @@ class CVEMatcher:
                 title=raw.get("title", ""),
                 description=raw.get("description", ""),
                 has_public_exploit=raw.get("has_public_exploit", False),
+                epss_score=raw.get("epss_score", 0.0),
+                is_cisa_kev=raw.get("is_cisa_kev", False),
+                exploit_maturity=raw.get("exploit_maturity", "unknown"),
                 ics_cert_advisory=raw.get("ics_cert_advisory", ""),
                 remediation=raw.get("remediation", ""),
                 references=raw.get("references", []),

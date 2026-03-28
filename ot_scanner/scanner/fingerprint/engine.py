@@ -459,6 +459,30 @@ class FingerprintEngine:
                 except (TypeError, ValueError):
                     pass
 
+            # S7comm rack / slot promotion
+            if device.rack is None and d.get("rack") is not None:
+                try:
+                    device.rack = int(d["rack"])
+                except (TypeError, ValueError):
+                    pass
+            if device.slot is None and d.get("slot") is not None:
+                try:
+                    device.slot = int(d["slot"])
+                except (TypeError, ValueError):
+                    pass
+
+            # SZL enrichment: cpu_info, modules, order_number
+            if not device.cpu_info and d.get("cpu_info"):
+                device.cpu_info = d["cpu_info"]
+            if not device.modules and d.get("modules"):
+                device.modules = d["modules"]
+            if not device.product_code and d.get("order_number"):
+                device.product_code = d["order_number"]
+
+            # DNP3 / generic hardware_version promotion
+            if not device.hardware_version and d.get("hardware_version"):
+                device.hardware_version = d["hardware_version"]
+
     # ---------------------------------------------------------------- model extraction
 
     def _extract_model_from_proto(self, device: OTDevice, proto) -> None:
@@ -482,6 +506,14 @@ class FingerprintEngine:
             device.firmware = device.firmware or firmware
         if serial:
             device.serial_number = device.serial_number or serial
+
+        # S7comm SZL order_number / cpu_info
+        order_number = d.get("order_number")
+        if order_number and not device.product_code:
+            device.product_code = order_number
+        cpu_info = d.get("cpu_info")
+        if cpu_info and not device.cpu_info:
+            device.cpu_info = cpu_info
 
         # FINS
         fins_model = d.get("plc_model_raw")

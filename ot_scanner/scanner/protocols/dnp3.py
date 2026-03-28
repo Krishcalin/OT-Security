@@ -256,10 +256,14 @@ class DNP3Analyzer(BaseProtocolAnalyzer):
                     raw = data[i:i+attr_len]
                     i += attr_len
                     text = raw.decode("latin-1", errors="replace").strip()
-                    if variation == 242:
+                    if variation == 241:
+                        result["device_description"] = text
+                    elif variation == 242:
                         result["product_model"]    = text
                     elif variation == 243:
                         result["firmware_version"] = text
+                    elif variation == 244:
+                        result["hardware_version"] = text
                     elif variation == 245:
                         result["vendor_name"]      = text
                     continue

@@ -37,6 +37,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "S7comm+ authentication packets."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.91,
+        "is_cisa_kev": True,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-19-344-02",
         "remediation": "Update firmware to V4.5 or later. Enable S7comm+ encrypted communication.",
         "references": [
@@ -58,6 +61,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "areas, enabling code execution on the PLC."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.14,
+        "is_cisa_kev": True,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-21-152-01",
         "remediation": "Update firmware to V2.9 or later. Restrict network access to PLCs.",
         "references": [
@@ -79,6 +85,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "S7comm service port (TCP/102), causing the PLC to enter a defect state."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.11,
+        "is_cisa_kev": True,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-099-02",
         "remediation": "Apply Siemens firmware updates. Use network segmentation to limit access to TCP/102.",
         "references": [
@@ -101,6 +110,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "any S7-1500 PLC."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.93,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-286-07",
         "remediation": (
             "Siemens has released new hardware revisions with individual keys. "
@@ -126,6 +138,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "with root privileges."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.28,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-23-320-08",
         "remediation": "Update to the latest firmware. Restrict web management access to trusted networks.",
         "references": [
@@ -147,6 +162,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attacker to modify PLC program downloads and data exchange."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.04,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-344-04",
         "remediation": "Enable TLS-based communication and update to the latest firmware.",
         "references": [
@@ -168,6 +186,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "execute arbitrary code or crash the device."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.32,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-21-287-07",
         "remediation": "Update firmware to V4.5 or later. Disable the web server if not needed.",
         "references": [
@@ -189,6 +210,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "messages, causing the device to reboot."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.08,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-190-03",
         "remediation": "Update firmware to V8.0 or later. Restrict MMS port access.",
         "references": [
@@ -210,6 +234,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attacker to read or modify PLC configuration."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.07,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-348-03",
         "remediation": "Apply Siemens security patches. Enable access protection on the PLC.",
         "references": [
@@ -231,6 +258,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the engineering workstation."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.12,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-21-194-10",
         "remediation": "Update TIA Portal to V17 or later. Do not open untrusted project files.",
         "references": [
@@ -252,6 +282,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "unauthenticated remote code execution."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.24,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-22-349-04",
         "remediation": "Update firmware to V6.5 or later. Disable web interface if not required.",
         "references": [
@@ -273,6 +306,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the key to decrypt or modify PLC firmware."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-20-252-02",
         "remediation": "Upgrade to hardware supporting individual device keys. Apply firmware updates.",
         "references": [
@@ -294,6 +330,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "user to escalate privileges and modify the PLC program."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.09,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-24-193-06",
         "remediation": "Update to latest firmware. Enforce role-based access control on PLC projects.",
         "references": [
@@ -315,6 +354,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "remote attackers to gain full control of the management platform."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.89,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-23-348-12",
         "remediation": "Update to V1.0.1.1 or later. Change all default credentials immediately.",
         "references": [
@@ -336,6 +378,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "compromising all remotely managed OT devices."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.37,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-24-284-05",
         "remediation": "Update to V3.2 or later. Restrict remote access to trusted networks.",
         "references": [
@@ -363,6 +408,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "code that persists across reboots."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.10,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-090-05",
         "remediation": "Update to firmware V33.0 or later. Use CIP Security for firmware transfers.",
         "references": [
@@ -384,6 +432,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "Allows unauthenticated remote code execution and full device compromise."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.97,
+        "is_cisa_kev": True,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-23-193-01",
         "remediation": "Apply firmware V33.017 or later immediately. Segment CIP communications.",
         "references": [
@@ -405,6 +456,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "causing the communication module to become unresponsive."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.13,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-193-02",
         "remediation": "Update to firmware V11.004 or later. Implement CIP deep-packet inspection.",
         "references": [
@@ -426,6 +480,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "server and full device configuration."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.95,
+        "is_cisa_kev": True,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-13-011-03",
         "remediation": "Replace MicroLogix 1100 with newer hardware. Restrict network access to the controller.",
         "references": [
@@ -447,6 +504,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the controller to fault and require a manual restart."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-300-03",
         "remediation": "Update to firmware V34.0 or later. Use CIP Security to restrict access.",
         "references": [
@@ -468,6 +528,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "execute arbitrary code or crash the controller."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.87,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-20-070-06",
         "remediation": "Migrate to newer controller hardware. Restrict EtherNet/IP access.",
         "references": [
@@ -489,6 +552,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "unauthorized access to engineering and SCADA services."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.16,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-306-01",
         "remediation": "Update FactoryTalk Services to V6.40 or later.",
         "references": [
@@ -510,6 +576,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "commands to the PLC backplane from an untrusted slot."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.74,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-24-193-17",
         "remediation": "Apply firmware V34.011 or later. Verify trusted slot configuration.",
         "references": [
@@ -531,6 +600,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "version to the engineering workstation, a Stuxnet-style attack."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.96,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-090-07",
         "remediation": "Update to latest firmware. Use CIP Security and program change detection.",
         "references": [
@@ -552,6 +624,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the controller to stop executing its control program."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.05,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-24-046-02",
         "remediation": "Apply latest firmware update. Restrict EtherNet/IP traffic to trusted hosts.",
         "references": [
@@ -578,6 +653,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to gain full control of the PLC via Modbus/TCP."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.94,
+        "is_cisa_kev": True,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-21-232-04",
         "remediation": "Apply firmware updates. Enable application password protection on PLCs.",
         "references": [
@@ -599,6 +677,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "compromise of the PLC and connected process control."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.92,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-23-040-04",
         "remediation": "Apply latest firmware patches. Restrict Modbus/TCP access to authorized hosts.",
         "references": [
@@ -620,6 +701,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to access and modify PLC files."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.21,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-20-205-01",
         "remediation": "Disable FTP if not required. Apply firmware updates. Restrict network access.",
         "references": [
@@ -641,6 +725,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to access diagnostic pages and modify settings."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.35,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-18-065-01",
         "remediation": "Update firmware to V3.10 or later. Disable the web server if not needed.",
         "references": [
@@ -662,6 +749,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the PLC to enter a fault state requiring a manual restart."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.09,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-183-01",
         "remediation": "Update firmware to V3.20 or later. Implement Modbus/TCP filtering.",
         "references": [
@@ -684,6 +774,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "workstation or PLC."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.19,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-23-320-01",
         "remediation": "Apply vendor patches. Validate project file integrity before loading.",
         "references": [
@@ -705,6 +798,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers via Modbus/TCP function code reads."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.07,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-21-334-03",
         "remediation": "Apply firmware updates. Restrict Modbus/TCP access to trusted SCADA hosts.",
         "references": [
@@ -726,6 +822,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "on the device, compromising substation automation systems."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.18,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-24-226-01",
         "remediation": "Update firmware to V2.10 or later. Restrict remote access.",
         "references": [
@@ -747,6 +846,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "compromising the SCADA server."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.68,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-195-02",
         "remediation": "Update IGSS to V16.0 or later. Do not open untrusted project files.",
         "references": [
@@ -768,6 +870,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to access and modify the RTU configuration."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.26,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-20-282-02",
         "remediation": "Apply vendor firmware updates. Enable authentication on all RTU interfaces.",
         "references": [
@@ -794,6 +899,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "to gain administrative access to the system."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.33,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-23-033-01",
         "remediation": "Update to V3.08 or later. Change all default credentials immediately.",
         "references": [
@@ -815,6 +923,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "configuration interface and modify operational parameters."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.29,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-22-235-03",
         "remediation": "Update firmware to V12.4 or later. Change all default credentials.",
         "references": [
@@ -836,6 +947,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "arbitrary code on the DCS server or operator stations."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.15,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-20-154-04",
         "remediation": "Update to System 800xA V6.1 or later. Restrict network access to DCS components.",
         "references": [
@@ -857,6 +971,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "messages, causing the relay to become unresponsive."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.08,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-348-01",
         "remediation": "Update firmware to V8.0 or later. Restrict MMS port access.",
         "references": [
@@ -878,6 +995,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "compromising the engineering workstation and connected IEDs."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.11,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-221-01",
         "remediation": "Update to PCM600 V2.12 or later. Validate project file sources.",
         "references": [
@@ -899,6 +1019,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "causing the relay to reboot during a power system event."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-330-01",
         "remediation": "Update firmware to V2.2 or later. Enable VLAN segmentation for GOOSE traffic.",
         "references": [
@@ -920,6 +1043,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "remote attackers to modify protection relay settings."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.17,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-24-030-01",
         "remediation": "Update firmware to V1.5 or later. Enable role-based access control.",
         "references": [
@@ -941,6 +1067,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the RTU to restart and lose SCADA connectivity."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.05,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-21-075-01",
         "remediation": "Update firmware to V12.7 or later. Implement IEC-104 traffic filtering.",
         "references": [
@@ -968,6 +1097,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "protection during a fault."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.22,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-22-319-01",
         "remediation": "Apply vendor firmware patches. Restrict relay network access.",
         "references": [
@@ -989,6 +1121,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "access the device configuration and intercept SCADA communications."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.90,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-18-270-02",
         "remediation": "Apply firmware updates. Change default credentials. Restrict management access.",
         "references": [
@@ -1010,6 +1145,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "allowing full compromise of the relay."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.38,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-21-075-02",
         "remediation": "Update firmware to V8.10 or later. Segment relay management networks.",
         "references": [
@@ -1031,6 +1169,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "malicious versions that compromise protective functions."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.25,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-20-224-04",
         "remediation": "Apply firmware updates. Enable firmware signing verification. Restrict network access.",
         "references": [
@@ -1052,6 +1193,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to compromise the engineering workstation."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.12,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-19-134-01",
         "remediation": "Update to V4.0.517 or later. Restrict network access to engineering stations.",
         "references": [
@@ -1073,6 +1217,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "SCADA communications via crafted network packets."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.07,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-326-01",
         "remediation": "Apply firmware updates from GE Grid Solutions. Restrict network access to the RTU.",
         "references": [
@@ -1099,6 +1246,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "project files, compromising the engineering workstation."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.14,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-241-01",
         "remediation": "Update to SEL-5030 V7.1 or later. Validate project file sources.",
         "references": [
@@ -1120,6 +1270,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "unauthenticated attackers to access configuration and control functions."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.71,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-23-241-02",
         "remediation": "Update to RTAC firmware R150 or later. Restrict network access to RTAC.",
         "references": [
@@ -1141,6 +1294,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "useful for further attacks."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.03,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-349-01",
         "remediation": "Update to firmware R149 or later. Restrict RTAC management access.",
         "references": [
@@ -1162,6 +1318,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "potentially compromising the engineering environment."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.10,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-241-03",
         "remediation": "Update to SEL-5033 V3.1 or later. Only open trusted project files.",
         "references": [
@@ -1183,6 +1342,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to access and reconfigure the device."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.40,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-18-191-02",
         "remediation": "Apply firmware updates. Restrict management access to trusted hosts.",
         "references": [
@@ -1209,6 +1371,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "memory and modify the control program without credentials."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.86,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-314-01",
         "remediation": "Use FINS/TCP with IP filtering. Segment FINS traffic from untrusted networks.",
         "references": [
@@ -1230,6 +1395,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "and modify the running control program."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.88,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-179-01",
         "remediation": "Update firmware to V1.49 or later. Restrict network access to the controller.",
         "references": [
@@ -1251,6 +1419,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "its control program."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.08,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-073-01",
         "remediation": "Apply firmware updates. Implement FINS protocol filtering at network boundaries.",
         "references": [
@@ -1272,6 +1443,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to execute arbitrary commands on the PLC."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.31,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-19-346-02",
         "remediation": "Restrict FINS port access. Deploy application-layer firewalls for FINS traffic.",
         "references": [
@@ -1293,6 +1467,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "engineering workstation used to program Omron PLCs."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.13,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-179-02",
         "remediation": "Update CX-Programmer to V9.78 or later. Do not open untrusted project files.",
         "references": [
@@ -1319,6 +1496,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the PLC without valid credentials via the MELSEC protocol."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.27,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-22-202-04",
         "remediation": "Apply vendor patches. Enable IP filtering on PLC communication modules.",
         "references": [
@@ -1340,6 +1520,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "unauthenticated attackers to gain full control of the PLC."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.85,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-24-016-01",
         "remediation": "Apply vendor firmware updates. Enable IP filter and password protection.",
         "references": [
@@ -1361,6 +1544,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the CPU module to stop operation."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-20-282-01",
         "remediation": "Update firmware to V49.0 or later. Filter MELSEC-MC traffic at network boundaries.",
         "references": [
@@ -1382,6 +1568,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "MELSEC protocol, enabling credential theft."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.09,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-21-280-04",
         "remediation": "Apply firmware updates. Use VPN or encrypted tunnels for MELSEC communications.",
         "references": [
@@ -1403,6 +1592,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "protocol messages, allowing full device compromise."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.36,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-24-045-01",
         "remediation": "Apply vendor firmware updates immediately. Restrict MELSEC protocol access.",
         "references": [
@@ -1430,6 +1622,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "field device network."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.34,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-23-145-01",
         "remediation": "Update to OneWireless V322.2 or later. Segment the wireless gateway network.",
         "references": [
@@ -1451,6 +1646,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "modify the PLC program and compromise process control."
         ),
         "has_public_exploit": True,
+        "epss_score": 0.88,
+        "is_cisa_kev": False,
+        "exploit_maturity": "functional",
         "ics_cert_advisory": "ICSA-22-207-03",
         "remediation": "Apply firmware updates. Restrict network access to the PCD controller.",
         "references": [
@@ -1473,6 +1671,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "of the process control system."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.39,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-21-278-04",
         "remediation": "Apply Honeywell patches immediately. Isolate the Experion PKS network.",
         "references": [
@@ -1494,6 +1695,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "controller to become unresponsive and halt process control."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.07,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-20-056-03",
         "remediation": "Apply firmware updates. Implement network segmentation for DCS traffic.",
         "references": [
@@ -1520,6 +1724,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "revealing process control parameters."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.08,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-083-01",
         "remediation": "Update to CENTUM VP R6.09 or later. Restrict DCS network access.",
         "references": [
@@ -1541,6 +1748,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "attackers to modify controller configuration and control logic."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.23,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-23-073-02",
         "remediation": "Apply Yokogawa patches. Enable authentication and restrict network access.",
         "references": [
@@ -1562,6 +1772,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "execute arbitrary code on the DCS server."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.30,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
         "ics_cert_advisory": "ICSA-19-073-01",
         "remediation": "Migrate to CENTUM VP or apply vendor patches. Isolate the DCS network.",
         "references": [
@@ -1589,6 +1802,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "of registers and coils."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.04,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "",
         "remediation": (
             "Segment Modbus traffic. Deploy Modbus-aware firewalls. "
@@ -1613,6 +1829,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "the server application to consume excessive memory and crash."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.10,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-20-163-02",
         "remediation": "Update to OPC-UA .NET Standard stack V1.04 or later.",
         "references": [
@@ -1634,6 +1853,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "server to become unresponsive."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-22-228-02",
         "remediation": "Update the OPC-UA stack to V1.04.368 or later.",
         "references": [
@@ -1655,6 +1877,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "denial-of-service or information disclosure."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.05,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "ICSA-23-180-01",
         "remediation": "Update the OPC-UA .NET stack to V1.04.371 or later.",
         "references": [
@@ -1676,6 +1901,9 @@ ICS_CVE_DATABASE: List[Dict] = [
             "video surveillance feeds in OT environments."
         ),
         "has_public_exploit": False,
+        "epss_score": 0.11,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
         "ics_cert_advisory": "",
         "remediation": "Apply firmware updates. Change default credentials. Segment camera networks.",
         "references": [
