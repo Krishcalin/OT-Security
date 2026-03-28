@@ -514,6 +514,68 @@ class ThreatDetectionEngine:
                         break  # one alert per device
         return alerts
 
+    def _match_fuxnet(self, sig: Dict) -> List[ThreatAlert]:
+        """Fuxnet: Modbus rapid writes + diagnostic/restart commands (PLC bricking)."""
+        alerts: List[ThreatAlert] = []
+        for dev in self._devices:
+            for ps in dev.protocol_stats:
+                if "MODBUS" not in ps.protocol.upper():
+                    continue
+                # High write volume + diagnostic commands = bricking pattern
+                has_heavy_writes = ps.write_count > 50
+                has_diag = ps.diagnostic_count > 0
+                has_many_addrs = ps.unique_data_points >= 10
+                if has_heavy_writes and (has_diag or has_many_addrs):
+                    alerts.append(ThreatAlert(
+                        alert_type="malware_signature",
+                        severity=sig["severity"],
+                        title=f"Fuxnet pattern: {dev.ip}",
+                        description=sig["description"],
+                        device_ip=dev.ip,
+                        protocol="Modbus/TCP",
+                        mitre_technique=sig["mitre_technique"],
+                        mitre_tactic=sig["mitre_tactic"],
+                        evidence={
+                            "write_count": ps.write_count,
+                            "diagnostic_count": ps.diagnostic_count,
+                            "unique_addresses": ps.unique_data_points,
+                        },
+                        confidence="medium",
+                    ))
+                    break
+        return alerts
+
+    def _match_iocontrol(self, sig: Dict) -> List[ThreatAlert]:
+        """IOControl: MQTT device with IT protocols + config changes (C2 via MQTT)."""
+        alerts: List[ThreatAlert] = []
+        for dev in self._devices:
+            proto_names = set(dev.get_protocol_names())
+            if "MQTT" not in proto_names:
+                continue
+            has_it = bool(dev.it_protocols)
+            has_config = any(ps.has_config_change for ps in dev.protocol_stats)
+            has_many_peers = len(dev.communicating_with) > 5
+            # MQTT + IT protocols + (config change or high peer count) = C2 pattern
+            if has_it and (has_config or has_many_peers):
+                alerts.append(ThreatAlert(
+                    alert_type="malware_signature",
+                    severity=sig["severity"],
+                    title=f"IOControl pattern: {dev.ip}",
+                    description=sig["description"],
+                    device_ip=dev.ip,
+                    protocol="MQTT",
+                    mitre_technique=sig["mitre_technique"],
+                    mitre_tactic=sig["mitre_tactic"],
+                    evidence={
+                        "mqtt_detected": True,
+                        "it_protocols": [p.protocol for p in dev.it_protocols],
+                        "config_change": has_config,
+                        "peer_count": len(dev.communicating_with),
+                    },
+                    confidence="medium",
+                ))
+        return alerts
+
     # ── Module 3: Reconnaissance detection ───────────────────────────
 
     def _detect_reconnaissance(self) -> List[ThreatAlert]:

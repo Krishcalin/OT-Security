@@ -161,4 +161,49 @@ ICS_MALWARE_SIGNATURES: List[Dict] = [
             "CISA Advisory on Modbus-based OT attacks",
         ],
     },
+
+    # ══════════════════════════════════════════════════════════════════
+    #  FUXNET  (2024 Blackjack Group — anti-Russian PLC bricking)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "name": "Fuxnet",
+        "description": (
+            "Modbus device receiving rapid write commands (FC 5/6/15/16) targeting "
+            "sensor/actuator registers combined with diagnostic commands (FC 8) or "
+            "restart commands — consistent with Fuxnet malware used by Blackjack "
+            "Group to permanently brick Moscollector sensor gateways by flooding "
+            "Modbus registers and corrupting firmware via serial bus manipulation."
+        ),
+        "severity": "critical",
+        "mitre_technique": "T0831",
+        "mitre_tactic": "Impair Process Control",
+        "match_fn": "match_fuxnet",
+        "references": [
+            "https://claroty.com/team82/research/unpacking-the-blackjack-groups-fuxnet-malware",
+            "Claroty Team82 Fuxnet analysis (2024)",
+        ],
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    #  IOCONTROL  (2024-2025 — OT/IoT cyber weapon via MQTT C2)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "name": "IOControl",
+        "description": (
+            "IoT gateway or controller device communicating via MQTT with "
+            "abnormal publish/subscribe patterns combined with outbound "
+            "connections to external IPs and configuration changes — consistent "
+            "with IOControl malware that uses MQTT as a command-and-control "
+            "channel to compromise OT/IoT gateways, exfiltrate data, and "
+            "manipulate connected field devices."
+        ),
+        "severity": "high",
+        "mitre_technique": "T0869",
+        "mitre_tactic": "Command and Control",
+        "match_fn": "match_iocontrol",
+        "references": [
+            "https://claroty.com/team82/research/inside-a-new-ot-iot-cyber-weapon-iocontrol",
+            "Claroty Team82 IOControl analysis (2024-2025)",
+        ],
+    },
 ]
