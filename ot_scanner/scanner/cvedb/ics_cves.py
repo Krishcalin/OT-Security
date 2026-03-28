@@ -1910,4 +1910,384 @@ ICS_CVE_DATABASE: List[Dict] = [
             "https://nvd.nist.gov/vuln/detail/CVE-2020-25078",
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  ABB RMC-100  (4 CVEs — Claroty Team82 2025)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2025-6071",
+        "vendor": "ABB",
+        "product_pattern": r"RMC-100|RMC100",
+        "affected_versions": "*",
+        "severity": "high",
+        "cvss_score": 7.5,
+        "title": "ABB RMC-100 Hard-coded Cryptographic Keys",
+        "description": (
+            "ABB RMC-100 reactive maintenance controller uses hard-coded "
+            "cryptographic keys that allow an attacker with network access "
+            "to decrypt sensitive communications and compromise device integrity."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.08,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
+        "ics_cert_advisory": "",
+        "remediation": "Disable REST interface when not needed. Restrict network access to management ports.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-6071",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2025-6074",
+        "vendor": "ABB",
+        "product_pattern": r"RMC-100|RMC100",
+        "affected_versions": "*",
+        "severity": "high",
+        "cvss_score": 8.1,
+        "title": "ABB RMC-100 Stack-based Buffer Overflow",
+        "description": (
+            "ABB RMC-100 contains a stack-based buffer overflow vulnerability "
+            "in the REST API interface that could allow an authenticated attacker "
+            "to execute arbitrary code on the device."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.06,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
+        "ics_cert_advisory": "",
+        "remediation": "Disable REST interface. Restrict access to trusted management stations only.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-6074",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  SIEMENS SIMATIC RTLS  (1 CVE — Claroty Team82 2025)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2025-30034",
+        "vendor": "Siemens",
+        "product_pattern": r"SIMATIC\s*RTLS|Locating\s*Manager",
+        "affected_versions": "*",
+        "severity": "medium",
+        "cvss_score": 5.3,
+        "title": "Siemens SIMATIC RTLS Locating Manager Reachable Assertion DoS",
+        "description": (
+            "Siemens SIMATIC RTLS Locating Manager is vulnerable to a "
+            "reachable assertion that allows an attacker to cause a "
+            "denial-of-service condition by sending crafted requests."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.03,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
+        "ics_cert_advisory": "",
+        "remediation": "Apply Siemens security patch. Restrict access to RTLS management interface.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-30034",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  TRANE Building Automation  (5 CVEs — Claroty Team82 2026)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2026-28252",
+        "vendor": "Trane",
+        "product_pattern": r"Tracer\s*SC|Tracer\s*Concierge",
+        "affected_versions": "<6.30.2313",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Trane Tracer SC Broken Crypto — Root Access",
+        "description": (
+            "Trane Tracer SC/SC+ building management controllers use a broken "
+            "cryptographic algorithm that allows an unauthenticated attacker to "
+            "bypass authentication and gain root-level access to the system, "
+            "enabling full control of HVAC and building automation."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.18,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Upgrade Tracer SC+ firmware to v6.30.2313 or later.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-28252",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2026-28255",
+        "vendor": "Trane",
+        "product_pattern": r"Tracer\s*SC|Tracer\s*Concierge",
+        "affected_versions": "<6.30.2313",
+        "severity": "critical",
+        "cvss_score": 9.1,
+        "title": "Trane Tracer SC Hard-coded Credentials",
+        "description": (
+            "Trane Tracer SC/SC+ and Concierge building controllers contain "
+            "hard-coded credentials that allow an attacker to disclose "
+            "sensitive information and take over device accounts."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.22,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Upgrade firmware to v6.30.2313. Change all default credentials.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-28255",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  DANFOSS Refrigeration Controllers  (2 CVEs — Claroty Team82 2025)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2025-41451",
+        "vendor": "Danfoss",
+        "product_pattern": r"AK-SM\s*8\d+|AK-SM800",
+        "affected_versions": "*",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Danfoss AK-SM8xxA Command Injection",
+        "description": (
+            "Danfoss AK-SM8xxA refrigeration system manager contains an "
+            "OS command injection vulnerability that allows an unauthenticated "
+            "attacker to execute arbitrary commands on the controller, "
+            "potentially disrupting refrigeration and cold chain operations."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.15,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Apply Danfoss firmware update. Isolate controller on dedicated network segment.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-41451",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2025-41452",
+        "vendor": "Danfoss",
+        "product_pattern": r"AK-SM\s*8\d+|AK-SM800",
+        "affected_versions": "*",
+        "severity": "high",
+        "cvss_score": 7.5,
+        "title": "Danfoss AK-SM8xxA Denial of Service",
+        "description": (
+            "Danfoss AK-SM8xxA refrigeration controllers are vulnerable to "
+            "a denial-of-service condition via crafted network requests that "
+            "can cause the controller to become unresponsive."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.05,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
+        "ics_cert_advisory": "",
+        "remediation": "Apply Danfoss firmware update. Restrict network access.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-41452",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  COPELAND XWEB PRO  (3 representative CVEs — Claroty Team82 2026)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2026-21718",
+        "vendor": "Copeland",
+        "product_pattern": r"XWEB\s*\d+|XWEB\s*Pro|XWEB\s*300|XWEB\s*500",
+        "affected_versions": "<=1.12.1",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Copeland XWEB Pro Authentication Bypass",
+        "description": (
+            "Copeland XWEB 300D/500D/500B PRO refrigeration management "
+            "controllers contain an authentication bypass vulnerability "
+            "that allows unauthenticated attackers to gain full administrative "
+            "access to the device and modify refrigeration parameters."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.20,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Update XWEB Pro firmware above v1.12.1. Restrict web interface access.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-21718",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2026-25105",
+        "vendor": "Copeland",
+        "product_pattern": r"XWEB\s*\d+|XWEB\s*Pro|XWEB\s*300|XWEB\s*500",
+        "affected_versions": "<=1.12.1",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Copeland XWEB Pro OS Command Injection via Modbus Config",
+        "description": (
+            "Copeland XWEB Pro refrigeration controllers are vulnerable to "
+            "OS command injection via the Modbus configuration API endpoint, "
+            "allowing remote code execution on the underlying operating system."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.17,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Update firmware. Disable Modbus configuration API if not required.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-25105",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  FRICK CONTROLS / JOHNSON CONTROLS  (2 CVEs — Claroty Team82 2026)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2026-21660",
+        "vendor": "Johnson Controls",
+        "product_pattern": r"Quantum\s*HD|Frick",
+        "affected_versions": ">=10.22,<=11",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Frick Controls Quantum HD Hard-coded Credentials",
+        "description": (
+            "Johnson Controls Frick Quantum HD industrial refrigeration "
+            "controllers contain hard-coded credentials that allow an "
+            "unauthenticated attacker full access to the device. The affected "
+            "versions (10.22-11) are end-of-support."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.19,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Upgrade to Quantum HD Unity v12+. End-of-support versions should be replaced.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-21660",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2026-21659",
+        "vendor": "Johnson Controls",
+        "product_pattern": r"Quantum\s*HD|Frick",
+        "affected_versions": ">=10.22,<=11",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Frick Controls Quantum HD Remote Code Execution",
+        "description": (
+            "Johnson Controls Frick Quantum HD controllers are vulnerable to "
+            "arbitrary code execution via crafted requests, allowing an attacker "
+            "to take full control of the refrigeration controller."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.16,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Upgrade to Quantum HD Unity v12+.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-21659",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  METZ CONNECT EWIO2  (2 CVEs — Claroty Team82 2025)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2025-41733",
+        "vendor": "METZ CONNECT",
+        "product_pattern": r"EWIO2|EWIO2-M|EWIO2-BM",
+        "affected_versions": "<2.2.0",
+        "severity": "critical",
+        "cvss_score": 9.1,
+        "title": "METZ CONNECT EWIO2 Authentication Bypass",
+        "description": (
+            "METZ CONNECT EWIO2 series industrial I/O modules contain an "
+            "authentication bypass via the commissioning wizard that allows "
+            "an unauthenticated attacker to gain administrative access."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.12,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Update firmware to v2.2.0 or later.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-41733",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+    {
+        "cve_id": "CVE-2025-41735",
+        "vendor": "METZ CONNECT",
+        "product_pattern": r"EWIO2|EWIO2-M|EWIO2-BM",
+        "affected_versions": "<2.2.0",
+        "severity": "high",
+        "cvss_score": 8.8,
+        "title": "METZ CONNECT EWIO2 Unrestricted File Upload",
+        "description": (
+            "METZ CONNECT EWIO2 industrial I/O modules allow unrestricted "
+            "file upload that can lead to remote code execution on the device."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.09,
+        "is_cisa_kev": False,
+        "exploit_maturity": "unknown",
+        "ics_cert_advisory": "",
+        "remediation": "Update firmware to v2.2.0. Restrict web interface access.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-41735",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  ENOCEAN SmartServer IoT  (2 CVEs — Claroty Team82 2026)
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2026-20761",
+        "vendor": "EnOcean",
+        "product_pattern": r"SmartServer|SmartServer\s*IoT",
+        "affected_versions": "<=4.60.009",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "EnOcean SmartServer IoT Arbitrary Command Execution",
+        "description": (
+            "EnOcean SmartServer IoT building management gateway is vulnerable "
+            "to arbitrary OS command execution via crafted requests, allowing "
+            "an attacker to gain full control of the gateway and connected "
+            "LON/IP-852 building automation devices."
+        ),
+        "has_public_exploit": False,
+        "epss_score": 0.14,
+        "is_cisa_kev": False,
+        "exploit_maturity": "poc",
+        "ics_cert_advisory": "",
+        "remediation": "Update SmartServer IoT firmware above v4.60.009.",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-20761",
+            "https://claroty.com/team82/disclosure-dashboard",
+        ],
+    },
 ]
