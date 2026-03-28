@@ -1,0 +1,207 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0e14"/>
+      <stop offset="40%" style="stop-color:#0d1a2d"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="topBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="25%" style="stop-color:#06b6d4"/>
+      <stop offset="50%" style="stop-color:#3b82f6"/>
+      <stop offset="75%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0"/>
+      <stop offset="50%" style="stop-color:#22c55e;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0"/>
+    </linearGradient>
+    <radialGradient id="glowGreen" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0"/>
+    </radialGradient>
+    <clipPath id="shieldClip">
+      <path d="M0,-62 L52,-42 L52,22 C52,54 26,74 0,84 C-26,74 -52,54 -52,22 L-52,-42 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="340" fill="url(#bg)" rx="14"/>
+
+  <!-- Subtle dot grid -->
+  <g fill="#ffffff" opacity="0.02">
+    <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1"/>
+    </pattern>
+    <rect width="1200" height="340" fill="url(#dots)"/>
+  </g>
+
+  <!-- Faint OT protocol watermark -->
+  <g opacity="0.03" fill="#94a3b8" font-family="'JetBrains Mono','Fira Code','Courier New',monospace" font-size="9.5">
+    <text x="24" y="28">Modbus/TCP FC 0x03 Read Holding Registers</text>
+    <text x="24" y="44">S7comm ROSCTR=0x07 Userdata SZL_ID=0x0011</text>
+    <text x="24" y="60">DNP3 FC 0x05 Direct Operate (SBO bypass)</text>
+    <text x="420" y="28">IEC-104 STARTDT act | ASDU Type 45 C_SC_NA_1</text>
+    <text x="420" y="44">GOOSE EtherType 0x88B8 gcbRef stNum confRev</text>
+    <text x="780" y="28">EtherNet/IP CIP ListIdentity VendorID=0x0001</text>
+    <text x="780" y="44">OPC-UA SecurityPolicy#None EndpointUrl</text>
+    <text x="24" y="326">FINS MRC=0x04 SRC=0x01 Controller Data Read</text>
+    <text x="420" y="326">MELSEC MC 3E Frame CMD=0x0631 Read CPU Type</text>
+    <text x="780" y="326">SEL Fast Message SOH DevID=3505 FC=0xA6</text>
+  </g>
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1200" height="3.5" fill="url(#topBar)" rx="2"/>
+
+  <!-- Green glow behind shield -->
+  <ellipse cx="82" cy="148" rx="90" ry="90" fill="url(#glowGreen)"/>
+
+  <!-- Shield + network icon -->
+  <g transform="translate(82, 148)">
+    <!-- Shield shape -->
+    <path d="M0,-62 L52,-42 L52,22 C52,54 26,74 0,84 C-26,74 -52,54 -52,22 L-52,-42 Z"
+          fill="url(#iconGrad)" opacity="0.9"/>
+    <path d="M0,-50 L42,-34 L42,18 C42,44 21,60 0,68 C-21,60 -42,44 -42,18 L-42,-34 Z"
+          fill="#0a0e14"/>
+
+    <!-- Network/PLC icon inside shield -->
+    <g fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+      <!-- Central node -->
+      <circle cx="0" cy="-5" r="6" fill="#22c55e" opacity="0.3"/>
+      <circle cx="0" cy="-5" r="3" fill="#22c55e"/>
+      <!-- Top node -->
+      <circle cx="0" cy="-28" r="3"/>
+      <line x1="0" y1="-22" x2="0" y2="-11"/>
+      <!-- Left node -->
+      <circle cx="-20" cy="10" r="3"/>
+      <line x1="-17" y1="8" x2="-5" y2="-2"/>
+      <!-- Right node -->
+      <circle cx="20" cy="10" r="3"/>
+      <line x1="17" y1="8" x2="5" y2="-2"/>
+      <!-- Bottom node -->
+      <circle cx="0" cy="25" r="3"/>
+      <line x1="0" y1="19" x2="0" y2="1"/>
+    </g>
+
+    <!-- Scanning pulse effect -->
+    <g clip-path="url(#shieldClip)">
+      <rect x="-52" y="-5" width="104" height="10" fill="url(#pulseGrad)" opacity="0.4"/>
+    </g>
+
+    <!-- Passive eye icon at bottom -->
+    <g transform="translate(0, 48)" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+      <path d="M-10,0 Q0,-7 10,0 Q0,7 -10,0"/>
+      <circle cx="0" cy="0" r="2.5" fill="#06b6d4"/>
+    </g>
+  </g>
+
+  <!-- Title block -->
+  <text x="162" y="115" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="44" font-weight="800" fill="#f8fafc" letter-spacing="-1">
+    OT / ICS Passive
+  </text>
+  <text x="162" y="167" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="44" font-weight="800" fill="#f8fafc" letter-spacing="-1">
+    Network Scanner
+  </text>
+
+  <!-- Tagline -->
+  <text x="164" y="199" font-family="'Inter','Segoe UI',sans-serif" font-size="15" fill="#64748b" letter-spacing="0.3">
+    Passive asset discovery, vulnerability detection &amp; compliance for industrial networks
+  </text>
+
+  <!-- Protocol pill row -->
+  <g transform="translate(164, 218)">
+    <rect x="0" y="0" width="72" height="24" rx="12" fill="#22c55e" opacity="0.12"/>
+    <rect x="0" y="0" width="72" height="24" rx="12" fill="none" stroke="#22c55e" stroke-width="0.8" opacity="0.35"/>
+    <text x="36" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#22c55e" text-anchor="middle">Modbus</text>
+
+    <rect x="80" y="0" width="64" height="24" rx="12" fill="#3b82f6" opacity="0.12"/>
+    <rect x="80" y="0" width="64" height="24" rx="12" fill="none" stroke="#3b82f6" stroke-width="0.8" opacity="0.35"/>
+    <text x="112" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#3b82f6" text-anchor="middle">S7comm</text>
+
+    <rect x="152" y="0" width="52" height="24" rx="12" fill="#06b6d4" opacity="0.12"/>
+    <rect x="152" y="0" width="52" height="24" rx="12" fill="none" stroke="#06b6d4" stroke-width="0.8" opacity="0.35"/>
+    <text x="178" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#06b6d4" text-anchor="middle">DNP3</text>
+
+    <rect x="212" y="0" width="60" height="24" rx="12" fill="#8b5cf6" opacity="0.12"/>
+    <rect x="212" y="0" width="60" height="24" rx="12" fill="none" stroke="#8b5cf6" stroke-width="0.8" opacity="0.35"/>
+    <text x="242" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#8b5cf6" text-anchor="middle">IEC-104</text>
+
+    <rect x="280" y="0" width="64" height="24" rx="12" fill="#f97316" opacity="0.12"/>
+    <rect x="280" y="0" width="64" height="24" rx="12" fill="none" stroke="#f97316" stroke-width="0.8" opacity="0.35"/>
+    <text x="312" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#f97316" text-anchor="middle">GOOSE</text>
+
+    <rect x="352" y="0" width="68" height="24" rx="12" fill="#eab308" opacity="0.12"/>
+    <rect x="352" y="0" width="68" height="24" rx="12" fill="none" stroke="#eab308" stroke-width="0.8" opacity="0.35"/>
+    <text x="386" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#eab308" text-anchor="middle">OPC-UA</text>
+
+    <rect x="428" y="0" width="60" height="24" rx="12" fill="#ef4444" opacity="0.12"/>
+    <rect x="428" y="0" width="60" height="24" rx="12" fill="none" stroke="#ef4444" stroke-width="0.8" opacity="0.35"/>
+    <text x="458" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="10" font-weight="600" fill="#ef4444" text-anchor="middle">+11</text>
+  </g>
+
+  <!-- Right panel: stats -->
+  <g transform="translate(770, 78)">
+    <!-- Protocols card -->
+    <rect x="0" y="0" width="125" height="76" rx="10" fill="#1e293b" opacity="0.5"/>
+    <rect x="0" y="0" width="125" height="76" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
+    <text x="62" y="36" font-family="'Inter','Segoe UI',sans-serif" font-size="30" font-weight="800" fill="#22c55e" text-anchor="middle">18</text>
+    <text x="62" y="56" font-family="'Inter','Segoe UI',sans-serif" font-size="9.5" fill="#64748b" text-anchor="middle" letter-spacing="1.2">PROTOCOLS</text>
+
+    <!-- Vuln Rules card -->
+    <rect x="135" y="0" width="125" height="76" rx="10" fill="#1e293b" opacity="0.5"/>
+    <rect x="135" y="0" width="125" height="76" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
+    <text x="197" y="36" font-family="'Inter','Segoe UI',sans-serif" font-size="30" font-weight="800" fill="#f97316" text-anchor="middle">34</text>
+    <text x="197" y="56" font-family="'Inter','Segoe UI',sans-serif" font-size="9.5" fill="#64748b" text-anchor="middle" letter-spacing="1.2">VULN RULES</text>
+
+    <!-- CVEs card -->
+    <rect x="270" y="0" width="125" height="76" rx="10" fill="#1e293b" opacity="0.5"/>
+    <rect x="270" y="0" width="125" height="76" rx="10" fill="none" stroke="#334155" stroke-width="0.7"/>
+    <text x="332" y="36" font-family="'Inter','Segoe UI',sans-serif" font-size="30" font-weight="800" fill="#ef4444" text-anchor="middle">76</text>
+    <text x="332" y="56" font-family="'Inter','Segoe UI',sans-serif" font-size="9.5" fill="#64748b" text-anchor="middle" letter-spacing="1.2">ICS CVEs</text>
+  </g>
+
+  <!-- Right panel: capabilities bar -->
+  <g transform="translate(770, 172)">
+    <rect x="0" y="0" width="395" height="42" rx="8" fill="#1e293b" opacity="0.4"/>
+    <rect x="0" y="0" width="395" height="42" rx="8" fill="none" stroke="#334155" stroke-width="0.5"/>
+    <text x="14" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="8.5" fill="#475569" letter-spacing="1.8">CAPABILITIES</text>
+    <g transform="translate(14, 26)">
+      <rect x="0" y="0" width="82" height="10" rx="5" fill="#22c55e" opacity="0.12"/>
+      <text x="41" y="8" font-family="'Inter',sans-serif" font-size="7.5" font-weight="600" fill="#22c55e" text-anchor="middle">Asset Discovery</text>
+      <rect x="88" y="0" width="78" height="10" rx="5" fill="#ef4444" opacity="0.12"/>
+      <text x="127" y="8" font-family="'Inter',sans-serif" font-size="7.5" font-weight="600" fill="#ef4444" text-anchor="middle">Vuln Detection</text>
+      <rect x="172" y="0" width="80" height="10" rx="5" fill="#3b82f6" opacity="0.12"/>
+      <text x="212" y="8" font-family="'Inter',sans-serif" font-size="7.5" font-weight="600" fill="#3b82f6" text-anchor="middle">Purdue Zones</text>
+      <rect x="258" y="0" width="72" height="10" rx="5" fill="#f97316" opacity="0.12"/>
+      <text x="294" y="8" font-family="'Inter',sans-serif" font-size="7.5" font-weight="600" fill="#f97316" text-anchor="middle">Compliance</text>
+      <rect x="336" y="0" width="48" height="10" rx="5" fill="#8b5cf6" opacity="0.12"/>
+      <text x="360" y="8" font-family="'Inter',sans-serif" font-size="7.5" font-weight="600" fill="#8b5cf6" text-anchor="middle">SIEM</text>
+    </g>
+  </g>
+
+  <!-- Right panel: output bar -->
+  <g transform="translate(770, 226)">
+    <rect x="0" y="0" width="395" height="42" rx="8" fill="#1e293b" opacity="0.4"/>
+    <rect x="0" y="0" width="395" height="42" rx="8" fill="none" stroke="#334155" stroke-width="0.5"/>
+    <text x="14" y="16" font-family="'Inter','Segoe UI',sans-serif" font-size="8.5" fill="#475569" letter-spacing="1.8">OUTPUT FORMATS</text>
+    <text x="14" y="33" font-family="'Inter','Segoe UI',sans-serif" font-size="11" fill="#94a3b8">
+      JSON · CSV · HTML · GraphML · CEF · LEEF · STIX 2.1
+    </text>
+  </g>
+
+  <!-- Footer line -->
+  <line x1="40" y1="290" x2="1160" y2="290" stroke="#1e293b" stroke-width="0.7"/>
+
+  <!-- Footer text -->
+  <text x="164" y="312" font-family="'Inter','Segoe UI',sans-serif" font-size="11" fill="#475569" letter-spacing="0.2">
+    Purely passive  ·  Zero network risk  ·  Python 3.8+  ·  NERC CIP + IEC 62443 + NIST 800-82
+  </text>
+
+  <!-- Bottom accent bar -->
+  <rect x="0" y="336.5" width="1200" height="3.5" fill="url(#topBar)" rx="2"/>
+</svg>
