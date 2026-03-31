@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>OT Passive Scan Report</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0 }
+body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+       background:#1e1e2e; color:#cdd6f4 }
+header { background:linear-gradient(135deg,#181825 0%,#1e1e2e 100%);
+          padding:2rem; border-bottom:2px solid #313244 }
+header h1 { font-size:1.7rem; color:#cba6f7 }
+header .sub { color:#a6adc8; font-size:.85rem; margin-top:.4rem }
+.container { max-width:1500px; margin:0 auto; padding:1.5rem }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+         gap:1rem; margin:1.5rem 0 }
+.card { background:#181825; border:1px solid #313244; border-radius:8px; padding:1.2rem }
+.card h3 { color:#a6adc8; font-size:.72rem; text-transform:uppercase;
+            letter-spacing:.1em; margin-bottom:.5rem }
+.card .val { font-size:1.9rem; font-weight:700; color:#cdd6f4 }
+.card .sub { font-size:.78rem; color:#6c7086; margin-top:.2rem }
+.badge { display:inline-block; padding:.2rem .65rem; border-radius:999px;
+          color:#1e1e2e; font-size:.72rem; font-weight:700; margin:.12rem }
+.sec { color:#cba6f7; font-size:1.05rem; font-weight:600;
+        margin:2rem 0 .8rem; border-bottom:1px solid #313244; padding-bottom:.3rem }
+table { width:100%; border-collapse:collapse }
+th { background:#181825; color:#a6adc8; text-align:left; padding:.55rem .8rem;
+      font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+      border-bottom:2px solid #313244; white-space:nowrap }
+td { padding:.5rem .8rem; border-bottom:1px solid #181825; font-size:.82rem; vertical-align:top }
+tr:nth-child(even) td { background:#11111b }
+tr:hover td { background:#1e1e2e; outline:1px solid #313244 }
+.risk-pill { display:inline-block; padding:.18rem .5rem; border-radius:4px;
+              font-size:.7rem; font-weight:700; color:#1e1e2e }
+.proto-tag { display:inline-block; background:#313244; color:#89dceb;
+              border-radius:4px; padding:.08rem .4rem; font-size:.7rem; margin:.08rem }
+.expand-btn { background:#313244; border:none; color:#cba6f7; cursor:pointer;
+               padding:.22rem .55rem; border-radius:4px; font-size:.75rem }
+.expand-btn:hover { background:#45475a }
+.detail-tr { display:none }
+.detail-td { background:#11111b !important; padding:1rem 1.2rem }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem 2rem }
+.dl { color:#6c7086; font-size:.7rem; text-transform:uppercase; margin-bottom:.1rem }
+.dv { color:#cdd6f4; font-size:.8rem; word-break:break-all; margin-bottom:.5rem }
+/* Vulnerability cards */
+.vuln-card { border-left:3px solid; border-radius:0 6px 6px 0;
+              padding:.6rem .8rem; margin:.35rem 0; font-size:.8rem }
+.vuln-title { font-weight:600; margin-bottom:.2rem }
+.vuln-desc { color:#a6adc8; font-size:.75rem; margin-bottom:.3rem }
+.vuln-rem { color:#89dceb; font-size:.73rem }
+.vuln-ref { color:#6c7086; font-size:.7rem; margin-top:.2rem }
+.vuln-id { font-family:monospace; font-size:.68rem; color:#6c7086 }
+/* Risk factor cards */
+.risk-factor { background:#45475a20; border-left:3px solid #f38ba8;
+                padding:.3rem .6rem; margin:.2rem 0; border-radius:0 4px 4px 0;
+                font-size:.8rem; color:#f38ba8 }
+footer { text-align:center; color:#313244; font-size:.75rem;
+          padding:2rem; border-top:1px solid #181825; margin-top:3rem }
+@media (max-width:900px) {
+  .detail-grid { grid-template-columns:1fr }
+  .grid { grid-template-columns:1fr 1fr }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>OT / ICS Passive Network Scan Report</h1>
+  <div class="sub">
+    <strong>PCAP:</strong> ot_test_traffic.pcap &nbsp;|&nbsp;
+    <strong>Generated:</strong> 2026-03-31 08:21:45 &nbsp;|&nbsp;
+    <strong>Tool:</strong> OT Passive Scanner v2.0.0 &nbsp;|&nbsp;
+    <strong>Mode:</strong> Offline / Passive -- no packets sent
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Summary Cards -->
+  <div class="grid">
+    <div class="card">
+      <h3>Devices Found</h3>
+      <div class="val">4</div>
+      <div class="sub">Industrial OT devices</div>
+    </div>
+    <div class="card">
+      <h3>Protocols Detected</h3>
+      <div class="val">3</div>
+      <div class="sub">BACnet/IP, Modbus/TCP, EtherNet/IP</div>
+    </div>
+    <div class="card">
+      <h3>Vulnerabilities</h3>
+      <div class="val" style="font-size:1.5rem">5</div>
+      <div style="margin-top:.3rem"><span class="badge" style="background:#f38ba8">CRITICAL: 1</span> <span class="badge" style="background:#fab387">HIGH: 3</span> <span class="badge" style="background:#a6e3a1">LOW: 1</span></div>
+    </div>
+    <div class="card">
+      <h3>Risk Distribution</h3>
+      <div style="margin-top:.4rem"><span class="badge" style="background:#fab387">HIGH: 1</span> <span class="badge" style="background:#89b4fa">MEDIUM: 1</span> <span class="badge" style="background:#a6e3a1">LOW: 2</span></div>
+    </div>
+    <div class="card">
+      <h3>Critical + High Risk</h3>
+      <div class="val" style="color:#f38ba8">
+        1
+      </div>
+      <div class="sub">Require immediate attention</div>
+    </div>
+    <div class="card">
+      <h3>Communication Flows</h3>
+      <div class="val">15</div>
+      <div class="sub">Unique src/dst/proto tuples</div>
+    </div>
+  </div>
+
+  <!-- Protocol Breakdown -->
+  <div class="sec">Protocol Breakdown</div>
+  <div style="overflow:auto;margin-bottom:1.5rem">
+  <table style="width:auto;min-width:420px">
+    <thead><tr><th>Protocol</th><th>Devices</th></tr></thead>
+    <tbody><tr><td>BACnet/IP</td><td>1</td></tr><tr><td>Modbus/TCP</td><td>1</td></tr><tr><td>EtherNet/IP</td><td>1</td></tr></tbody>
+  </table>
+  </div>
+
+  <!-- Communication Flows -->
+  <div class="sec">Communication Flows (Top 15)</div>
+  <div style="overflow:auto;margin-bottom:1.5rem">
+  <table>
+    <thead>
+      <tr>
+        <th>Source IP</th><th>Destination IP</th><th>Protocol</th>
+        <th>Port</th><th>Transport</th><th>Packets</th><th>Bytes</th>
+        <th>First / Last</th>
+      </tr>
+    </thead>
+    <tbody><tr><td>10.10.1.10</td><td>10.10.1.100</td><td>Modbus/TCP</td><td>502</td><td>TCP</td><td style='text-align:right'>8</td><td style='text-align:right'>528</td><td style='font-size:.72rem'>08:21:18 / 08:21:19</td></tr><tr><td>10.10.2.10</td><td>10.10.2.50</td><td>DNP3</td><td>20000</td><td>TCP</td><td style='text-align:right'>8</td><td style='text-align:right'>508</td><td style='font-size:.72rem'>08:21:25 / 08:21:28</td></tr><tr><td>10.10.1.100</td><td>10.10.1.10</td><td>Modbus/TCP</td><td>502</td><td>TCP</td><td style='text-align:right'>6</td><td style='text-align:right'>557</td><td style='font-size:.72rem'>08:21:18 / 08:21:20</td></tr><tr><td>10.10.1.20</td><td>10.10.1.101</td><td>S7comm / IEC 61850 MMS (ISO-TSAP)</td><td>102</td><td>TCP</td><td style='text-align:right'>6</td><td style='text-align:right'>501</td><td style='font-size:.72rem'>08:21:21 / 08:21:21</td></tr><tr><td>10.10.1.20</td><td>10.10.3.10</td><td>MQTT</td><td>1883</td><td>TCP</td><td style='text-align:right'>6</td><td style='text-align:right'>530</td><td style='font-size:.72rem'>08:21:33 / 08:21:35</td></tr><tr><td>10.10.1.10</td><td>10.10.2.51</td><td>IEC 60870-5-104</td><td>2404</td><td>TCP</td><td style='text-align:right'>4</td><td style='text-align:right'>270</td><td style='font-size:.72rem'>08:21:29 / 08:21:29</td></tr><tr><td>10.10.1.20</td><td>10.10.2.60</td><td>OPC-UA</td><td>4840</td><td>TCP</td><td style='text-align:right'>4</td><td style='text-align:right'>526</td><td style='font-size:.72rem'>08:21:31 / 08:21:31</td></tr><tr><td>10.10.1.102</td><td>10.10.1.10</td><td>EtherNet/IP</td><td>44818</td><td>TCP</td><td style='text-align:right'>3</td><td style='text-align:right'>435</td><td style='font-size:.72rem'>08:21:23 / 08:21:23</td></tr><tr><td>10.10.2.50</td><td>10.10.2.10</td><td>DNP3</td><td>20000</td><td>TCP</td><td style='text-align:right'>3</td><td style='text-align:right'>195</td><td style='font-size:.72rem'>08:21:25 / 08:21:25</td></tr><tr><td>10.10.1.10</td><td>10.10.3.20</td><td>BACnet/IP</td><td>47808</td><td>UDP</td><td style='text-align:right'>3</td><td style='text-align:right'>162</td><td style='font-size:.72rem'>08:21:35 / 08:21:35</td></tr><tr><td>10.10.1.20</td><td>10.10.1.100</td><td>Modbus/TCP</td><td>502</td><td>TCP</td><td style='text-align:right'>3</td><td style='text-align:right'>198</td><td style='font-size:.72rem'>08:21:38 / 08:21:38</td></tr><tr><td>10.10.1.101</td><td>10.10.1.20</td><td>S7comm / IEC 61850 MMS (ISO-TSAP)</td><td>102</td><td>TCP</td><td style='text-align:right'>1</td><td style='text-align:right'>76</td><td style='font-size:.72rem'>08:21:21 / 08:21:21</td></tr><tr><td>10.10.1.10</td><td>10.10.1.102</td><td>EtherNet/IP</td><td>44818</td><td>TCP</td><td style='text-align:right'>1</td><td style='text-align:right'>82</td><td style='font-size:.72rem'>08:21:23 / 08:21:23</td></tr><tr><td>10.10.1.100</td><td>192.168.1.50</td><td>TCP</td><td>60000</td><td>TCP</td><td style='text-align:right'>1</td><td style='text-align:right'>96</td><td style='font-size:.72rem'>08:21:37 / 08:21:37</td></tr><tr><td>10.10.1.20</td><td>10.10.1.100</td><td>TCP</td><td>60100</td><td>TCP</td><td style='text-align:right'>1</td><td style='text-align:right'>60</td><td style='font-size:.72rem'>08:21:37 / 08:21:37</td></tr></tbody>
+  </table>
+  </div>
+
+  <!-- Network Zones (Purdue Model) -->
+  
+  <div class="sec">Network Zones (Purdue Model)</div>
+  <div style="overflow:auto;margin-bottom:1.5rem">
+  <table style="width:auto;min-width:600px">
+    <thead>
+      <tr>
+        <th>Level</th><th>Zone Name</th><th>Subnet</th>
+        <th>Devices</th><th>Dominant Role</th><th>Protocols</th>
+      </tr>
+    </thead>
+    <tbody><tr><td><span class='risk-pill' style='background:#6c7086'>L-1</span></td><td>Unknown</td><td style='font-family:monospace'>10.10.2.0/24</td><td style='text-align:center'>1</td><td>unknown</td><td style='font-size:.78rem'>-</td></tr><tr><td><span class='risk-pill' style='background:#a6e3a1'>L1</span></td><td>Level 1 — Basic Control</td><td style='font-family:monospace'>10.10.1.0/24</td><td style='text-align:center'>3</td><td>plc</td><td style='font-size:.78rem'>BACnet/IP, EtherNet/IP, Modbus/TCP</td></tr></tbody>
+  </table>
+  </div>
+  
+
+  <!-- Zone Violations -->
+  
+
+  <!-- Network Topology (D3.js) -->
+  
+  <div class="sec">Network Topology</div>
+  <div style="background:#11111b;border:1px solid #313244;border-radius:8px;padding:.5rem;margin-bottom:1.5rem">
+    <svg id="topo-svg" width="100%%" height="500" style="display:block"></svg>
+  </div>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+  (function(){{
+    const PURDUE_CLR = {{0:"#89b4fa",1:"#a6e3a1",2:"#f9e2af",3:"#fab387","-1":"#6c7086"}};
+    const nodes = [{"id": "10.10.1.10", "label": "10.10.1.10", "vendor": "Unknown", "role": "building_controller", "purdue": 1, "risk": "low", "packets": 16, "radius": 10}, {"id": "10.10.1.100", "label": "10.10.1.100", "vendor": "Schneider Electric", "role": "plc", "purdue": 1, "risk": "medium", "packets": 7, "radius": 8}, {"id": "10.10.1.102", "label": "10.10.1.102", "vendor": "Rockwell Automation", "role": "plc", "purdue": 1, "risk": "high", "packets": 3, "radius": 7}, {"id": "10.10.2.50", "label": "10.10.2.50", "vendor": "Unknown", "role": "unknown", "purdue": -1, "risk": "low", "packets": 3, "radius": 7}];
+    const links = [{"source": "10.10.1.10", "target": "10.10.1.100", "protocols": "Modbus/TCP", "packets": 8, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.10", "target": "10.10.1.102", "protocols": "EtherNet/IP", "packets": 1, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.10", "target": "10.10.2.51", "protocols": "IEC 60870-5-104", "packets": 4, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.10", "target": "10.10.3.20", "protocols": "BACnet/IP", "packets": 3, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.100", "target": "10.10.1.10", "protocols": "Modbus/TCP", "packets": 6, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.100", "target": "192.168.1.50", "protocols": "TCP", "packets": 1, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.101", "target": "10.10.1.20", "protocols": "S7comm / IEC 61850 MMS (ISO-TSAP)", "packets": 1, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.102", "target": "10.10.1.10", "protocols": "EtherNet/IP", "packets": 3, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.20", "target": "10.10.1.100", "protocols": "Modbus/TCP, TCP", "packets": 4, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.20", "target": "10.10.1.101", "protocols": "S7comm / IEC 61850 MMS (ISO-TSAP)", "packets": 6, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.20", "target": "10.10.2.60", "protocols": "OPC-UA", "packets": 4, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.1.20", "target": "10.10.3.10", "protocols": "MQTT", "packets": 6, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.2.10", "target": "10.10.2.50", "protocols": "DNP3", "packets": 8, "crossZone": false, "purdueSpan": 0, "isViolation": false}, {"source": "10.10.2.50", "target": "10.10.2.10", "protocols": "DNP3", "packets": 3, "crossZone": false, "purdueSpan": 0, "isViolation": false}];
+    const svg = d3.select("#topo-svg");
+    const width = svg.node().getBoundingClientRect().width;
+    const height = 500;
+    svg.attr("viewBox", [0, 0, width, height]);
+
+    const g = svg.append("g");
+
+    // Zoom
+    svg.call(d3.zoom().scaleExtent([0.3, 5]).on("zoom", (e) => g.attr("transform", e.transform)));
+
+    const sim = d3.forceSimulation(nodes)
+      .force("link",   d3.forceLink(links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-250))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Links
+    const link = g.append("g")
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("stroke", d => d.isViolation ? "#f38ba8" : d.crossZone ? "#fab387" : "#45475a")
+      .attr("stroke-width", d => Math.max(1, Math.min(4, Math.log(d.packets + 1))))
+      .attr("stroke-opacity", 0.7);
+
+    // Nodes
+    const node = g.append("g")
+      .selectAll("circle")
+      .data(nodes)
+      .join("circle")
+      .attr("r", d => d.radius)
+      .attr("fill", d => PURDUE_CLR[d.purdue] || PURDUE_CLR["-1"])
+      .attr("stroke", "#cdd6f4")
+      .attr("stroke-width", 1)
+      .call(d3.drag()
+        .on("start", (e, d) => {{ if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }})
+        .on("drag",  (e, d) => {{ d.fx = e.x; d.fy = e.y; }})
+        .on("end",   (e, d) => {{ if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }}));
+
+    // Labels
+    const label = g.append("g")
+      .selectAll("text")
+      .data(nodes)
+      .join("text")
+      .text(d => d.id)
+      .attr("fill", "#cdd6f4")
+      .attr("font-size", "9px")
+      .attr("dx", d => d.radius + 3)
+      .attr("dy", 3);
+
+    // Tooltip
+    const tip = d3.select("body").append("div")
+      .style("position", "absolute").style("padding", ".5rem .7rem")
+      .style("background", "#181825").style("border", "1px solid #313244")
+      .style("border-radius", "6px").style("color", "#cdd6f4")
+      .style("font-size", ".78rem").style("pointer-events", "none")
+      .style("opacity", 0);
+
+    node.on("mouseover", (e, d) => {{
+      tip.transition().duration(150).style("opacity", 1);
+      tip.html("<strong>" + d.id + "</strong><br>Vendor: " + d.vendor
+        + "<br>Role: " + d.role + "<br>Purdue Level: " + d.purdue
+        + "<br>Risk: " + d.risk + "<br>Packets: " + d.packets.toLocaleString());
+    }}).on("mousemove", (e) => {{
+      tip.style("left", (e.pageX + 14) + "px").style("top", (e.pageY - 10) + "px");
+    }}).on("mouseout", () => {{
+      tip.transition().duration(200).style("opacity", 0);
+    }});
+
+    sim.on("tick", () => {{
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("cx", d => d.x).attr("cy", d => d.y);
+      label.attr("x", d => d.x).attr("y", d => d.y);
+    }});
+  }})();
+  </script>
+  
+
+  <!-- CVE Vulnerability Intelligence -->
+  
+  <div class="sec">CVE Vulnerability Intelligence</div>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card">
+      <h3>Total CVE Matches</h3>
+      <div class="val">5</div>
+      <div class="sub">Across 2 device(s)</div>
+    </div>
+    <div class="card" style="border-left:3px solid #f38ba8">
+      <h3>NOW (Patch Immediately)</h3>
+      <div class="val" style="color:#f38ba8">3</div>
+      <div class="sub">Known exploit, device reachable</div>
+    </div>
+    <div class="card" style="border-left:3px solid #fab387">
+      <h3>NEXT (Plan Remediation)</h3>
+      <div class="val" style="color:#fab387">1</div>
+      <div class="sub">Confirmed, no public exploit</div>
+    </div>
+    <div class="card" style="border-left:3px solid #a6e3a1">
+      <h3>NEVER (Monitor/Accept)</h3>
+      <div class="val" style="color:#a6e3a1">1</div>
+      <div class="sub">Theoretical or mitigated</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1.5rem">
+  <div style="color:#f38ba8;font-weight:700;font-size:.85rem;margin-bottom:.5rem">
+    NOW Priority CVEs &mdash; Act Immediately</div>
+  <div style="overflow:auto">
+  <table>
+    <thead>
+      <tr><th>CVE ID</th><th>CVSS</th><th>Device IP</th>
+          <th>Title</th><th>ICS-CERT Advisory</th><th>Confidence</th></tr>
+    </thead>
+    <tbody><tr><td style='font-family:monospace;font-weight:700;color:#f38ba8'>CVE-2022-1161</td><td style='text-align:center;font-weight:700'>10.0</td><td>10.10.1.102</td><td>ControlLogix PLC Program Modification (Stuxnet-style)</td><td style='font-size:.72rem'>ICSA-22-090-07</td><td style='text-align:center'>high</td></tr><tr><td style='font-family:monospace;font-weight:700;color:#f38ba8'>CVE-2023-3595</td><td style='text-align:center;font-weight:700'>9.8</td><td>10.10.1.102</td><td>ControlLogix Remote Code Execution (PIPEDREAM/CHERNOVITE)</td><td style='font-size:.72rem'>ICSA-23-193-01</td><td style='text-align:center'>high</td></tr><tr><td style='font-family:monospace;font-weight:700;color:#f38ba8'>CVE-2024-6242</td><td style='text-align:center;font-weight:700'>8.4</td><td>10.10.1.102</td><td>ControlLogix Trusted Slot Bypass</td><td style='font-size:.72rem'>ICSA-24-193-17</td><td style='text-align:center'>high</td></tr></tbody>
+  </table>
+  </div>
+  </div>
+
+  <details style="margin-bottom:1.5rem">
+    <summary style="cursor:pointer;color:#fab387;font-weight:700;font-size:.85rem">
+      NEXT Priority CVEs (1) &mdash; Plan Remediation</summary>
+    <div style="overflow:auto;margin-top:.5rem">
+    <table>
+      <thead>
+        <tr><th>CVE ID</th><th>CVSS</th><th>Device IP</th>
+            <th>Title</th><th>ICS-CERT Advisory</th><th>Confidence</th></tr>
+      </thead>
+      <tbody><tr><td style='font-family:monospace;color:#fab387'>CVE-2022-1159</td><td style='text-align:center'>7.7</td><td>10.10.1.102</td><td>ControlLogix/CompactLogix Firmware Update Vulnerability</td><td style='font-size:.72rem'>ICSA-22-090-05</td><td style='text-align:center'>high</td></tr></tbody>
+    </table>
+    </div>
+  </details>
+
+
+  <!-- IT/OT Convergence -->
+  
+  <div class="sec">IT/OT Convergence Analysis</div>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card">
+      <h3>IT Protocol Hits</h3>
+      <div class="val">2</div>
+      <div class="sub">Across 1 device(s)</div>
+    </div>
+    <div class="card" style="border-left:3px solid #f38ba8">
+      <h3>High Risk Hits</h3>
+      <div class="val" style="color:#f38ba8">1</div>
+      <div class="sub">Telnet</div>
+    </div>
+    <div class="card">
+      <h3>IT Protocols</h3>
+      <div class="val">2</div>
+      <div class="sub">HTTP, Telnet</div>
+    </div>
+    <div class="card">
+      <h3>Total IT Packets</h3>
+      <div class="val">2</div>
+      <div class="sub">IT traffic in OT zone</div>
+    </div>
+  </div>
+<div style="background:#f38ba815;border:1px solid #f38ba8;border-radius:8px;padding:.8rem 1rem;margin-bottom:1rem;font-size:.82rem"><span style="color:#f38ba8;font-weight:700">HIGH RISK IT PROTOCOLS IN OT ZONE:</span> Telnet. These protocols provide direct attack paths into the OT network and must be removed or tightly controlled via jump servers and firewall rules.</div>
+  <div style="overflow:auto;margin-bottom:1.5rem">
+  <table style="width:auto;min-width:500px">
+    <thead>
+      <tr><th>Protocol</th><th>Category</th><th>Risk</th><th>Hits</th><th>Devices</th></tr>
+    </thead>
+    <tbody><tr><td><strong>HTTP</strong></td><td>web</td><td><span class='risk-pill' style='background:#fab387'>MEDIUM</span></td><td style='text-align:center'>1</td><td style='text-align:center'>1</td></tr><tr><td><strong>Telnet</strong></td><td>remote_access</td><td><span class='risk-pill' style='background:#f38ba8'>HIGH</span></td><td style='text-align:center'>1</td><td style='text-align:center'>1</td></tr></tbody>
+  </table>
+  </div>
+
+
+  <!-- Protocol Behavior Analytics -->
+  
+  <div class="sec">Protocol Behavior Analytics</div>
+
+  <details style="margin-bottom:.8rem">
+    <summary style="cursor:pointer;color:#89dceb;font-size:.82rem;font-weight:600">
+      10.10.1.100 — 1 protocol(s) analysed</summary>
+    <div style="overflow:auto;margin-top:.4rem">
+    <table style="width:auto;min-width:600px">
+      <thead>
+        <tr><th>Protocol</th><th>Packets</th><th>Reads</th><th>Writes</th>
+            <th>Controls</th><th>Diagnostics</th><th>Flags</th></tr>
+      </thead>
+      <tbody><tr><td>Modbus/TCP</td><td style='text-align:right'>17</td><td style='text-align:right'>17</td><td style='text-align:right'>0</td><td style='text-align:right'>0</td><td style='text-align:right'>0</td><td>-</td></tr></tbody>
+    </table>
+    </div>
+  </details>
+
+  <details style="margin-bottom:.8rem">
+    <summary style="cursor:pointer;color:#89dceb;font-size:.82rem;font-weight:600">
+      10.10.1.102 — 1 protocol(s) analysed</summary>
+    <div style="overflow:auto;margin-top:.4rem">
+    <table style="width:auto;min-width:600px">
+      <thead>
+        <tr><th>Protocol</th><th>Packets</th><th>Reads</th><th>Writes</th>
+            <th>Controls</th><th>Diagnostics</th><th>Flags</th></tr>
+      </thead>
+      <tbody><tr><td>EtherNet/IP</td><td style='text-align:right'>4</td><td style='text-align:right'>0</td><td style='text-align:right'>0</td><td style='text-align:right'>0</td><td style='text-align:right'>4</td><td>-</td></tr></tbody>
+    </table>
+    </div>
+  </details>
+
+
+  <!-- Devices -->
+  <div class="sec">Discovered Devices &amp; Vulnerability Findings</div>
+  <div style="overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>IP Address</th><th>MAC</th><th>Make / Vendor</th>
+        <th>Model</th><th>Type</th><th>Protocols</th>
+        <th>Vulns</th><th>Risk</th><th>Pkts</th><th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>10.10.1.10</strong></td>
+        <td style="font-family:monospace;font-size:.77rem">00:1A:2B:00:01:10</td>
+        <td>Unknown</td>
+        <td></td>
+        <td>unknown</td>
+        <td><span class="proto-tag">BACnet/IP</span></td>
+        <td style="text-align:center">
+          <span style="color:#a6e3a1;font-weight:700">1</span>
+        </td>
+        <td><span class="risk-pill" style="background:#a6e3a1">LOW</span></td>
+        <td style="text-align:right">16</td>
+        <td><button class="expand-btn" onclick="toggle('10_10_1_10')">expand</button></td>
+      </tr>
+      <tr id="dr_10_10_1_10" class="detail-tr">
+        <td colspan="10" class="detail-td"><div class="detail-grid">
+  <div>
+    <span class="dl">IP</span><div class="dv">10.10.1.10</div>
+    <span class="dl">MAC</span><div class="dv">00:1A:2B:00:01:10</div>
+    <span class="dl">Vendor Confidence</span><div class="dv">unknown</div>
+    <span class="dl">Firmware</span><div class="dv">-</div>
+    <span class="dl">Hardware Version</span><div class="dv">-</div>
+    <span class="dl">Serial Number</span><div class="dv">-</div>
+    <span class="dl">Product Code</span><div class="dv">-</div>
+    <span class="dl">Rack / Slot</span><div class="dv">-</div>
+    <span class="dl">CPU Info</span><div class="dv">-</div>
+    <span class="dl">Modules</span><div class="dv">-</div>
+    <span class="dl">Device Criticality</span><div class="dv">unknown</div>
+    <span class="dl">Comm Profile</span><div class="dv">peer | 4 peers | control_ratio=0.0</div>
+    <span class="dl">DNP3 Address</span><div class="dv">-</div>
+    <span class="dl">IEC-104 Common Address</span><div class="dv">-</div>
+    <span class="dl">GOOSE IDs</span><div class="dv">-</div>
+    <span class="dl">IEC 61850 Logical Nodes</span><div class="dv">-</div>
+    <span class="dl">Master Stations</span><div class="dv">-</div>
+    <span class="dl">Open OT Ports</span><div class="dv">-</div>
+    <span class="dl">Peers (4)</span><div class="dv" style="font-size:.72rem">10.10.1.100, 10.10.1.102, 10.10.2.51, 10.10.3.20</div>
+    <span class="dl">First / Last Seen</span><div class="dv">
+      08:21:18 /
+      08:21:35
+    </div>
+    <span class="dl">Risk Score</span><div class="dv">6</div>
+    <span class="dl">Composite Risk</span><div class="dv">7.4/100</div>
+    
+    <div style="margin-top:.5rem">
+      <div style="background:#313244;border-radius:4px;height:8px;margin-bottom:.4rem">
+        <div style="background:#a6e3a1;height:100%;width:7.4%;border-radius:4px"></div>
+      </div>
+      <table style="font-size:.72rem;width:100%;border-collapse:collapse">
+        <tr><td style="color:#9399b2">Base score</td><td style="text-align:right">6</td></tr>
+        <tr><td style="color:#9399b2">Protocol penalties</td><td style="text-align:right">+0.0</td></tr>
+        <tr><td style="color:#9399b2">Criticality mult</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Exposure mult</td><td style="text-align:right">&times;1.3</td></tr>
+        <tr><td style="color:#9399b2">KEV boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">EPSS boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Controls factor</td><td style="text-align:right">&times;0.95</td></tr>
+      </table>
+      <div style="margin-top:.3rem;font-size:.72rem;color:#a6e3a1"><div>&#x2713; Read-only communication profile (no control commands)</div></div>
+    </div>
+  </div>
+  <div>
+    <span class="dl">Protocol Details</span>
+    <div style="margin-top:.3rem"><details style="margin:.2rem 0"><summary style="cursor:pointer;color:#89dceb;font-size:.78rem">BACnet/IP (port 47808, 3 pkts, high)</summary><div class="detail-grid" style="margin-top:.4rem"><div><span class="dl">bvlc_function</span><div class="dv">Original-Broadcast-NPDU</div></div><div><span class="dl">bvlc_length</span><div class="dv">12</div></div><div><span class="dl">npdu_version</span><div class="dv">1</div></div><div><span class="dl">apdu_type</span><div class="dv">Unconfirmed-Request</div></div><div><span class="dl">service_choice</span><div class="dv">8</div></div><div><span class="dl">service_name</span><div class="dv">Who-Is</div></div><div><span class="dl">discovery</span><div class="dv">True</div></div></div></details></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Risk Factors</span>
+    <div style="margin-top:.3rem"><div class="risk-factor">1 high-severity vulnerability(ies) detected</div><div class="risk-factor">Cleartext protocol communications (no encryption)</div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Vulnerability Findings (1)</span>
+    <div style="margin-top:.3rem"><div class="vuln-card" style="border-color:#fab387;background:#fab38720"><div class="vuln-id">OT-GEN-001</div><div class="vuln-title" style="color:#fab387"><span class="risk-pill" style="background:#fab387">HIGH</span> Cleartext Industrial Protocols Expose OT Traffic</div><div class="vuln-desc">Device 10.10.1.10 is communicating using 1 unencrypted industrial protocol(s): BACnet/IP. All operational data (measurements, alarms, events) and control commands are transmitted in plaintext, exposing them to eavesdropping, replay, and man-in-the-middle attacks by any host on the same network segment.</div><details><summary style="cursor:pointer;color:#a6adc8;font-size:.72rem">Evidence</summary><div style="padding:.3rem 0;font-size:.73rem"><span style="color:#6c7086">unencrypted_protocols:</span> <span style="color:#a6adc8">['BACnet/IP']</span><br><span style="color:#6c7086">total_protocols:</span> <span style="color:#a6adc8">1</span><br></div></details><div class="vuln-rem"><strong>Fix:</strong> Apply encryption at the session layer: IEC 62351-3 TLS for IEC 104, IEC 62351-5 SA for DNP3, IEC 62351-4 TLS for MMS, OPC-UA Security Policy for OPC-UA, MQTT over TLS (port 8883) for MQTT, BACnet/SC (Secure Connect) for BACnet. Where encryption is not natively supported, use an encrypted tunnel (IPsec, TLS proxy) between master and device. Enforce network segmentation -- OT device traffic must remain on dedicated OT VLANs, isolated from IT networks.</div><div class="vuln-ref">IEC 62351 (series) -- Security for Power System Communications | IEC 62443-3-3 SR 4.3 -- Use of Cryptography | NERC CIP-007-6 R5 -- System Access Controls</div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">CVE Matches (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No known CVEs matched</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">IT Protocols (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No IT protocols detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Threat Alerts (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No threat alerts</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Remote Access Sessions (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No remote access detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Configuration Drift (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No configuration changes</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Attack Paths (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No attack paths identified</em></div>
+  </div>
+</div></td>
+      </tr>
+      <tr>
+        <td><strong>10.10.1.100</strong></td>
+        <td style="font-family:monospace;font-size:.77rem">00:80:F4:00:01:64</td>
+        <td>Schneider Electric</td>
+        <td>M580 ePAC Controller</td>
+        <td>PLC</td>
+        <td><span class="proto-tag">Modbus/TCP</span></td>
+        <td style="text-align:center">
+          <span style="color:#89b4fa;font-weight:700">3</span>
+        </td>
+        <td><span class="risk-pill" style="background:#89b4fa">MEDIUM</span></td>
+        <td style="text-align:right">7</td>
+        <td><button class="expand-btn" onclick="toggle('10_10_1_100')">expand</button></td>
+      </tr>
+      <tr id="dr_10_10_1_100" class="detail-tr">
+        <td colspan="10" class="detail-td"><div class="detail-grid">
+  <div>
+    <span class="dl">IP</span><div class="dv">10.10.1.100</div>
+    <span class="dl">MAC</span><div class="dv">00:80:F4:00:01:64</div>
+    <span class="dl">Vendor Confidence</span><div class="dv">high</div>
+    <span class="dl">Firmware</span><div class="dv">3.20</div>
+    <span class="dl">Hardware Version</span><div class="dv">-</div>
+    <span class="dl">Serial Number</span><div class="dv">-</div>
+    <span class="dl">Product Code</span><div class="dv">-</div>
+    <span class="dl">Rack / Slot</span><div class="dv">-</div>
+    <span class="dl">CPU Info</span><div class="dv">-</div>
+    <span class="dl">Modules</span><div class="dv">-</div>
+    <span class="dl">Device Criticality</span><div class="dv">monitoring</div>
+    <span class="dl">Comm Profile</span><div class="dv">slave | 3 peers | control_ratio=0.0</div>
+    <span class="dl">DNP3 Address</span><div class="dv">-</div>
+    <span class="dl">IEC-104 Common Address</span><div class="dv">-</div>
+    <span class="dl">GOOSE IDs</span><div class="dv">-</div>
+    <span class="dl">IEC 61850 Logical Nodes</span><div class="dv">-</div>
+    <span class="dl">Master Stations</span><div class="dv">10.10.1.10, 10.10.1.20</div>
+    <span class="dl">Open OT Ports</span><div class="dv">502</div>
+    <span class="dl">Peers (3)</span><div class="dv" style="font-size:.72rem">10.10.1.10, 10.10.1.20, 192.168.1.50</div>
+    <span class="dl">First / Last Seen</span><div class="dv">
+      08:21:18 /
+      08:21:38
+    </div>
+    <span class="dl">Risk Score</span><div class="dv">22</div>
+    <span class="dl">Composite Risk</span><div class="dv">25.7/100</div>
+    
+    <div style="margin-top:.5rem">
+      <div style="background:#313244;border-radius:4px;height:8px;margin-bottom:.4rem">
+        <div style="background:#89b4fa;height:100%;width:25.7%;border-radius:4px"></div>
+      </div>
+      <table style="font-size:.72rem;width:100%;border-collapse:collapse">
+        <tr><td style="color:#9399b2">Base score</td><td style="text-align:right">22</td></tr>
+        <tr><td style="color:#9399b2">Protocol penalties</td><td style="text-align:right">+0.0</td></tr>
+        <tr><td style="color:#9399b2">Criticality mult</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Exposure mult</td><td style="text-align:right">&times;1.3</td></tr>
+        <tr><td style="color:#9399b2">KEV boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">EPSS boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Controls factor</td><td style="text-align:right">&times;0.9</td></tr>
+      </table>
+      <div style="margin-top:.3rem;font-size:.72rem;color:#a6e3a1"><div>&#x2713; Limited network exposure (3 peers at Purdue L1)</div><div>&#x2713; Read-only communication profile (no control commands)</div></div>
+    </div>
+  </div>
+  <div>
+    <span class="dl">Protocol Details</span>
+    <div style="margin-top:.3rem"><details style="margin:.2rem 0"><summary style="cursor:pointer;color:#89dceb;font-size:.78rem">Modbus/TCP (port 502, 17 pkts, high)</summary><div class="detail-grid" style="margin-top:.4rem"><div><span class="dl">function_code</span><div class="dv">0x03</div></div><div><span class="dl">function_name</span><div class="dv">Read Holding Registers</div></div><div><span class="dl">unit_id</span><div class="dv">1</div></div><div><span class="dl">direction</span><div class="dv">request</div></div><div><span class="dl">vendor_name</span><div class="dv">Schneider Electric</div></div><div><span class="dl">product_code</span><div class="dv">Modicon M580</div></div><div><span class="dl">firmware_version</span><div class="dv">3.20</div></div><div><span class="dl">product_name</span><div class="dv">M580 ePAC Controller</div></div><div><span class="dl">model_name</span><div class="dv">BMEP585040</div></div><div><span class="dl">inferred_make</span><div class="dv">Schneider Electric</div></div></div></details></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Risk Factors</span>
+    <div style="margin-top:.3rem"><div class="risk-factor">1 critical vulnerability(ies) detected</div><div class="risk-factor">2 high-severity vulnerability(ies) detected</div><div class="risk-factor">Cleartext protocol communications (no encryption)</div><div class="risk-factor">Device role 'plc' -- direct process control capability</div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Vulnerability Findings (3)</span>
+    <div style="margin-top:.3rem"><div class="vuln-card" style="border-color:#f38ba8;background:#f38ba820"><div class="vuln-id">OT-ITOT-003</div><div class="vuln-title" style="color:#f38ba8"><span class="risk-pill" style="background:#f38ba8">CRITICAL</span> Telnet (Cleartext Remote Access) on OT Device</div><div class="vuln-desc">Device 10.10.1.100 has Telnet (TCP/23) traffic. Telnet transmits all data including credentials in cleartext. An attacker on the network can capture login credentials via passive sniffing.</div><details><summary style="cursor:pointer;color:#a6adc8;font-size:.72rem">Evidence</summary><div style="padding:.3rem 0;font-size:.73rem"><span style="color:#6c7086">total_packets:</span> <span style="color:#a6adc8">1</span><br></div></details><div class="vuln-rem"><strong>Fix:</strong> Replace Telnet with SSH. If the device does not support SSH, use a serial console server or encrypted tunnel. Disable Telnet service on all OT devices.</div><div class="vuln-ref">IEC 62443-3-3 SR 4.3 — Use of Cryptography | NERC CIP-007-6 R1 — Ports and Services</div></div>
+<div class="vuln-card" style="border-color:#fab387;background:#fab38720"><div class="vuln-id">OT-GEN-001</div><div class="vuln-title" style="color:#fab387"><span class="risk-pill" style="background:#fab387">HIGH</span> Cleartext Industrial Protocols Expose OT Traffic</div><div class="vuln-desc">Device 10.10.1.100 is communicating using 1 unencrypted industrial protocol(s): Modbus/TCP. All operational data (measurements, alarms, events) and control commands are transmitted in plaintext, exposing them to eavesdropping, replay, and man-in-the-middle attacks by any host on the same network segment.</div><details><summary style="cursor:pointer;color:#a6adc8;font-size:.72rem">Evidence</summary><div style="padding:.3rem 0;font-size:.73rem"><span style="color:#6c7086">unencrypted_protocols:</span> <span style="color:#a6adc8">['Modbus/TCP']</span><br><span style="color:#6c7086">total_protocols:</span> <span style="color:#a6adc8">1</span><br></div></details><div class="vuln-rem"><strong>Fix:</strong> Apply encryption at the session layer: IEC 62351-3 TLS for IEC 104, IEC 62351-5 SA for DNP3, IEC 62351-4 TLS for MMS, OPC-UA Security Policy for OPC-UA, MQTT over TLS (port 8883) for MQTT, BACnet/SC (Secure Connect) for BACnet. Where encryption is not natively supported, use an encrypted tunnel (IPsec, TLS proxy) between master and device. Enforce network segmentation -- OT device traffic must remain on dedicated OT VLANs, isolated from IT networks.</div><div class="vuln-ref">IEC 62351 (series) -- Security for Power System Communications | IEC 62443-3-3 SR 4.3 -- Use of Cryptography | NERC CIP-007-6 R5 -- System Access Controls</div></div>
+<div class="vuln-card" style="border-color:#fab387;background:#fab38720"><div class="vuln-id">OT-ITOT-001</div><div class="vuln-title" style="color:#fab387"><span class="risk-pill" style="background:#fab387">HIGH</span> Remote Access Protocol in OT Zone (Telnet)</div><div class="vuln-desc">Device 10.10.1.100 has remote access traffic: Telnet. Remote desktop protocols provide a direct path for attackers to reach OT devices. If an RDP/VNC session is compromised, the attacker gains full control of the connected HMI or engineering workstation. Peers: 10.10.1.20</div><details><summary style="cursor:pointer;color:#a6adc8;font-size:.72rem">Evidence</summary><div style="padding:.3rem 0;font-size:.73rem"><span style="color:#6c7086">protocols:</span> <span style="color:#a6adc8">['Telnet']</span><br><span style="color:#6c7086">total_packets:</span> <span style="color:#a6adc8">1</span><br><span style="color:#6c7086">remote_peers:</span> <span style="color:#a6adc8">['10.10.1.20']</span><br></div></details><div class="vuln-rem"><strong>Fix:</strong> Remove direct RDP/VNC access to OT devices. Use a hardened jump server in the DMZ (Purdue Level 3.5) with MFA. Deploy an OT-approved remote access gateway with session recording. See IEC 62443-3-3 SR 1.13, NERC CIP-005-6 R2.</div><div class="vuln-ref">IEC 62443-3-3 SR 1.13 — Remote Access Control | NERC CIP-005-6 R2 — Interactive Remote Access | NIST SP 800-82 Rev 3 §6.2.8 — Remote Access</div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">CVE Matches (1)</span>
+    <div style="margin-top:.3rem"><div style="border-left:3px solid #a6e3a1;padding:.3rem .6rem;margin:.2rem 0;background:#a6e3a115;border-radius:0 4px 4px 0;font-size:.78rem"><span style="color:#a6e3a1;font-weight:700">[NEVER]</span> <span style="font-family:monospace">CVE-2020-15791</span> CVSS 6.5 — Modbus/TCP Unauthenticated Write (Protocol Design Flaw)<div style="color:#a6adc8;font-size:.72rem;margin-top:.1rem">Vendor: Generic; Firmware 3.20 in affected range (*) (confidence: low)</div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">IT Protocols (2)</span>
+    <div style="margin-top:.3rem"><div style="border-left:3px solid #fab387;padding:.2rem .5rem;margin:.15rem 0;font-size:.75rem;background:#fab38710;border-radius:0 3px 3px 0"><span style="color:#fab387;font-weight:600">HTTP</span> port 80 — 1 pkts (web, inbound)</div>
+<div style="border-left:3px solid #f38ba8;padding:.2rem .5rem;margin:.15rem 0;font-size:.75rem;background:#f38ba810;border-radius:0 3px 3px 0"><span style="color:#f38ba8;font-weight:600">Telnet</span> port 23 — 1 pkts (remote_access, inbound)</div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Threat Alerts (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No threat alerts</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Remote Access Sessions (1)</span>
+    <div style="margin-top:.3rem"><div style="background:#f38ba820;border-left:3px solid #f38ba8;padding:.4rem .6rem;margin-bottom:.3rem;border-radius:0 4px 4px 0"><span style="color:#f38ba8;font-weight:700;font-size:.72rem">NON-COMPLIANT</span> <span style="font-size:.78rem">Telnet from 10.10.1.20 → 10.10.1.100:23</span> <span style="color:#f38ba8;font-size:.68rem">[CLEARTEXT]</span><div style="font-size:.72rem;color:#9399b2;margin-top:.15rem">Duration: N/A | Packets: 1 | Bytes: 0 | L-1→L1</div><div style="font-size:.7rem;color:#f38ba8;margin-top:.15rem"><div>&#x2717; Unencrypted remote access — requires encryption (NERC CIP-005-6 R2.1)</div><div>&#x2717; Direct remote access to control zone (Purdue L1) — must route through jump server (NERC CIP-005-6 R2.3)</div></div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Configuration Drift (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No configuration changes</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Attack Paths (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No attack paths identified</em></div>
+  </div>
+</div></td>
+      </tr>
+      <tr>
+        <td><strong>10.10.1.102</strong></td>
+        <td style="font-family:monospace;font-size:.77rem">00:00:BC:00:01:66</td>
+        <td>Allen-Bradley</td>
+        <td>1756-L71/B ControlLogi</td>
+        <td>PLC</td>
+        <td><span class="proto-tag">EtherNet/IP</span></td>
+        <td style="text-align:center">
+          <span style="color:#fab387;font-weight:700">0</span>
+        </td>
+        <td><span class="risk-pill" style="background:#fab387">HIGH</span></td>
+        <td style="text-align:right">3</td>
+        <td><button class="expand-btn" onclick="toggle('10_10_1_102')">expand</button></td>
+      </tr>
+      <tr id="dr_10_10_1_102" class="detail-tr">
+        <td colspan="10" class="detail-td"><div class="detail-grid">
+  <div>
+    <span class="dl">IP</span><div class="dv">10.10.1.102</div>
+    <span class="dl">MAC</span><div class="dv">00:00:BC:00:01:66</div>
+    <span class="dl">Vendor Confidence</span><div class="dv">high</div>
+    <span class="dl">Firmware</span><div class="dv">Rev 30.11</div>
+    <span class="dl">Hardware Version</span><div class="dv">-</div>
+    <span class="dl">Serial Number</span><div class="dv">0xDEADBEEF</div>
+    <span class="dl">Product Code</span><div class="dv">-</div>
+    <span class="dl">Rack / Slot</span><div class="dv">-</div>
+    <span class="dl">CPU Info</span><div class="dv">-</div>
+    <span class="dl">Modules</span><div class="dv">-</div>
+    <span class="dl">Device Criticality</span><div class="dv">process_control</div>
+    <span class="dl">Comm Profile</span><div class="dv">slave | 1 peers | control_ratio=0.0</div>
+    <span class="dl">DNP3 Address</span><div class="dv">-</div>
+    <span class="dl">IEC-104 Common Address</span><div class="dv">-</div>
+    <span class="dl">GOOSE IDs</span><div class="dv">-</div>
+    <span class="dl">IEC 61850 Logical Nodes</span><div class="dv">-</div>
+    <span class="dl">Master Stations</span><div class="dv">10.10.1.10</div>
+    <span class="dl">Open OT Ports</span><div class="dv">44818</div>
+    <span class="dl">Peers (1)</span><div class="dv" style="font-size:.72rem">10.10.1.10</div>
+    <span class="dl">First / Last Seen</span><div class="dv">
+      08:21:23 /
+      08:21:23
+    </div>
+    <span class="dl">Risk Score</span><div class="dv">0</div>
+    <span class="dl">Composite Risk</span><div class="dv">49.3/100</div>
+    
+    <div style="margin-top:.5rem">
+      <div style="background:#313244;border-radius:4px;height:8px;margin-bottom:.4rem">
+        <div style="background:#fab387;height:100%;width:49.3%;border-radius:4px"></div>
+      </div>
+      <table style="font-size:.72rem;width:100%;border-collapse:collapse">
+        <tr><td style="color:#9399b2">Base score</td><td style="text-align:right">17.9</td></tr>
+        <tr><td style="color:#9399b2">Protocol penalties</td><td style="text-align:right">+0.0</td></tr>
+        <tr><td style="color:#9399b2">Criticality mult</td><td style="text-align:right">&times;1.3</td></tr>
+        <tr><td style="color:#9399b2">Exposure mult</td><td style="text-align:right">&times;1.3</td></tr>
+        <tr><td style="color:#9399b2">KEV boost</td><td style="text-align:right">&times;1.3</td></tr>
+        <tr><td style="color:#9399b2">EPSS boost</td><td style="text-align:right">&times;1.39</td></tr>
+        <tr><td style="color:#9399b2">Controls factor</td><td style="text-align:right">&times;0.9</td></tr>
+      </table>
+      <div style="margin-top:.3rem;font-size:.72rem;color:#a6e3a1"><div>&#x2713; Limited network exposure (1 peers at Purdue L1)</div><div>&#x2713; Read-only communication profile (no control commands)</div></div>
+    </div>
+  </div>
+  <div>
+    <span class="dl">Protocol Details</span>
+    <div style="margin-top:.3rem"><details style="margin:.2rem 0"><summary style="cursor:pointer;color:#89dceb;font-size:.78rem">EtherNet/IP (port 44818, 4 pkts, high)</summary><div class="detail-grid" style="margin-top:.4rem"><div><span class="dl">eip_command</span><div class="dv">0x0063</div></div><div><span class="dl">eip_command_name</span><div class="dv">ListIdentity</div></div><div><span class="dl">connection_type</span><div class="dv">EIP session established</div></div><div><span class="dl">cip_vendor_id</span><div class="dv">0x0001</div></div><div><span class="dl">cip_vendor_name</span><div class="dv">Rockwell Automation</div></div><div><span class="dl">cip_device_type</span><div class="dv">Programmable Logic Controller</div></div><div><span class="dl">cip_product_code</span><div class="dv">55</div></div><div><span class="dl">cip_revision</span><div class="dv">30.11</div></div><div><span class="dl">cip_serial</span><div class="dv">0xDEADBEEF</div></div><div><span class="dl">cip_product_name</span><div class="dv">1756-L71/B ControlLogix5571</div></div><div><span class="dl">cip_status</span><div class="dv">0x0000</div></div></div></details></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Risk Factors</span>
+    <div style="margin-top:.3rem"><div class="risk-factor">Device role 'plc' -- direct process control capability</div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Vulnerability Findings (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No vulnerabilities detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">CVE Matches (4)</span>
+    <div style="margin-top:.3rem"><div style="border-left:3px solid #f38ba8;padding:.3rem .6rem;margin:.2rem 0;background:#f38ba815;border-radius:0 4px 4px 0;font-size:.78rem"><span style="color:#f38ba8;font-weight:700">[NOW]</span> <span style="font-family:monospace">CVE-2022-1161</span> CVSS 10.0 — ControlLogix PLC Program Modification (Stuxnet-style)<div style="color:#a6adc8;font-size:.72rem;margin-top:.1rem">Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (*) (confidence: high)</div></div>
+<div style="border-left:3px solid #f38ba8;padding:.3rem .6rem;margin:.2rem 0;background:#f38ba815;border-radius:0 4px 4px 0;font-size:.78rem"><span style="color:#f38ba8;font-weight:700">[NOW]</span> <span style="font-family:monospace">CVE-2023-3595</span> CVSS 9.8 — ControlLogix Remote Code Execution (PIPEDREAM/CHERNOVITE)<div style="color:#a6adc8;font-size:.72rem;margin-top:.1rem">Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (&lt;33.017) (confidence: high)</div></div>
+<div style="border-left:3px solid #f38ba8;padding:.3rem .6rem;margin:.2rem 0;background:#f38ba815;border-radius:0 4px 4px 0;font-size:.78rem"><span style="color:#f38ba8;font-weight:700">[NOW]</span> <span style="font-family:monospace">CVE-2024-6242</span> CVSS 8.4 — ControlLogix Trusted Slot Bypass<div style="color:#a6adc8;font-size:.72rem;margin-top:.1rem">Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (&lt;34.011) (confidence: high)</div></div>
+<div style="border-left:3px solid #fab387;padding:.3rem .6rem;margin:.2rem 0;background:#fab38715;border-radius:0 4px 4px 0;font-size:.78rem"><span style="color:#fab387;font-weight:700">[NEXT]</span> <span style="font-family:monospace">CVE-2022-1159</span> CVSS 7.7 — ControlLogix/CompactLogix Firmware Update Vulnerability<div style="color:#a6adc8;font-size:.72rem;margin-top:.1rem">Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (&lt;33.0) (confidence: high)</div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">IT Protocols (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No IT protocols detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Threat Alerts (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No threat alerts</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Remote Access Sessions (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No remote access detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Configuration Drift (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No configuration changes</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Attack Paths (1)</span>
+    <div style="margin-top:.3rem"><div style="background:#f38ba820;border-left:3px solid #f38ba8;padding:.5rem .6rem;margin-bottom:.4rem;border-radius:0 4px 4px 0"><span style="color:#f38ba8;font-weight:700;font-size:.75rem">CRITICAL</span> <span style="font-size:.75rem">Score: 100.0/100</span> <span style="font-size:.7rem;color:#9399b2">| 2 hops | 2 auth gaps | 2 enc gaps</span><div style="font-size:.75rem;margin-top:.3rem"><span style="color:#cdd6f4">10.10.1.100 (L1)</span> &rarr; <span style="color:#cdd6f4">10.10.1.10 (L1)</span> &rarr; <span style="color:#f38ba8">10.10.1.102 (L1)</span></div><div style="margin-top:.2rem"><span style="background:#31324480;padding:1px 5px;border-radius:3px;font-size:.65rem;color:#89b4fa">T0886</span> <span style="background:#31324480;padding:1px 5px;border-radius:3px;font-size:.65rem;color:#89b4fa">T0855</span> <span style="background:#31324480;padding:1px 5px;border-radius:3px;font-size:.65rem;color:#89b4fa">T0855</span></div></div></div>
+  </div>
+</div></td>
+      </tr>
+      <tr>
+        <td><strong>10.10.2.50</strong></td>
+        <td style="font-family:monospace;font-size:.77rem">00:1A:2B:00:02:32</td>
+        <td>Unknown</td>
+        <td></td>
+        <td>unknown</td>
+        <td>-</td>
+        <td style="text-align:center">
+          <span style="color:#a6e3a1;font-weight:700">1</span>
+        </td>
+        <td><span class="risk-pill" style="background:#a6e3a1">LOW</span></td>
+        <td style="text-align:right">3</td>
+        <td><button class="expand-btn" onclick="toggle('10_10_2_50')">expand</button></td>
+      </tr>
+      <tr id="dr_10_10_2_50" class="detail-tr">
+        <td colspan="10" class="detail-td"><div class="detail-grid">
+  <div>
+    <span class="dl">IP</span><div class="dv">10.10.2.50</div>
+    <span class="dl">MAC</span><div class="dv">00:1A:2B:00:02:32</div>
+    <span class="dl">Vendor Confidence</span><div class="dv">unknown</div>
+    <span class="dl">Firmware</span><div class="dv">-</div>
+    <span class="dl">Hardware Version</span><div class="dv">-</div>
+    <span class="dl">Serial Number</span><div class="dv">-</div>
+    <span class="dl">Product Code</span><div class="dv">-</div>
+    <span class="dl">Rack / Slot</span><div class="dv">-</div>
+    <span class="dl">CPU Info</span><div class="dv">-</div>
+    <span class="dl">Modules</span><div class="dv">-</div>
+    <span class="dl">Device Criticality</span><div class="dv">unknown</div>
+    <span class="dl">Comm Profile</span><div class="dv">slave | 1 peers | control_ratio=0.0</div>
+    <span class="dl">DNP3 Address</span><div class="dv">-</div>
+    <span class="dl">IEC-104 Common Address</span><div class="dv">-</div>
+    <span class="dl">GOOSE IDs</span><div class="dv">-</div>
+    <span class="dl">IEC 61850 Logical Nodes</span><div class="dv">-</div>
+    <span class="dl">Master Stations</span><div class="dv">10.10.2.10</div>
+    <span class="dl">Open OT Ports</span><div class="dv">20000</div>
+    <span class="dl">Peers (1)</span><div class="dv" style="font-size:.72rem">10.10.2.10</div>
+    <span class="dl">First / Last Seen</span><div class="dv">
+      08:21:25 /
+      08:21:28
+    </div>
+    <span class="dl">Risk Score</span><div class="dv">1</div>
+    <span class="dl">Composite Risk</span><div class="dv">0.9/100</div>
+    
+    <div style="margin-top:.5rem">
+      <div style="background:#313244;border-radius:4px;height:8px;margin-bottom:.4rem">
+        <div style="background:#a6e3a1;height:100%;width:0.9%;border-radius:4px"></div>
+      </div>
+      <table style="font-size:.72rem;width:100%;border-collapse:collapse">
+        <tr><td style="color:#9399b2">Base score</td><td style="text-align:right">1</td></tr>
+        <tr><td style="color:#9399b2">Protocol penalties</td><td style="text-align:right">+0.0</td></tr>
+        <tr><td style="color:#9399b2">Criticality mult</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Exposure mult</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">KEV boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">EPSS boost</td><td style="text-align:right">&times;1.0</td></tr>
+        <tr><td style="color:#9399b2">Controls factor</td><td style="text-align:right">&times;0.95</td></tr>
+      </table>
+      <div style="margin-top:.3rem;font-size:.72rem;color:#a6e3a1"><div>&#x2713; Read-only communication profile (no control commands)</div></div>
+    </div>
+  </div>
+  <div>
+    <span class="dl">Protocol Details</span>
+    <div style="margin-top:.3rem"><em style="color:#6c7086">No protocol details</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Risk Factors</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">None identified</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Vulnerability Findings (1)</span>
+    <div style="margin-top:.3rem"><div class="vuln-card" style="border-color:#a6e3a1;background:#a6e3a120"><div class="vuln-id">OT-GEN-003</div><div class="vuln-title" style="color:#a6e3a1"><span class="risk-pill" style="background:#a6e3a1">LOW</span> Device on OT Ports -- Protocol Unidentified</div><div class="vuln-desc">Device 10.10.2.50 is listening on known OT port(s) [20000] but no industrial protocol was successfully parsed. This may indicate a non-standard firmware version, a custom protocol variant, or a misconfigured device. Manual inspection of the PCAP is recommended.</div><details><summary style="cursor:pointer;color:#a6adc8;font-size:.72rem">Evidence</summary><div style="padding:.3rem 0;font-size:.73rem"><span style="color:#6c7086">open_ports:</span> <span style="color:#a6adc8">[20000]</span><br><span style="color:#6c7086">packet_count:</span> <span style="color:#a6adc8">3</span><br></div></details><div class="vuln-rem"><strong>Fix:</strong> Perform a manual protocol analysis of the captured traffic. Verify the device's role and authorised protocol configuration. If the protocol cannot be identified, treat the device as untrusted and isolate pending investigation.</div><div class="vuln-ref">IEC 62443-2-1 §4.3.3 -- Asset Identification</div></div></div>
+    <span class="dl" style="margin-top:.8rem;display:block">CVE Matches (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No known CVEs matched</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">IT Protocols (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No IT protocols detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Threat Alerts (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No threat alerts</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Remote Access Sessions (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No remote access detected</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Configuration Drift (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No configuration changes</em></div>
+    <span class="dl" style="margin-top:.8rem;display:block">Attack Paths (0)</span>
+    <div style="margin-top:.3rem"><em style="color:#a6e3a1">No attack paths identified</em></div>
+  </div>
+</div></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+</div>
+
+<footer>
+  OT / ICS Passive Scanner v2.0.0 -- Defensive OT Security Tool &nbsp;|&nbsp;
+  2026-03-31
+</footer>
+
+<script>
+function toggle(id){
+  var r = document.getElementById('dr_'+id);
+  if(r) r.style.display = r.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+</body>
+</html>

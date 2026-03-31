@@ -1,0 +1,1477 @@
+{
+  "scan_metadata": {
+    "pcap_file": "ot_test_traffic.pcap",
+    "generated": "2026-03-31T08:21:45.777988",
+    "tool": "OT Passive Scanner v2.0.0",
+    "total_devices": 4,
+    "total_vulns": 5,
+    "total_flows": 15
+  },
+  "risk_summary": {
+    "low": 2,
+    "medium": 1,
+    "high": 1
+  },
+  "vuln_summary": {
+    "high": 3,
+    "critical": 1,
+    "low": 1
+  },
+  "protocol_summary": {
+    "BACnet/IP": 1,
+    "Modbus/TCP": 1,
+    "EtherNet/IP": 1
+  },
+  "devices": [
+    {
+      "ip": "10.10.1.10",
+      "mac": "00:1A:2B:00:01:10",
+      "hostname": null,
+      "vendor": null,
+      "vendor_confidence": "unknown",
+      "make": null,
+      "model": null,
+      "firmware": null,
+      "hardware_version": null,
+      "serial_number": null,
+      "product_code": null,
+      "rack": null,
+      "slot": null,
+      "cpu_info": null,
+      "modules": [],
+      "last_program_event": null,
+      "communication_profile": {
+        "peer_count": 4,
+        "protocols": [
+          "BACnet/IP"
+        ],
+        "total_bytes_out": 1042,
+        "total_bytes_in": 992,
+        "control_ratio": 0.0,
+        "read_write_ratio": 0.0,
+        "is_master": false,
+        "is_slave": false,
+        "is_peer": true
+      },
+      "dnp3_address": null,
+      "iec104_common_address": null,
+      "goose_ids": [],
+      "logical_nodes": [],
+      "master_stations": [],
+      "protocols": [
+        {
+          "protocol": "BACnet/IP",
+          "port": 47808,
+          "confidence": "high",
+          "transport": "UDP",
+          "details": {
+            "bvlc_function": "Original-Broadcast-NPDU",
+            "bvlc_length": 12,
+            "npdu_version": 1,
+            "apdu_type": "Unconfirmed-Request",
+            "service_choice": 8,
+            "service_name": "Who-Is",
+            "discovery": true
+          },
+          "first_seen": "2026-03-31T08:21:35.376178",
+          "last_seen": "2026-03-31T08:21:35.976178",
+          "packet_count": 3
+        }
+      ],
+      "open_ports": [],
+      "communicating_with": [
+        "10.10.1.100",
+        "10.10.1.102",
+        "10.10.2.51",
+        "10.10.3.20"
+      ],
+      "first_seen": "2026-03-31T08:21:18.376178",
+      "last_seen": "2026-03-31T08:21:35.976178",
+      "packet_count": 16,
+      "role": "building_controller",
+      "device_type": "unknown",
+      "device_criticality": "unknown",
+      "asset_owner": null,
+      "location": null,
+      "asset_tag": null,
+      "protocol_stats": [],
+      "it_protocols": [],
+      "vulnerabilities": [
+        {
+          "vuln_id": "OT-GEN-001",
+          "title": "Cleartext Industrial Protocols Expose OT Traffic",
+          "severity": "high",
+          "category": "encryption",
+          "description": "Device 10.10.1.10 is communicating using 1 unencrypted industrial protocol(s): BACnet/IP. All operational data (measurements, alarms, events) and control commands are transmitted in plaintext, exposing them to eavesdropping, replay, and man-in-the-middle attacks by any host on the same network segment.",
+          "evidence": {
+            "unencrypted_protocols": [
+              "BACnet/IP"
+            ],
+            "total_protocols": 1
+          },
+          "remediation": "Apply encryption at the session layer: IEC 62351-3 TLS for IEC 104, IEC 62351-5 SA for DNP3, IEC 62351-4 TLS for MMS, OPC-UA Security Policy for OPC-UA, MQTT over TLS (port 8883) for MQTT, BACnet/SC (Secure Connect) for BACnet. Where encryption is not natively supported, use an encrypted tunnel (IPsec, TLS proxy) between master and device. Enforce network segmentation -- OT device traffic must remain on dedicated OT VLANs, isolated from IT networks.",
+          "references": [
+            "IEC 62351 (series) -- Security for Power System Communications",
+            "IEC 62443-3-3 SR 4.3 -- Use of Cryptography",
+            "NERC CIP-007-6 R5 -- System Access Controls"
+          ],
+          "mitre_attack": [],
+          "first_seen": "2026-03-31T08:21:18.376178",
+          "packet_count": 16
+        }
+      ],
+      "cve_matches": [],
+      "risk_level": "low",
+      "risk_score": 6,
+      "risk_factors": [
+        "1 high-severity vulnerability(ies) detected",
+        "Cleartext protocol communications (no encryption)"
+      ],
+      "composite_risk_score": 7.4,
+      "risk_score_breakdown": {
+        "base_score": 6,
+        "protocol_penalties": 0.0,
+        "criticality_multiplier": 1.0,
+        "exposure_multiplier": 1.3,
+        "kev_boost": 1.0,
+        "epss_boost": 1.0,
+        "controls_factor": 0.95,
+        "compensating_controls": [
+          "Read-only communication profile (no control commands)"
+        ],
+        "composite_score": 7.4,
+        "formula": "min(100, (base + penalties) \u00d7 criticality \u00d7 exposure \u00d7 kev_boost \u00d7 epss_boost \u00d7 controls_factor)"
+      },
+      "compensating_controls": [
+        "Read-only communication profile (no control commands)"
+      ],
+      "threat_alerts": [],
+      "remote_access_sessions": [],
+      "config_drift_alerts": [],
+      "attack_paths": [],
+      "notes": []
+    },
+    {
+      "ip": "10.10.1.100",
+      "mac": "00:80:F4:00:01:64",
+      "hostname": null,
+      "vendor": "Schneider Electric",
+      "vendor_confidence": "high",
+      "make": "Schneider Electric",
+      "model": "M580 ePAC Controller",
+      "firmware": "3.20",
+      "hardware_version": null,
+      "serial_number": null,
+      "product_code": null,
+      "rack": null,
+      "slot": null,
+      "cpu_info": null,
+      "modules": [],
+      "last_program_event": null,
+      "communication_profile": {
+        "peer_count": 3,
+        "protocols": [
+          "Modbus/TCP"
+        ],
+        "total_bytes_out": 653,
+        "total_bytes_in": 786,
+        "control_ratio": 0.0,
+        "read_write_ratio": "read_only",
+        "is_master": false,
+        "is_slave": true,
+        "is_peer": false
+      },
+      "dnp3_address": null,
+      "iec104_common_address": null,
+      "goose_ids": [],
+      "logical_nodes": [],
+      "master_stations": [
+        "10.10.1.10",
+        "10.10.1.20"
+      ],
+      "protocols": [
+        {
+          "protocol": "Modbus/TCP",
+          "port": 502,
+          "confidence": "high",
+          "transport": "TCP",
+          "details": {
+            "function_code": "0x03",
+            "function_name": "Read Holding Registers",
+            "unit_id": 1,
+            "direction": "request",
+            "vendor_name": "Schneider Electric",
+            "product_code": "Modicon M580",
+            "firmware_version": "3.20",
+            "product_name": "M580 ePAC Controller",
+            "model_name": "BMEP585040",
+            "inferred_make": "Schneider Electric"
+          },
+          "first_seen": "2026-03-31T08:21:18.376178",
+          "last_seen": "2026-03-31T08:21:38.576178",
+          "packet_count": 17
+        }
+      ],
+      "open_ports": [
+        502
+      ],
+      "communicating_with": [
+        "10.10.1.10",
+        "10.10.1.20",
+        "192.168.1.50"
+      ],
+      "first_seen": "2026-03-31T08:21:18.376178",
+      "last_seen": "2026-03-31T08:21:38.576178",
+      "packet_count": 7,
+      "role": "plc",
+      "device_type": "PLC",
+      "device_criticality": "monitoring",
+      "asset_owner": null,
+      "location": null,
+      "asset_tag": null,
+      "protocol_stats": [
+        {
+          "protocol": "Modbus/TCP",
+          "total_packets": 17,
+          "function_codes": {
+            "0x03 Read Holding Registers": 17
+          },
+          "read_count": 17,
+          "write_count": 0,
+          "control_count": 0,
+          "diagnostic_count": 0,
+          "has_program_upload": false,
+          "has_program_download": false,
+          "has_firmware_update": false,
+          "has_config_change": false,
+          "unique_data_points": 1
+        }
+      ],
+      "it_protocols": [
+        {
+          "protocol": "HTTP",
+          "port": 80,
+          "transport": "TCP",
+          "src_ip": "10.10.1.100",
+          "dst_ip": "192.168.1.50",
+          "packet_count": 1,
+          "first_seen": "2026-03-31T08:21:37.376178",
+          "last_seen": "2026-03-31T08:21:37.376178",
+          "details": {
+            "category": "web",
+            "risk": "medium",
+            "direction": "inbound"
+          }
+        },
+        {
+          "protocol": "Telnet",
+          "port": 23,
+          "transport": "TCP",
+          "src_ip": "10.10.1.20",
+          "dst_ip": "10.10.1.100",
+          "packet_count": 1,
+          "first_seen": "2026-03-31T08:21:37.876178",
+          "last_seen": "2026-03-31T08:21:37.876178",
+          "details": {
+            "category": "remote_access",
+            "risk": "high",
+            "direction": "inbound"
+          }
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "vuln_id": "OT-ITOT-003",
+          "title": "Telnet (Cleartext Remote Access) on OT Device",
+          "severity": "critical",
+          "category": "convergence",
+          "description": "Device 10.10.1.100 has Telnet (TCP/23) traffic. Telnet transmits all data including credentials in cleartext. An attacker on the network can capture login credentials via passive sniffing.",
+          "evidence": {
+            "total_packets": 1
+          },
+          "remediation": "Replace Telnet with SSH. If the device does not support SSH, use a serial console server or encrypted tunnel. Disable Telnet service on all OT devices.",
+          "references": [
+            "IEC 62443-3-3 SR 4.3 \u2014 Use of Cryptography",
+            "NERC CIP-007-6 R1 \u2014 Ports and Services"
+          ],
+          "mitre_attack": [],
+          "first_seen": null,
+          "packet_count": 1
+        },
+        {
+          "vuln_id": "OT-GEN-001",
+          "title": "Cleartext Industrial Protocols Expose OT Traffic",
+          "severity": "high",
+          "category": "encryption",
+          "description": "Device 10.10.1.100 is communicating using 1 unencrypted industrial protocol(s): Modbus/TCP. All operational data (measurements, alarms, events) and control commands are transmitted in plaintext, exposing them to eavesdropping, replay, and man-in-the-middle attacks by any host on the same network segment.",
+          "evidence": {
+            "unencrypted_protocols": [
+              "Modbus/TCP"
+            ],
+            "total_protocols": 1
+          },
+          "remediation": "Apply encryption at the session layer: IEC 62351-3 TLS for IEC 104, IEC 62351-5 SA for DNP3, IEC 62351-4 TLS for MMS, OPC-UA Security Policy for OPC-UA, MQTT over TLS (port 8883) for MQTT, BACnet/SC (Secure Connect) for BACnet. Where encryption is not natively supported, use an encrypted tunnel (IPsec, TLS proxy) between master and device. Enforce network segmentation -- OT device traffic must remain on dedicated OT VLANs, isolated from IT networks.",
+          "references": [
+            "IEC 62351 (series) -- Security for Power System Communications",
+            "IEC 62443-3-3 SR 4.3 -- Use of Cryptography",
+            "NERC CIP-007-6 R5 -- System Access Controls"
+          ],
+          "mitre_attack": [],
+          "first_seen": "2026-03-31T08:21:18.376178",
+          "packet_count": 7
+        },
+        {
+          "vuln_id": "OT-ITOT-001",
+          "title": "Remote Access Protocol in OT Zone (Telnet)",
+          "severity": "high",
+          "category": "convergence",
+          "description": "Device 10.10.1.100 has remote access traffic: Telnet. Remote desktop protocols provide a direct path for attackers to reach OT devices. If an RDP/VNC session is compromised, the attacker gains full control of the connected HMI or engineering workstation. Peers: 10.10.1.20",
+          "evidence": {
+            "protocols": [
+              "Telnet"
+            ],
+            "total_packets": 1,
+            "remote_peers": [
+              "10.10.1.20"
+            ]
+          },
+          "remediation": "Remove direct RDP/VNC access to OT devices. Use a hardened jump server in the DMZ (Purdue Level 3.5) with MFA. Deploy an OT-approved remote access gateway with session recording. See IEC 62443-3-3 SR 1.13, NERC CIP-005-6 R2.",
+          "references": [
+            "IEC 62443-3-3 SR 1.13 \u2014 Remote Access Control",
+            "NERC CIP-005-6 R2 \u2014 Interactive Remote Access",
+            "NIST SP 800-82 Rev 3 \u00a76.2.8 \u2014 Remote Access"
+          ],
+          "mitre_attack": [],
+          "first_seen": null,
+          "packet_count": 1
+        }
+      ],
+      "cve_matches": [
+        {
+          "cve_id": "CVE-2020-15791",
+          "device_ip": "10.10.1.100",
+          "priority": "never",
+          "severity": "medium",
+          "cvss_score": 6.5,
+          "title": "Modbus/TCP Unauthenticated Write (Protocol Design Flaw)",
+          "description": "The Modbus/TCP protocol (by design) does not include authentication or encryption. Any network host can send write commands to Modbus devices, enabling unauthorized modification of registers and coils.",
+          "match_confidence": "low",
+          "match_reason": "Vendor: Generic; Firmware 3.20 in affected range (*)",
+          "has_public_exploit": false,
+          "ics_cert_advisory": "",
+          "remediation": "Segment Modbus traffic. Deploy Modbus-aware firewalls. Consider migration to Modbus/TCP Security (TLS).",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2020-15791",
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-20-042-02"
+          ],
+          "epss_score": 0.04,
+          "is_cisa_kev": false,
+          "exploit_maturity": "unknown"
+        }
+      ],
+      "risk_level": "medium",
+      "risk_score": 22,
+      "risk_factors": [
+        "1 critical vulnerability(ies) detected",
+        "2 high-severity vulnerability(ies) detected",
+        "Cleartext protocol communications (no encryption)",
+        "Device role 'plc' -- direct process control capability"
+      ],
+      "composite_risk_score": 25.7,
+      "risk_score_breakdown": {
+        "base_score": 22,
+        "protocol_penalties": 0.0,
+        "criticality_multiplier": 1.0,
+        "exposure_multiplier": 1.3,
+        "kev_boost": 1.0,
+        "epss_boost": 1.0,
+        "controls_factor": 0.9,
+        "compensating_controls": [
+          "Limited network exposure (3 peers at Purdue L1)",
+          "Read-only communication profile (no control commands)"
+        ],
+        "composite_score": 25.7,
+        "formula": "min(100, (base + penalties) \u00d7 criticality \u00d7 exposure \u00d7 kev_boost \u00d7 epss_boost \u00d7 controls_factor)"
+      },
+      "compensating_controls": [
+        "Limited network exposure (3 peers at Purdue L1)",
+        "Read-only communication profile (no control commands)"
+      ],
+      "threat_alerts": [],
+      "remote_access_sessions": [
+        {
+          "session_id": "RA-001",
+          "session_type": "telnet",
+          "protocol": "Telnet",
+          "src_ip": "10.10.1.20",
+          "dst_ip": "10.10.1.100",
+          "port": 23,
+          "transport": "TCP",
+          "direction": "inbound",
+          "duration_seconds": 0.0,
+          "byte_count": 0,
+          "packet_count": 1,
+          "first_seen": "2026-03-31T08:21:37.876178",
+          "last_seen": "2026-03-31T08:21:37.876178",
+          "is_encrypted": false,
+          "is_vpn": false,
+          "compliance_status": "non_compliant",
+          "compliance_issues": [
+            "Unencrypted remote access \u2014 requires encryption (NERC CIP-005-6 R2.1)",
+            "Direct remote access to control zone (Purdue L1) \u2014 must route through jump server (NERC CIP-005-6 R2.3)"
+          ],
+          "src_zone": "external",
+          "dst_zone": "zone_10.10.1",
+          "src_purdue": -1,
+          "dst_purdue": 1
+        }
+      ],
+      "config_drift_alerts": [],
+      "attack_paths": [],
+      "notes": []
+    },
+    {
+      "ip": "10.10.1.102",
+      "mac": "00:00:BC:00:01:66",
+      "hostname": null,
+      "vendor": "Rockwell Automation",
+      "vendor_confidence": "high",
+      "make": "Allen-Bradley",
+      "model": "1756-L71/B ControlLogix5571",
+      "firmware": "Rev 30.11",
+      "hardware_version": null,
+      "serial_number": "0xDEADBEEF",
+      "product_code": null,
+      "rack": null,
+      "slot": null,
+      "cpu_info": null,
+      "modules": [],
+      "last_program_event": null,
+      "communication_profile": {
+        "peer_count": 1,
+        "protocols": [
+          "EtherNet/IP"
+        ],
+        "total_bytes_out": 435,
+        "total_bytes_in": 82,
+        "control_ratio": 0.0,
+        "read_write_ratio": 0.0,
+        "is_master": false,
+        "is_slave": true,
+        "is_peer": false
+      },
+      "dnp3_address": null,
+      "iec104_common_address": null,
+      "goose_ids": [],
+      "logical_nodes": [],
+      "master_stations": [
+        "10.10.1.10"
+      ],
+      "protocols": [
+        {
+          "protocol": "EtherNet/IP",
+          "port": 44818,
+          "confidence": "high",
+          "transport": "TCP",
+          "details": {
+            "eip_command": "0x0063",
+            "eip_command_name": "ListIdentity",
+            "connection_type": "EIP session established",
+            "cip_vendor_id": "0x0001",
+            "cip_vendor_name": "Rockwell Automation",
+            "cip_device_type": "Programmable Logic Controller",
+            "cip_product_code": 55,
+            "cip_revision": "30.11",
+            "cip_serial": "0xDEADBEEF",
+            "cip_product_name": "1756-L71/B ControlLogix5571",
+            "cip_status": "0x0000"
+          },
+          "first_seen": "2026-03-31T08:21:23.376178",
+          "last_seen": "2026-03-31T08:21:23.876178",
+          "packet_count": 4
+        }
+      ],
+      "open_ports": [
+        44818
+      ],
+      "communicating_with": [
+        "10.10.1.10"
+      ],
+      "first_seen": "2026-03-31T08:21:23.376178",
+      "last_seen": "2026-03-31T08:21:23.876178",
+      "packet_count": 3,
+      "role": "plc",
+      "device_type": "PLC",
+      "device_criticality": "process_control",
+      "asset_owner": null,
+      "location": null,
+      "asset_tag": null,
+      "protocol_stats": [
+        {
+          "protocol": "EtherNet/IP",
+          "total_packets": 4,
+          "function_codes": {
+            "ListIdentity": 4
+          },
+          "read_count": 0,
+          "write_count": 0,
+          "control_count": 0,
+          "diagnostic_count": 4,
+          "has_program_upload": false,
+          "has_program_download": false,
+          "has_firmware_update": false,
+          "has_config_change": false,
+          "unique_data_points": 0
+        }
+      ],
+      "it_protocols": [],
+      "vulnerabilities": [],
+      "cve_matches": [
+        {
+          "cve_id": "CVE-2022-1161",
+          "device_ip": "10.10.1.102",
+          "priority": "now",
+          "severity": "critical",
+          "cvss_score": 10.0,
+          "title": "ControlLogix PLC Program Modification (Stuxnet-style)",
+          "description": "An attacker with network access to a ControlLogix or CompactLogix PLC can modify the running program while presenting a different version to the engineering workstation, a Stuxnet-style attack.",
+          "match_confidence": "high",
+          "match_reason": "Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (*)",
+          "has_public_exploit": true,
+          "ics_cert_advisory": "ICSA-22-090-07",
+          "remediation": "Update to latest firmware. Use CIP Security and program change detection.",
+          "references": [
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-22-090-07",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-1161"
+          ],
+          "epss_score": 0.96,
+          "is_cisa_kev": false,
+          "exploit_maturity": "functional"
+        },
+        {
+          "cve_id": "CVE-2023-3595",
+          "device_ip": "10.10.1.102",
+          "priority": "now",
+          "severity": "critical",
+          "cvss_score": 9.8,
+          "title": "ControlLogix Remote Code Execution (PIPEDREAM/CHERNOVITE)",
+          "description": "Critical RCE vulnerability in ControlLogix EtherNet/IP communication modules exploitable by state-sponsored threat actors (CHERNOVITE/PIPEDREAM). Allows unauthenticated remote code execution and full device compromise.",
+          "match_confidence": "high",
+          "match_reason": "Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (<33.017)",
+          "has_public_exploit": true,
+          "ics_cert_advisory": "ICSA-23-193-01",
+          "remediation": "Apply firmware V33.017 or later immediately. Segment CIP communications.",
+          "references": [
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-23-193-01",
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-3595"
+          ],
+          "epss_score": 0.97,
+          "is_cisa_kev": true,
+          "exploit_maturity": "functional"
+        },
+        {
+          "cve_id": "CVE-2024-6242",
+          "device_ip": "10.10.1.102",
+          "priority": "now",
+          "severity": "high",
+          "cvss_score": 8.4,
+          "title": "ControlLogix Trusted Slot Bypass",
+          "description": "Rockwell Automation ControlLogix controllers contain a trusted slot bypass vulnerability that allows an attacker to send CIP commands to the PLC backplane from an untrusted slot.",
+          "match_confidence": "high",
+          "match_reason": "Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (<34.011)",
+          "has_public_exploit": true,
+          "ics_cert_advisory": "ICSA-24-193-17",
+          "remediation": "Apply firmware V34.011 or later. Verify trusted slot configuration.",
+          "references": [
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-24-193-17",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-6242"
+          ],
+          "epss_score": 0.74,
+          "is_cisa_kev": false,
+          "exploit_maturity": "functional"
+        },
+        {
+          "cve_id": "CVE-2022-1159",
+          "device_ip": "10.10.1.102",
+          "priority": "next",
+          "severity": "high",
+          "cvss_score": 7.7,
+          "title": "ControlLogix/CompactLogix Firmware Update Vulnerability",
+          "description": "Rockwell Automation ControlLogix and CompactLogix controllers allow an attacker with access to the engineering workstation to modify PLC firmware during the update process, injecting malicious code that persists across reboots.",
+          "match_confidence": "high",
+          "match_reason": "Vendor: Rockwell Automation; Product matched on model; Firmware Rev 30.11 in affected range (<33.0)",
+          "has_public_exploit": false,
+          "ics_cert_advisory": "ICSA-22-090-05",
+          "remediation": "Update to firmware V33.0 or later. Use CIP Security for firmware transfers.",
+          "references": [
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-22-090-05",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-1159"
+          ],
+          "epss_score": 0.1,
+          "is_cisa_kev": false,
+          "exploit_maturity": "unknown"
+        }
+      ],
+      "risk_level": "high",
+      "risk_score": 0,
+      "risk_factors": [
+        "Device role 'plc' -- direct process control capability"
+      ],
+      "composite_risk_score": 49.3,
+      "risk_score_breakdown": {
+        "base_score": 17.9,
+        "protocol_penalties": 0.0,
+        "criticality_multiplier": 1.3,
+        "exposure_multiplier": 1.3,
+        "kev_boost": 1.3,
+        "epss_boost": 1.39,
+        "controls_factor": 0.9,
+        "compensating_controls": [
+          "Limited network exposure (1 peers at Purdue L1)",
+          "Read-only communication profile (no control commands)"
+        ],
+        "composite_score": 49.3,
+        "formula": "min(100, (base + penalties) \u00d7 criticality \u00d7 exposure \u00d7 kev_boost \u00d7 epss_boost \u00d7 controls_factor)"
+      },
+      "compensating_controls": [
+        "Limited network exposure (1 peers at Purdue L1)",
+        "Read-only communication profile (no control commands)"
+      ],
+      "threat_alerts": [],
+      "remote_access_sessions": [],
+      "config_drift_alerts": [],
+      "attack_paths": [
+        {
+          "path_id": "AP-001",
+          "severity": "critical",
+          "entry_ip": "10.10.1.100",
+          "target_ip": "10.10.1.102",
+          "target_role": "plc",
+          "target_criticality": "process_control",
+          "hops": [
+            {
+              "ip": "10.10.1.100",
+              "role": "plc",
+              "purdue_level": 1,
+              "protocols_to_next": [
+                "Modbus/TCP"
+              ],
+              "auth_gap": true,
+              "encryption_gap": true
+            },
+            {
+              "ip": "10.10.1.10",
+              "role": "building_controller",
+              "purdue_level": 1,
+              "protocols_to_next": [
+                "EtherNet/IP"
+              ],
+              "auth_gap": true,
+              "encryption_gap": true
+            },
+            {
+              "ip": "10.10.1.102",
+              "role": "plc",
+              "purdue_level": 1,
+              "protocols_to_next": [],
+              "auth_gap": false,
+              "encryption_gap": false
+            }
+          ],
+          "hop_count": 2,
+          "purdue_levels_crossed": 0,
+          "auth_gaps": 2,
+          "encryption_gaps": 2,
+          "path_score": 100.0,
+          "mitre_kill_chain": [
+            {
+              "technique": "T0886",
+              "tactic": "Initial Access",
+              "description": "Remote access entry via 10.10.1.100 (plc)",
+              "hop_ip": "10.10.1.100"
+            },
+            {
+              "technique": "T0855",
+              "tactic": "Lateral Movement",
+              "description": "Unauthenticated protocol traversal via 10.10.1.10 (EtherNet/IP)",
+              "hop_ip": "10.10.1.10"
+            },
+            {
+              "technique": "T0855",
+              "tactic": "Execution",
+              "description": "Unauthorized commands to 10.10.1.102 (plc)",
+              "hop_ip": "10.10.1.102"
+            }
+          ],
+          "remediation": [
+            "Enable protocol authentication on 2 unauthenticated hop(s) \u2014 deploy DNP3 Secure Auth, S7comm+, or protocol-specific auth",
+            "Enable encryption on 2 cleartext hop(s) \u2014 deploy TLS for IEC-104, IEC 62351 for GOOSE/MMS, VPN for legacy",
+            "Patch 3 NOW-priority CVE(s) on target device: CVE-2022-1161, CVE-2023-3595, CVE-2024-6242",
+            "Restrict remote access to jump servers only \u2014 enforce NERC CIP-005-6 R2 interactive remote access controls"
+          ]
+        }
+      ],
+      "notes": []
+    },
+    {
+      "ip": "10.10.2.50",
+      "mac": "00:1A:2B:00:02:32",
+      "hostname": null,
+      "vendor": null,
+      "vendor_confidence": "unknown",
+      "make": null,
+      "model": null,
+      "firmware": null,
+      "hardware_version": null,
+      "serial_number": null,
+      "product_code": null,
+      "rack": null,
+      "slot": null,
+      "cpu_info": null,
+      "modules": [],
+      "last_program_event": null,
+      "communication_profile": {
+        "peer_count": 1,
+        "protocols": [],
+        "total_bytes_out": 195,
+        "total_bytes_in": 508,
+        "control_ratio": 0.0,
+        "read_write_ratio": 0.0,
+        "is_master": false,
+        "is_slave": true,
+        "is_peer": false
+      },
+      "dnp3_address": null,
+      "iec104_common_address": null,
+      "goose_ids": [],
+      "logical_nodes": [],
+      "master_stations": [
+        "10.10.2.10"
+      ],
+      "protocols": [],
+      "open_ports": [
+        20000
+      ],
+      "communicating_with": [
+        "10.10.2.10"
+      ],
+      "first_seen": "2026-03-31T08:21:25.376178",
+      "last_seen": "2026-03-31T08:21:28.376178",
+      "packet_count": 3,
+      "role": "unknown",
+      "device_type": "unknown",
+      "device_criticality": "unknown",
+      "asset_owner": null,
+      "location": null,
+      "asset_tag": null,
+      "protocol_stats": [],
+      "it_protocols": [],
+      "vulnerabilities": [
+        {
+          "vuln_id": "OT-GEN-003",
+          "title": "Device on OT Ports -- Protocol Unidentified",
+          "severity": "low",
+          "category": "misconfiguration",
+          "description": "Device 10.10.2.50 is listening on known OT port(s) [20000] but no industrial protocol was successfully parsed. This may indicate a non-standard firmware version, a custom protocol variant, or a misconfigured device. Manual inspection of the PCAP is recommended.",
+          "evidence": {
+            "open_ports": [
+              20000
+            ],
+            "packet_count": 3
+          },
+          "remediation": "Perform a manual protocol analysis of the captured traffic. Verify the device's role and authorised protocol configuration. If the protocol cannot be identified, treat the device as untrusted and isolate pending investigation.",
+          "references": [
+            "IEC 62443-2-1 \u00a74.3.3 -- Asset Identification"
+          ],
+          "mitre_attack": [],
+          "first_seen": "2026-03-31T08:21:25.376178",
+          "packet_count": 3
+        }
+      ],
+      "cve_matches": [],
+      "risk_level": "low",
+      "risk_score": 1,
+      "risk_factors": [],
+      "composite_risk_score": 0.9,
+      "risk_score_breakdown": {
+        "base_score": 1,
+        "protocol_penalties": 0.0,
+        "criticality_multiplier": 1.0,
+        "exposure_multiplier": 1.0,
+        "kev_boost": 1.0,
+        "epss_boost": 1.0,
+        "controls_factor": 0.95,
+        "compensating_controls": [
+          "Read-only communication profile (no control commands)"
+        ],
+        "composite_score": 0.9,
+        "formula": "min(100, (base + penalties) \u00d7 criticality \u00d7 exposure \u00d7 kev_boost \u00d7 epss_boost \u00d7 controls_factor)"
+      },
+      "compensating_controls": [
+        "Read-only communication profile (no control commands)"
+      ],
+      "threat_alerts": [],
+      "remote_access_sessions": [],
+      "config_drift_alerts": [],
+      "attack_paths": [],
+      "notes": []
+    }
+  ],
+  "flows": [
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.1.100",
+      "protocol": "Modbus/TCP",
+      "port": 502,
+      "transport": "TCP",
+      "packet_count": 8,
+      "byte_count": 528,
+      "first_seen": "2026-03-31T08:21:18.376178",
+      "last_seen": "2026-03-31T08:21:19.576178"
+    },
+    {
+      "src_ip": "10.10.2.10",
+      "dst_ip": "10.10.2.50",
+      "protocol": "DNP3",
+      "port": 20000,
+      "transport": "TCP",
+      "packet_count": 8,
+      "byte_count": 508,
+      "first_seen": "2026-03-31T08:21:25.376178",
+      "last_seen": "2026-03-31T08:21:28.376178"
+    },
+    {
+      "src_ip": "10.10.1.100",
+      "dst_ip": "10.10.1.10",
+      "protocol": "Modbus/TCP",
+      "port": 502,
+      "transport": "TCP",
+      "packet_count": 6,
+      "byte_count": 557,
+      "first_seen": "2026-03-31T08:21:18.426178",
+      "last_seen": "2026-03-31T08:21:20.376178"
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.1.101",
+      "protocol": "S7comm / IEC 61850 MMS (ISO-TSAP)",
+      "port": 102,
+      "transport": "TCP",
+      "packet_count": 6,
+      "byte_count": 501,
+      "first_seen": "2026-03-31T08:21:21.376178",
+      "last_seen": "2026-03-31T08:21:21.976178"
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.3.10",
+      "protocol": "MQTT",
+      "port": 1883,
+      "transport": "TCP",
+      "packet_count": 6,
+      "byte_count": 530,
+      "first_seen": "2026-03-31T08:21:33.376178",
+      "last_seen": "2026-03-31T08:21:35.476178"
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.2.51",
+      "protocol": "IEC 60870-5-104",
+      "port": 2404,
+      "transport": "TCP",
+      "packet_count": 4,
+      "byte_count": 270,
+      "first_seen": "2026-03-31T08:21:29.376178",
+      "last_seen": "2026-03-31T08:21:29.676178"
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.2.60",
+      "protocol": "OPC-UA",
+      "port": 4840,
+      "transport": "TCP",
+      "packet_count": 4,
+      "byte_count": 526,
+      "first_seen": "2026-03-31T08:21:31.376178",
+      "last_seen": "2026-03-31T08:21:31.876178"
+    },
+    {
+      "src_ip": "10.10.1.102",
+      "dst_ip": "10.10.1.10",
+      "protocol": "EtherNet/IP",
+      "port": 44818,
+      "transport": "TCP",
+      "packet_count": 3,
+      "byte_count": 435,
+      "first_seen": "2026-03-31T08:21:23.476178",
+      "last_seen": "2026-03-31T08:21:23.876178"
+    },
+    {
+      "src_ip": "10.10.2.50",
+      "dst_ip": "10.10.2.10",
+      "protocol": "DNP3",
+      "port": 20000,
+      "transport": "TCP",
+      "packet_count": 3,
+      "byte_count": 195,
+      "first_seen": "2026-03-31T08:21:25.476178",
+      "last_seen": "2026-03-31T08:21:25.876178"
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.3.20",
+      "protocol": "BACnet/IP",
+      "port": 47808,
+      "transport": "UDP",
+      "packet_count": 3,
+      "byte_count": 162,
+      "first_seen": "2026-03-31T08:21:35.376178",
+      "last_seen": "2026-03-31T08:21:35.976178"
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.1.100",
+      "protocol": "Modbus/TCP",
+      "port": 502,
+      "transport": "TCP",
+      "packet_count": 3,
+      "byte_count": 198,
+      "first_seen": "2026-03-31T08:21:38.376178",
+      "last_seen": "2026-03-31T08:21:38.576178"
+    },
+    {
+      "src_ip": "10.10.1.101",
+      "dst_ip": "10.10.1.20",
+      "protocol": "S7comm / IEC 61850 MMS (ISO-TSAP)",
+      "port": 102,
+      "transport": "TCP",
+      "packet_count": 1,
+      "byte_count": 76,
+      "first_seen": "2026-03-31T08:21:21.476178",
+      "last_seen": "2026-03-31T08:21:21.476178"
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.1.102",
+      "protocol": "EtherNet/IP",
+      "port": 44818,
+      "transport": "TCP",
+      "packet_count": 1,
+      "byte_count": 82,
+      "first_seen": "2026-03-31T08:21:23.376178",
+      "last_seen": "2026-03-31T08:21:23.376178"
+    },
+    {
+      "src_ip": "10.10.1.100",
+      "dst_ip": "192.168.1.50",
+      "protocol": "TCP",
+      "port": 60000,
+      "transport": "TCP",
+      "packet_count": 1,
+      "byte_count": 96,
+      "first_seen": "2026-03-31T08:21:37.376178",
+      "last_seen": "2026-03-31T08:21:37.376178"
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.1.100",
+      "protocol": "TCP",
+      "port": 60100,
+      "transport": "TCP",
+      "packet_count": 1,
+      "byte_count": 60,
+      "first_seen": "2026-03-31T08:21:37.876178",
+      "last_seen": "2026-03-31T08:21:37.876178"
+    }
+  ],
+  "zones": [
+    {
+      "zone_id": "zone_10.10.1",
+      "subnet": "10.10.1.0/24",
+      "subnet_mask": 24,
+      "purdue_level": 1,
+      "purdue_label": "Level 1 \u2014 Basic Control",
+      "device_ips": [
+        "10.10.1.10",
+        "10.10.1.100",
+        "10.10.1.102"
+      ],
+      "device_count": 3,
+      "dominant_role": "plc",
+      "protocols_seen": [
+        "BACnet/IP",
+        "EtherNet/IP",
+        "Modbus/TCP"
+      ],
+      "notes": []
+    },
+    {
+      "zone_id": "zone_10.10.2",
+      "subnet": "10.10.2.0/24",
+      "subnet_mask": 24,
+      "purdue_level": -1,
+      "purdue_label": "Unknown",
+      "device_ips": [
+        "10.10.2.50"
+      ],
+      "device_count": 1,
+      "dominant_role": "unknown",
+      "protocols_seen": [],
+      "notes": []
+    }
+  ],
+  "zone_violations": [],
+  "topology_edges": [
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.1.100",
+      "protocols": [
+        "Modbus/TCP"
+      ],
+      "packet_count": 8,
+      "byte_count": 528,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.1.102",
+      "protocols": [
+        "EtherNet/IP"
+      ],
+      "packet_count": 1,
+      "byte_count": 82,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.2.51",
+      "protocols": [
+        "IEC 60870-5-104"
+      ],
+      "packet_count": 4,
+      "byte_count": 270,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.10",
+      "dst_ip": "10.10.3.20",
+      "protocols": [
+        "BACnet/IP"
+      ],
+      "packet_count": 3,
+      "byte_count": 162,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.100",
+      "dst_ip": "10.10.1.10",
+      "protocols": [
+        "Modbus/TCP"
+      ],
+      "packet_count": 6,
+      "byte_count": 557,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.100",
+      "dst_ip": "192.168.1.50",
+      "protocols": [
+        "TCP"
+      ],
+      "packet_count": 1,
+      "byte_count": 96,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.101",
+      "dst_ip": "10.10.1.20",
+      "protocols": [
+        "S7comm / IEC 61850 MMS (ISO-TSAP)"
+      ],
+      "packet_count": 1,
+      "byte_count": 76,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.102",
+      "dst_ip": "10.10.1.10",
+      "protocols": [
+        "EtherNet/IP"
+      ],
+      "packet_count": 3,
+      "byte_count": 435,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.1.100",
+      "protocols": [
+        "Modbus/TCP",
+        "TCP"
+      ],
+      "packet_count": 4,
+      "byte_count": 258,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.1.101",
+      "protocols": [
+        "S7comm / IEC 61850 MMS (ISO-TSAP)"
+      ],
+      "packet_count": 6,
+      "byte_count": 501,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.2.60",
+      "protocols": [
+        "OPC-UA"
+      ],
+      "packet_count": 4,
+      "byte_count": 526,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.1.20",
+      "dst_ip": "10.10.3.10",
+      "protocols": [
+        "MQTT"
+      ],
+      "packet_count": 6,
+      "byte_count": 530,
+      "is_control": false,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.2.10",
+      "dst_ip": "10.10.2.50",
+      "protocols": [
+        "DNP3"
+      ],
+      "packet_count": 8,
+      "byte_count": 508,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    },
+    {
+      "src_ip": "10.10.2.50",
+      "dst_ip": "10.10.2.10",
+      "protocols": [
+        "DNP3"
+      ],
+      "packet_count": 3,
+      "byte_count": 195,
+      "is_control": true,
+      "is_cross_zone": false,
+      "purdue_span": 0
+    }
+  ],
+  "cve_summary": {
+    "total": 5,
+    "now": 3,
+    "next": 1,
+    "never": 1,
+    "unique_cves": 5,
+    "devices_with_cves": 2
+  },
+  "compliance": {
+    "NERC CIP": {
+      "total": 15,
+      "pass": 7,
+      "fail": 5,
+      "warning": 2,
+      "not_assessed": 1,
+      "checks": [
+        {
+          "control_id": "CIP-005-6 R2",
+          "title": "Interactive Remote Access",
+          "status": "fail",
+          "severity": "critical",
+          "finding": "OT-ITOT-001 on 10.10.1.100: Remote Access Protocol in OT Zone (Telnet)"
+        },
+        {
+          "control_id": "CIP-007-6 R2",
+          "title": "Security Patch Management",
+          "status": "fail",
+          "severity": "critical",
+          "finding": "3 NOW-priority CVE(s) unpatched: CVE-2022-1161, CVE-2023-3595, CVE-2024-6242"
+        },
+        {
+          "control_id": "CIP-011-2 R1",
+          "title": "Information Protection",
+          "status": "fail",
+          "severity": "high",
+          "finding": "OT-GEN-001 on 10.10.1.10: Cleartext Industrial Protocols Expose OT Traffic; OT-GEN-001 on 10.10.1.100: Cleartext Industrial Protocols Expose OT Traffic"
+        },
+        {
+          "control_id": "CIP-013-1 R1",
+          "title": "Supply Chain Risk Management",
+          "status": "fail",
+          "severity": "high",
+          "finding": "5 known CVE(s) matched to deployed devices."
+        },
+        {
+          "control_id": "CIP-003-8 R4",
+          "title": "Physical Security of BES Cyber Systems",
+          "status": "fail",
+          "severity": "high",
+          "finding": "OT-ITOT-003 on 10.10.1.100: Telnet (Cleartext Remote Access) on OT Device"
+        },
+        {
+          "control_id": "CIP-002-5.1 R1",
+          "title": "BES Cyber Asset Identification",
+          "status": "warning",
+          "severity": "high",
+          "finding": "Only 2 of 4 devices have vendor/model identification."
+        },
+        {
+          "control_id": "CIP-010-3 R2",
+          "title": "Configuration Monitoring",
+          "status": "warning",
+          "severity": "medium",
+          "finding": "Only 2 of 4 devices have vendor/model identification."
+        },
+        {
+          "control_id": "CIP-005-6 R1",
+          "title": "Electronic Security Perimeter",
+          "status": "pass",
+          "severity": "critical",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-007-6 R1",
+          "title": "Ports and Services",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-007-6 R5",
+          "title": "System Access Controls",
+          "status": "pass",
+          "severity": "critical",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-010-3 R1",
+          "title": "Configuration Change Management",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-005-6 R1.5",
+          "title": "Inbound/Outbound Access Permissions",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-007-6 R3",
+          "title": "Malicious Code Prevention",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-005-6 R2.4",
+          "title": "Default Deny and Multi-Master Restriction",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "CIP-007-6 R4",
+          "title": "Security Event Monitoring",
+          "status": "not_assessed",
+          "severity": "medium",
+          "finding": "Cannot be assessed from passive PCAP analysis alone."
+        }
+      ]
+    },
+    "IEC 62443": {
+      "total": 12,
+      "pass": 9,
+      "fail": 3,
+      "warning": 0,
+      "not_assessed": 0,
+      "checks": [
+        {
+          "control_id": "SR 1.13",
+          "title": "Remote Access Control",
+          "status": "fail",
+          "severity": "critical",
+          "finding": "OT-ITOT-001 on 10.10.1.100: Remote Access Protocol in OT Zone (Telnet)"
+        },
+        {
+          "control_id": "SR 4.1",
+          "title": "Information Confidentiality",
+          "status": "fail",
+          "severity": "high",
+          "finding": "OT-GEN-001 on 10.10.1.10: Cleartext Industrial Protocols Expose OT Traffic; OT-GEN-001 on 10.10.1.100: Cleartext Industrial Protocols Expose OT Traffic"
+        },
+        {
+          "control_id": "SR 4.3",
+          "title": "Use of Cryptography",
+          "status": "fail",
+          "severity": "high",
+          "finding": "OT-GEN-001 on 10.10.1.10: Cleartext Industrial Protocols Expose OT Traffic; OT-GEN-001 on 10.10.1.100: Cleartext Industrial Protocols Expose OT Traffic"
+        },
+        {
+          "control_id": "SR 1.1",
+          "title": "Human User Identification and Authentication",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 3.1",
+          "title": "Communication Integrity",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 5.1",
+          "title": "Network Segmentation",
+          "status": "pass",
+          "severity": "critical",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 5.2",
+          "title": "Zone Boundary Protection",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 7.1",
+          "title": "Denial of Service Protection",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 7.6",
+          "title": "Network and Security Configuration Settings",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 7.7",
+          "title": "Least Functionality",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 3.5",
+          "title": "Input Validation",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "SR 2.8",
+          "title": "Auditable Events",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        }
+      ]
+    },
+    "NIST 800-82": {
+      "total": 8,
+      "pass": 5,
+      "fail": 3,
+      "warning": 0,
+      "not_assessed": 0,
+      "checks": [
+        {
+          "control_id": "6.2.7",
+          "title": "Encrypt ICS Communications Where Feasible",
+          "status": "fail",
+          "severity": "high",
+          "finding": "OT-GEN-001 on 10.10.1.10: Cleartext Industrial Protocols Expose OT Traffic; OT-GEN-001 on 10.10.1.100: Cleartext Industrial Protocols Expose OT Traffic"
+        },
+        {
+          "control_id": "6.2.8",
+          "title": "Remote Access to ICS",
+          "status": "fail",
+          "severity": "critical",
+          "finding": "OT-ITOT-001 on 10.10.1.100: Remote Access Protocol in OT Zone (Telnet)"
+        },
+        {
+          "control_id": "6.3.3",
+          "title": "Patch Management",
+          "status": "fail",
+          "severity": "critical",
+          "finding": "3 NOW-priority CVE(s) unpatched: CVE-2022-1161, CVE-2023-3595, CVE-2024-6242"
+        },
+        {
+          "control_id": "5.1",
+          "title": "ICS Network Architecture",
+          "status": "pass",
+          "severity": "critical",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "6.2.1",
+          "title": "Restrict Logical Access to ICS Networks",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "6.2.5",
+          "title": "Restrict ICS Logical Access -- Least Functionality",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "6.2.9",
+          "title": "Audit and Accountability",
+          "status": "pass",
+          "severity": "medium",
+          "finding": "No related findings detected in scan results."
+        },
+        {
+          "control_id": "6.3.4",
+          "title": "Malware Detection and Prevention",
+          "status": "pass",
+          "severity": "high",
+          "finding": "No related findings detected in scan results."
+        }
+      ]
+    }
+  }
+}
