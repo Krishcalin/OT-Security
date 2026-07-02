@@ -10,8 +10,8 @@ from scanner.threat.signatures import ICS_MALWARE_SIGNATURES
 
 
 class TestSignatureCount:
-    def test_nine_signatures_loaded(self):
-        assert len(ICS_MALWARE_SIGNATURES) == 9
+    def test_ten_signatures_loaded(self):
+        assert len(ICS_MALWARE_SIGNATURES) == 10
 
     def test_all_match_functions_exist(self):
         for sig in ICS_MALWARE_SIGNATURES:
@@ -53,6 +53,33 @@ class TestIndustroyerSignature:
         alerts = engine.analyze()
         malware = [a for al in alerts.values() for a in al if "Industroyer" in a.title]
         assert malware, "Industroyer should be detected with control + GI + clock sync"
+
+
+class TestCosmicEnergySignature:
+    def test_cosmicenergy_iec104_control_with_mssql_master(self):
+        rtu = OTDevice(ip="10.1.1.20")
+        rtu.role = "rtu"; rtu.protocol_stats = []; rtu.it_protocols = []
+        rtu.vulnerabilities = []; rtu.cve_matches = []; rtu.threat_alerts = []
+        master = OTDevice(ip="10.1.2.30")
+        master.protocol_stats = []; master.vulnerabilities = []
+        master.cve_matches = []; master.threat_alerts = []
+        master.it_protocols = [ITProtocolHit(protocol="MSSQL", port=1433,
+                                             details={"category": "database"})]
+        # control commands but NO general interrogation / clock sync -> not Industroyer
+        session = IEC104SessionState(
+            master_ip="10.1.2.30", rtu_ip="10.1.1.20",
+            single_commands=[{"type": 45}], general_interrogations=0,
+            clock_syncs=0, packet_count=120,
+            first_seen=datetime(2024, 1, 1), last_seen=datetime(2024, 1, 2),
+        )
+        engine = ThreatDetectionEngine([rtu, master], [], [], [], {},
+                                       {("10.1.2.30", "10.1.1.20"): session}, {})
+        alerts = engine.analyze()
+        titles = [a.title for al in alerts.values() for a in al]
+        assert any("CosmicEnergy" in t for t in titles), \
+            "CosmicEnergy should fire on IEC-104 control from an MSSQL-running master"
+        assert not any("Industroyer" in t for t in titles), \
+            "Industroyer must NOT fire without GI + clock sync (distinguishes the two)"
 
 
 class TestFuxnetSignature:

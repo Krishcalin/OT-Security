@@ -65,7 +65,7 @@ ot_scanner/
 │   │   └── engine.py               # CompositeRiskEngine — multi-factor 0-100 scoring
 │   ├── threat/
 │   │   ├── engine.py               # ThreatDetectionEngine — 4 detection modules
-│   │   └── signatures.py           # 9 ICS malware behavioral signatures
+│   │   └── signatures.py           # 10 ICS malware behavioral signatures
 │   ├── attack/
 │   │   └── engine.py               # AttackPathEngine — BFS pathfinding + kill chain
 │   ├── access/
@@ -81,8 +81,9 @@ ot_scanner/
 │   ├── topology/
 │   │   └── engine.py               # Purdue zones, zone violations, GraphML export
 │   ├── cvedb/
-│   │   ├── ics_cves.py             # 90 ICS CVEs with EPSS + CISA KEV + exploit maturity
-│   │   └── matcher.py              # CVEMatcher with Now/Next/Never + KEV/EPSS boost
+│   │   ├── ics_cves.py             # 92 ICS CVEs with EPSS + CISA KEV + exploit maturity
+│   │   ├── matcher.py              # CVEMatcher with Now/Next/Never + KEV/EPSS boost
+│   │   └── cisa_importer.py        # CISA KEV (+EPSS) -> CVE JSON auto-refresh importer
 │   ├── export/
 │   │   ├── siem.py                 # CEF + LEEF syslog export
 │   │   ├── stix.py                 # STIX 2.1 JSON bundle
@@ -96,11 +97,12 @@ ot_scanner/
 │   │   └── engine.py               # Baseline diff analysis
 │   └── report/
 │       └── generator.py            # JSON, CSV, HTML, GraphML reports
-├── tests/                          # 57 unit tests (pytest)
+├── tests/                          # 68 unit tests (pytest)
 │   ├── conftest.py                 # Shared fixtures (mock devices, zones, CVEs)
 │   ├── test_models.py              # Dataclass validation
 │   ├── test_risk_engine.py         # Composite scoring
-│   ├── test_threat_engine.py       # 9 malware signatures
+│   ├── test_threat_engine.py       # 10 malware signatures
+│   ├── test_cisa_importer.py       # CISA KEV -> CVE importer
 │   ├── test_attack_engine.py       # Attack path analysis
 │   ├── test_access_engine.py       # Secure access audit
 │   ├── test_config_engine.py       # Config snapshots + drift
@@ -186,7 +188,7 @@ PCAP File
 | Engine | Module | Purpose |
 |--------|--------|---------|
 | CompositeRiskEngine | `risk/engine.py` | Multi-factor 0-100 risk scoring (CVSS, EPSS, KEV, criticality, exposure) |
-| ThreatDetectionEngine | `threat/engine.py` | 9 ICS malware signatures, anomaly baselines, recon detection |
+| ThreatDetectionEngine | `threat/engine.py` | 10 ICS malware signatures, anomaly baselines, recon detection |
 | AttackPathEngine | `attack/engine.py` | BFS pathfinding, crown jewel identification, kill chain mapping |
 | SecureAccessEngine | `access/engine.py` | Remote access audit, jump server detection, CIP-005 compliance |
 | ConfigSnapshotEngine | `config/engine.py` | Persistent snapshots, drift detection, LKG baselines |
@@ -208,6 +210,7 @@ PCAP File
 | FrostyGoop | 2024 | Modbus writes from higher Purdue zone | T0855 |
 | Fuxnet | 2024 | Modbus flood writes + diagnostics (PLC bricking) | T0831 |
 | IOControl | 2024 | MQTT C2 + IT protocols on IoT gateways | T0869 |
+| CosmicEnergy | 2023 | IEC-104 breaker control + master running MSSQL (PieHop C2) | T0855 |
 
 ### MITRE ATT&CK for ICS Techniques (14 mapped)
 
@@ -300,6 +303,26 @@ Filtering & analysis:
 
 1. Add dict to `ICS_CVE_DATABASE` in `cvedb/ics_cves.py`
 2. Include: `cve_id`, `vendor`, `product_pattern` (regex), `affected_versions`, `severity`, `cvss_score`, `has_public_exploit`, `epss_score`, `is_cisa_kev`, `exploit_maturity`
+3. CVE IDs must be **real and unique** (a test enforces uniqueness); never fabricate a CVE. Keep `epss_score` in 0.0–1.0.
+
+### Refreshing CVEs from CISA KEV (auto-refresh)
+
+`cvedb/cisa_importer.py` converts the authoritative **CISA KEV catalog** JSON
+(+ optional FIRST.org **EPSS** CSV) into the same CVE-dict format, so the
+scanner's "actively exploited" + EPSS data stays fresh from real sources without
+hand curation. Two steps (the output feeds the existing `--cve-db` flag):
+
+```bash
+python -m scanner.cvedb.cisa_importer known_exploited_vulnerabilities.json \
+    --epss epss_scores-current.csv -o ics_kev.json   # ICS-relevant KEV entries
+python ot_scanner.py capture.pcap --cve-db ics_kev.json
+```
+
+By default only ICS-relevant entries are kept (known OT vendors + OT keywords);
+`--all` keeps every KEV entry. KEV lacks CVSS, so imported entries carry
+`cvss_score=0.0` but are flagged `is_cisa_kev` + `has_public_exploit` (→ "now"
+priority). Pure functions (`parse_kev_catalog` / `parse_epss_csv` / `is_ics_entry`)
+are unit-tested offline; only `fetch` touches the network (size-capped).
 
 ### Conventions
 
@@ -312,7 +335,7 @@ Filtering & analysis:
 
 ## Testing
 
-**57 unit tests** across 9 test files covering all analysis engines. Tests use mock data only — no PCAP files required.
+**68 unit tests** across 10 test files covering all analysis engines. Tests use mock data only — no PCAP files required.
 
 ```bash
 cd ot_scanner
@@ -324,12 +347,13 @@ python -m pytest tests/ -v
 |-----------|------:|----------|
 | `test_models.py` | 9 | Dataclass to_dict(), field defaults |
 | `test_risk_engine.py` | 5 | Composite scoring, multipliers, compensating controls |
-| `test_threat_engine.py` | 7 | All 9 malware signatures + unauthorized command alerts |
+| `test_threat_engine.py` | 8 | All 10 malware signatures (incl. CosmicEnergy) + unauthorized command alerts |
 | `test_attack_engine.py` | 6 | BFS pathfinding, crown jewels, path scoring, kill chain |
 | `test_access_engine.py` | 4 | CIP-005 compliance, jump server detection |
 | `test_config_engine.py` | 8 | Snapshot capture/save/load/diff, baseline, drift detection |
 | `test_policy_engine.py` | 5 | Rule generation, priority ordering, safety isolation |
-| `test_cve_matcher.py` | 9 | 90 CVEs loaded, EPSS/KEV propagation, matching pipeline |
+| `test_cve_matcher.py` | 11 | 92 CVEs loaded, unique IDs, EPSS/KEV propagation, matching pipeline |
+| `test_cisa_importer.py` | 8 | CISA KEV -> CVE conversion, ICS filter, EPSS merge, matcher round-trip |
 | `test_exporters.py` | 4 | ServiceNow, Splunk HEC, Elastic ECS, Webhook payloads |
 
 **CI Pipeline**: GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR against Python 3.8, 3.10, and 3.12.

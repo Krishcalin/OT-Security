@@ -2290,4 +2290,68 @@ ICS_CVE_DATABASE: List[Dict] = [
             "https://claroty.com/team82/disclosure-dashboard",
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  RECENT KEV-LISTED / HIGH-PROFILE ICS CVEs
+    # ═══════════════════════════════════════════════════════════════════
+
+    {
+        "cve_id": "CVE-2023-6448",
+        "vendor": "Unitronics",
+        "product_pattern": r"Vision|Samba|VisiLogic|Unitronics",
+        "affected_versions": "*",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Unitronics Vision/Samba Default Administrative Password",
+        "description": (
+            "Unitronics Vision and Samba series PLCs/HMIs (VisiLogic before 9.9.00) "
+            "ship with a default administrative password, letting an unauthenticated "
+            "attacker take administrative control over the PCOM protocol (TCP/20256). "
+            "Actively exploited from November 2023 by IRGC-affiliated 'CyberAv3ngers' "
+            "against U.S. water/wastewater utilities (>=75 devices compromised)."
+        ),
+        "has_public_exploit": True,
+        "epss_score": 0.94,
+        "is_cisa_kev": True,
+        "exploit_maturity": "high",
+        "ics_cert_advisory": "ICSA-23-348-15",
+        "remediation": (
+            "Change the default admin password; update VisiLogic to 9.9.00 or later; "
+            "do not expose PCOM (TCP/20256) to the internet; place PLCs behind a VPN."
+        ),
+        "references": [
+            "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-335a",
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-23-348-15",
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-6448",
+        ],
+    },
+    {
+        "cve_id": "CVE-2021-22681",
+        "vendor": "Rockwell Automation",
+        "product_pattern": r"Studio\s*5000|RSLogix\s*5000|Logix\s*Designer|ControlLogix|CompactLogix|GuardLogix|Logix|1756|1769",
+        "affected_versions": "*",
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "title": "Rockwell Logix Controllers Authentication Bypass (Poorly Protected Key)",
+        "description": (
+            "An insufficiently protected cryptographic key in Studio 5000 Logix "
+            "Designer / RSLogix 5000 and Logix controllers allows a remote, "
+            "unauthenticated attacker to bypass the controller's verification "
+            "mechanism, connect by mimicking an engineering workstation, and alter "
+            "configuration and/or application (ladder) code. CISA KEV-listed."
+        ),
+        "has_public_exploit": True,
+        "epss_score": 0.90,
+        "is_cisa_kev": True,
+        "exploit_maturity": "functional",
+        "ics_cert_advisory": "ICSA-21-056-03",
+        "remediation": (
+            "Apply Rockwell mitigations (CIP Security, trusted-slot, controller "
+            "change detection); segment engineering networks; restrict CIP/TCP-44818."
+        ),
+        "references": [
+            "https://www.cisa.gov/news-events/ics-advisories/icsa-21-056-03",
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-22681",
+        ],
+    },
 ]

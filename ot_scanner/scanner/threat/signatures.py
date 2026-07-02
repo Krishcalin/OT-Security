@@ -206,4 +206,26 @@ ICS_MALWARE_SIGNATURES: List[Dict] = [
             "Claroty Team82 IOControl analysis (2024-2025)",
         ],
     },
+
+    # ══════════════════════════════════════════════════════════════════
+    #  COSMICENERGY  (2023 — Russia-linked IEC-104 grid-disruption tool)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "name": "CosmicEnergy",
+        "description": (
+            "IEC 60870-5-104 RTU receiving control commands to change breaker / "
+            "switch state where the issuing master also runs Microsoft SQL Server "
+            "(TCP/1433) — consistent with CosmicEnergy, whose PieHop module relays "
+            "commands via an MSSQL server to the LightWork IEC-104 module to trip "
+            "power line switches and circuit breakers."
+        ),
+        "severity": "critical",
+        "mitre_technique": "T0855",
+        "mitre_tactic": "Impair Process Control",
+        "match_fn": "match_cosmicenergy",
+        "references": [
+            "https://cloud.google.com/blog/topics/threat-intelligence/cosmicenergy-ot-malware-russian-response/",
+            "Mandiant CosmicEnergy analysis (2023)",
+        ],
+    },
 ]

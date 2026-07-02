@@ -6,8 +6,12 @@ from scanner.cvedb.ics_cves import ICS_CVE_DATABASE
 
 
 class TestCVEDatabase:
-    def test_loads_90_cves(self):
-        assert len(ICS_CVE_DATABASE) == 90
+    def test_loads_92_cves(self):
+        assert len(ICS_CVE_DATABASE) == 92
+
+    def test_cve_ids_are_unique(self):
+        ids = [e["cve_id"] for e in ICS_CVE_DATABASE]
+        assert len(ids) == len(set(ids)), "duplicate CVE IDs in the database"
 
     def test_all_have_epss_and_kev(self):
         for entry in ICS_CVE_DATABASE:
@@ -23,11 +27,11 @@ class TestCVEDatabase:
 class TestMatcherLoading:
     def test_matcher_loads_all_entries(self):
         matcher = CVEMatcher()
-        assert len(matcher.entries) == 90
+        assert len(matcher.entries) == 92
 
     def test_external_cve_file_missing_is_ok(self):
         matcher = CVEMatcher(extra_cve_file=None)
-        assert len(matcher.entries) == 90
+        assert len(matcher.entries) == 92
 
 
 class TestDeviceMatching:
@@ -58,6 +62,14 @@ class TestDeviceMatching:
         kev_matches = [m for m in matches if m.is_cisa_kev]
         for m in kev_matches:
             assert m.priority == "now", f"{m.cve_id} KEV should be 'now' priority"
+
+    def test_unitronics_kev_matches_now(self):
+        matcher = CVEMatcher()
+        dev = OTDevice(ip="10.0.0.5")
+        dev.vendor = "Unitronics"; dev.model = "Vision V570"
+        matches = matcher.match_device(dev)
+        m = next((x for x in matches if x.cve_id == "CVE-2023-6448"), None)
+        assert m is not None and m.is_cisa_kev is True and m.priority == "now"
 
     def test_no_match_for_unknown_vendor(self):
         matcher = CVEMatcher()

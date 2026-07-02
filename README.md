@@ -30,7 +30,7 @@ The project includes a **unified scanner** (v2.0) that merges and extends two ea
 
 | Scanner | Directory | Version | Lines | Description |
 |---------|-----------|---------|------:|-------------|
-| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 16 protocols, 29 vuln rules, 90 CVEs, 9 malware sigs, 9 analysis engines, 11 export formats |
+| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 16 protocols, 29 vuln rules, 92 CVEs (+ CISA KEV auto-refresh), 10 malware sigs, 9 analysis engines, 11 export formats |
 | **PLC Passive Scanner** | [`plc_passive_scanner/`](plc_passive_scanner/) | 1.0 | ~1,500 | Device identification scanner for PLCs (7 protocols, vendor fingerprinting) |
 | **RTU Passive Scanner** | [`rtu_passive_scanner/`](rtu_passive_scanner/) | 1.0 | ~2,500 | Vulnerability scanner for RTUs/IEDs (21 vuln rules, GOOSE/MMS) |
 
@@ -147,7 +147,7 @@ Composite risk scoring (0-100) combining multiple intelligence sources:
 
 ### Threat Detection & MITRE ATT&CK
 
-**9 ICS malware behavioral signatures** matched against observed traffic patterns:
+**10 ICS malware behavioral signatures** matched against observed traffic patterns:
 
 | Malware | Year | Target | MITRE Technique |
 |---------|------|--------|----------------|
@@ -160,6 +160,7 @@ Composite risk scoring (0-100) combining multiple intelligence sources:
 | **FrostyGoop** | 2024 | Modbus register manipulation | T0855 |
 | **Fuxnet** | 2024 | Modbus flood writes + diagnostics (PLC bricking) | T0831 |
 | **IOControl** | 2024 | MQTT C2 + IT protocols on IoT gateways | T0869 |
+| **CosmicEnergy** | 2023 | IEC-104 breaker control + MSSQL C2 (PieHop) | T0855 |
 
 **4 detection modules**: unauthorized command detection, malware signature matching, reconnaissance detection, behavioral baseline anomalies. **14 MITRE ATT&CK for ICS techniques** mapped.
 
@@ -301,9 +302,9 @@ ot_scanner/
     ├── fingerprint/                7-step vendor fingerprinting pipeline
     ├── vuln/                       29 vulnerability rules (4 check modules)
     ├── topology/                   Purdue zones, violations, GraphML
-    ├── cvedb/                      90 ICS CVEs with EPSS + CISA KEV
+    ├── cvedb/                      92 ICS CVEs (+ CISA KEV auto-refresh importer)
     ├── risk/                       Composite risk scoring (0-100)
-    ├── threat/                     9 ICS malware sigs + anomaly baselines
+    ├── threat/                     10 ICS malware sigs + anomaly baselines
     ├── attack/                     Multi-hop attack path analysis
     ├── access/                     Secure access audit (CIP-005 R2)
     ├── config/                     Configuration snapshots + drift detection
@@ -341,7 +342,7 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ## Testing & CI
 
-**57 unit tests** covering all 9 analysis engines, running in < 0.2 seconds with no PCAP dependencies.
+**68 unit tests** covering all 9 analysis engines + the CISA KEV importer, running in < 0.3 seconds with no PCAP dependencies.
 
 ```bash
 cd ot_scanner
@@ -353,12 +354,13 @@ python -m pytest tests/ -v
 |-----------|------:|----------------|
 | `test_models.py` | 9 | All dataclass to_dict() + defaults |
 | `test_risk_engine.py` | 5 | Composite scoring, multipliers, controls |
-| `test_threat_engine.py` | 7 | All 9 malware sigs + unauthorized commands |
+| `test_threat_engine.py` | 8 | All 10 malware sigs (incl. CosmicEnergy) + unauthorized commands |
 | `test_attack_engine.py` | 6 | Pathfinding, crown jewels, scoring |
 | `test_access_engine.py` | 4 | CIP-005 compliance, jump server detection |
 | `test_config_engine.py` | 8 | Snapshot capture/save/load, drift detection |
 | `test_policy_engine.py` | 5 | Rule generation, priorities, safety isolation |
-| `test_cve_matcher.py` | 9 | 90 CVEs, EPSS/KEV, matching pipeline |
+| `test_cve_matcher.py` | 11 | 92 CVEs, unique IDs, EPSS/KEV, matching pipeline |
+| `test_cisa_importer.py` | 8 | CISA KEV → CVE, ICS filter, EPSS merge, round-trip |
 | `test_exporters.py` | 4 | ServiceNow, Splunk, Elastic, Webhook |
 
 **GitHub Actions CI** runs on every push and PR against Python 3.8, 3.10, and 3.12.

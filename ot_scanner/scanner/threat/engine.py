@@ -331,6 +331,52 @@ class ThreatDetectionEngine:
                 ))
         return alerts
 
+    def _match_cosmicenergy(self, sig: Dict) -> List[ThreatAlert]:
+        """CosmicEnergy: IEC-104 control commands where the issuing master also
+        runs MSSQL (TCP/1433) — its PieHop module relays commands via an MSSQL
+        server to the LightWork IEC-104 module. The MSSQL correlation distinguishes
+        it from Industroyer (which keys on control + GI + clock sync)."""
+        alerts: List[ThreatAlert] = []
+        for key, session in self._iec104_sessions.items():
+            has_control = bool(
+                session.single_commands or session.double_commands
+                or session.regulating_step or session.setpoint_commands
+            )
+            if not has_control:
+                continue
+            master = self._device_map.get(session.master_ip)
+            if master is None or not self._runs_mssql(master):
+                continue
+            alerts.append(ThreatAlert(
+                alert_type="malware_signature",
+                severity=sig["severity"],
+                title=f"CosmicEnergy pattern: {session.rtu_ip}",
+                description=sig["description"],
+                device_ip=session.rtu_ip,
+                peer_ip=session.master_ip,
+                protocol="IEC 60870-5-104",
+                mitre_technique=sig["mitre_technique"],
+                mitre_tactic=sig["mitre_tactic"],
+                evidence={
+                    "master_ip": session.master_ip,
+                    "control_commands": True,
+                    "master_runs_mssql": True,
+                    "packet_count": session.packet_count,
+                },
+                first_seen=session.first_seen,
+                confidence="medium",
+            ))
+        return alerts
+
+    @staticmethod
+    def _runs_mssql(device) -> bool:
+        """True if the device shows Microsoft SQL Server (TCP/1433) activity."""
+        for it in getattr(device, "it_protocols", []) or []:
+            proto = (getattr(it, "protocol", "") or "").lower()
+            if getattr(it, "port", None) == 1433 or "mssql" in proto or "sql server" in proto:
+                return True
+        return False
+
     def _match_triton(self, sig: Dict) -> List[ThreatAlert]:
         """TRITON: SIS device with program download + firmware update."""
         alerts: List[ThreatAlert] = []
