@@ -30,7 +30,7 @@ The project includes a **unified scanner** (v2.0) that merges and extends two ea
 
 | Scanner | Directory | Version | Lines | Description |
 |---------|-----------|---------|------:|-------------|
-| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 16 protocols, 29 vuln rules, 92 CVEs (+ CISA KEV auto-refresh), 10 malware sigs, 9 analysis engines, 11 export formats |
+| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 20 protocols, 29 vuln rules, 92 CVEs (+ CISA KEV auto-refresh), 10 malware sigs, 9 analysis engines, 11 export formats |
 | **PLC Passive Scanner** | [`plc_passive_scanner/`](plc_passive_scanner/) | 1.0 | ~1,500 | Device identification scanner for PLCs (7 protocols, vendor fingerprinting) |
 | **RTU Passive Scanner** | [`rtu_passive_scanner/`](rtu_passive_scanner/) | 1.0 | ~2,500 | Vulnerability scanner for RTUs/IEDs (21 vuln rules, GOOSE/MMS) |
 
@@ -48,7 +48,7 @@ python ot_scanner.py capture.pcap -o reports/ -f all
 
 ### Supported Protocols
 
-**13 IP-layer protocols + 3 Layer-2 protocols**, plus detection of 36+ IT/enterprise protocols for convergence risk assessment.
+**17 IP-layer protocols + 3 Layer-2 protocols**, plus detection of 36+ IT/enterprise protocols for convergence risk assessment.
 
 | Protocol | Transport | Port / EtherType | Vendor Coverage |
 |----------|-----------|------------------|-----------------|
@@ -65,6 +65,10 @@ python ot_scanner.py capture.pcap -o reports/ -f all
 | BACnet/IP | UDP | 47808 | Building automation |
 | MQTT | TCP | 1883 / 8883 | IIoT messaging |
 | PROFINET RT | UDP | 34962-34964 | Siemens, multi-vendor |
+| HART-IP | UDP / TCP | 5094 | Process instrumentation (Emerson, E+H, Yokogawa, Honeywell) |
+| GE-SRTP | TCP | 18245 | GE Series 90 / RX3i / PACSystems (GE-exclusive) |
+| Niagara Fox | TCP | 1911 / 4911 | Tridium Niagara building automation (BAS/BMS) |
+| KNXnet/IP | UDP / TCP | 3671 | KNX building automation (lighting, HVAC, access) |
 | IEC 61850 GOOSE | Ethernet | 0x88B8 | Protection signalling (L2) |
 | IEC 61850 SV | Ethernet | 0x88BA | Sampled Values / merging units (L2) |
 | PROFINET DCP | Ethernet | 0x8892 | Device discovery (L2) |
@@ -342,7 +346,7 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ## Testing & CI
 
-**68 unit tests** covering all 9 analysis engines + the CISA KEV importer, running in < 0.3 seconds with no PCAP dependencies.
+**76 unit tests** covering all 9 analysis engines, the 4 new protocol analyzers, and the CISA KEV importer, running in < 0.3 seconds with no PCAP dependencies.
 
 ```bash
 cd ot_scanner
@@ -362,6 +366,7 @@ python -m pytest tests/ -v
 | `test_cve_matcher.py` | 11 | 92 CVEs, unique IDs, EPSS/KEV, matching pipeline |
 | `test_cisa_importer.py` | 8 | CISA KEV → CVE, ICS filter, EPSS merge, round-trip |
 | `test_exporters.py` | 4 | ServiceNow, Splunk, Elastic, Webhook |
+| `test_protocols.py` | 8 | HART-IP, GE-SRTP, Niagara Fox, KNXnet/IP analyzers |
 
 **GitHub Actions CI** runs on every push and PR against Python 3.8, 3.10, and 3.12.
 

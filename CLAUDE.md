@@ -20,7 +20,7 @@ and two legacy single-purpose scanners (PLC and RTU) that are superseded by v2.0
 
 | Scanner | Type | Version | Lines | Target |
 |---------|------|---------|------:|--------|
-| `ot_scanner/ot_scanner.py` | Unified OT | 2.0.0 | ~22,700 (package) | 16 ICS/SCADA protocols, 9 analysis engines, 11 export formats |
+| `ot_scanner/ot_scanner.py` | Unified OT | 2.0.0 | ~22,700 (package) | 20 ICS/SCADA protocols, 9 analysis engines, 11 export formats |
 | `plc_passive_scanner/plc_scanner.py` | PLC-only | 1.0 | 227 | 7 PLC protocols |
 | `rtu_passive_scanner/rtu_scanner.py` | RTU/IED-only | 1.0 | 332 | 9 RTU/IED protocols |
 
@@ -50,6 +50,10 @@ ot_scanner/
 │   │   ├── bacnet.py               # BACnet/IP
 │   │   ├── mqtt.py                 # MQTT v3.1.1 / v5.0
 │   │   ├── profinet.py             # PROFINET DCP (L2) + RT (UDP)
+│   │   ├── hart_ip.py              # HART-IP (UDP/TCP 5094) — process instrumentation
+│   │   ├── ge_srtp.py              # GE-SRTP (TCP 18245) — GE Series 90 / PACSystems
+│   │   ├── niagara_fox.py          # Niagara Fox (TCP 1911/4911) — Tridium BAS (hello banner)
+│   │   ├── knx_ip.py               # KNXnet/IP (UDP/TCP 3671) — KNX building automation
 │   │   ├── it_detect.py            # IT protocol detector (36+ protocols incl. VPN)
 │   │   └── behavior.py             # Protocol DPI behavior tracker
 │   ├── fingerprint/
@@ -97,7 +101,7 @@ ot_scanner/
 │   │   └── engine.py               # Baseline diff analysis
 │   └── report/
 │       └── generator.py            # JSON, CSV, HTML, GraphML reports
-├── tests/                          # 68 unit tests (pytest)
+├── tests/                          # 76 unit tests (pytest)
 │   ├── conftest.py                 # Shared fixtures (mock devices, zones, CVEs)
 │   ├── test_models.py              # Dataclass validation
 │   ├── test_risk_engine.py         # Composite scoring
@@ -335,7 +339,7 @@ are unit-tested offline; only `fetch` touches the network (size-capped).
 
 ## Testing
 
-**68 unit tests** across 10 test files covering all analysis engines. Tests use mock data only — no PCAP files required.
+**76 unit tests** across 11 test files covering all analysis engines and the new protocol analyzers. Tests use mock data / synthetic packets only — no PCAP files required.
 
 ```bash
 cd ot_scanner
@@ -355,6 +359,7 @@ python -m pytest tests/ -v
 | `test_cve_matcher.py` | 11 | 92 CVEs loaded, unique IDs, EPSS/KEV propagation, matching pipeline |
 | `test_cisa_importer.py` | 8 | CISA KEV -> CVE conversion, ICS filter, EPSS merge, matcher round-trip |
 | `test_exporters.py` | 4 | ServiceNow, Splunk HEC, Elastic ECS, Webhook payloads |
+| `test_protocols.py` | 8 | HART-IP / GE-SRTP / Niagara Fox / KNXnet/IP analyzers (synthetic packets) |
 
 **CI Pipeline**: GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR against Python 3.8, 3.10, and 3.12.
 

@@ -89,6 +89,30 @@ try:
 except ImportError:
     pass
 
+try:
+    from .protocols.hart_ip import HartIPAnalyzer
+    _OPTIONAL_IP_ANALYZERS.append(("HartIPAnalyzer", HartIPAnalyzer))
+except ImportError:
+    pass
+
+try:
+    from .protocols.ge_srtp import GESRTPAnalyzer
+    _OPTIONAL_IP_ANALYZERS.append(("GESRTPAnalyzer", GESRTPAnalyzer))
+except ImportError:
+    pass
+
+try:
+    from .protocols.niagara_fox import NiagaraFoxAnalyzer
+    _OPTIONAL_IP_ANALYZERS.append(("NiagaraFoxAnalyzer", NiagaraFoxAnalyzer))
+except ImportError:
+    pass
+
+try:
+    from .protocols.knx_ip import KNXnetIPAnalyzer
+    _OPTIONAL_IP_ANALYZERS.append(("KNXnetIPAnalyzer", KNXnetIPAnalyzer))
+except ImportError:
+    pass
+
 # ── Layer-2 analyzers ────────────────────────────────────────────────────────
 
 try:
@@ -162,6 +186,7 @@ INDUSTRIAL_PORTS: Dict[int, str] = {
     10001: "DNP3 (alt)",
     10002: "DNP3 (alt)",
     18245: "GE-SRTP",
+    18246: "GE-SRTP (alt)",
     20000: "DNP3",
     34962: "PROFINET RT",
     34963: "PROFINET RT",
@@ -169,10 +194,15 @@ INDUSTRIAL_PORTS: Dict[int, str] = {
     44818: "EtherNet/IP",
     47808: "BACnet/IP",
     1911:  "Niagara Fox",
+    4911:  "Niagara Foxs (TLS)",
+    3011:  "Niagara Fox",
+    5011:  "Niagara Foxs (TLS)",
     2000:  "ICCP / TASE.2",
     2001:  "ICCP / TASE.2",
     2222:  "EtherNet/IP (UDP I/O)",
     789:   "PROFINET DCP",
+    5094:  "HART-IP",
+    3671:  "KNXnet/IP",
 }
 
 # ── Layer-2 EtherTypes ───────────────────────────────────────────────────────
