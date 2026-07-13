@@ -168,7 +168,6 @@ class DNP3Analyzer(BaseProtocolAnalyzer):
             port=DNP3_PORT,
             confidence="high",
             timestamp=timestamp,
-            transport=proto,
             **details,
         )
         return [(device_ip, detection)]
