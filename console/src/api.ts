@@ -402,6 +402,40 @@ export interface CommsResponse {
   };
 }
 
+/**
+ * One device's lifecycle position.
+ *
+ * `fixes_are_coming` is three-valued on purpose: "we do not know whether a fix
+ * is coming" is not "no fix is coming", and a bare boolean cannot hold the
+ * difference.
+ */
+export interface DeviceLifecycle {
+  estate_id: string;
+  vendor: string;
+  model: string;
+  status: "supported" | "end_of_sale" | "end_of_support" | "end_of_life"
+    | "unknown" | "unidentified";
+  end_of_sale: string;
+  end_of_support: string;
+  /** Whose claim this is. An operator should know before acting on it. */
+  source: string;
+  reason: string;
+  fixes_are_coming: boolean | null;
+  bearing_on_findings: string;
+}
+
+export interface LifecycleResponse {
+  devices: DeviceLifecycle[];
+  summary: {
+    records_loaded: number;
+    assessed: number;
+    counts: Record<string, number>;
+    unsupported: string[];
+    explain: string;
+  };
+  pack_version: number;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -473,6 +507,10 @@ export class EstateApi {
 
   communications(): Promise<CommsResponse> {
     return this.get("/api/v1/estate/communications");
+  }
+
+  lifecycle(): Promise<LifecycleResponse> {
+    return this.get("/api/v1/estate/lifecycle");
   }
 
   // ── operator session (OTS-SRV-006) ──────────────────────────────────────

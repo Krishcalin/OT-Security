@@ -84,7 +84,15 @@ PUBLIC_KEY_NAME = "content-key.pub"
 #: is the only kind a collector ever fetches.
 KIND_RULES = "rules"
 KIND_CORPUS = "corpus"
-KINDS = (KIND_RULES, KIND_CORPUS)
+#: Vendor end-of-support dates. Server-side only, for the same reason as the
+#: corpus (D3): volatile facts about the outside world that never touch a Pi,
+#: and refreshing them re-answers the whole estate without contacting one.
+KIND_LIFECYCLE = "lifecycle"
+KINDS = (KIND_RULES, KIND_CORPUS, KIND_LIFECYCLE)
+
+#: What a lifecycle pack may carry. Same rule as a rules pack: an unrecognised
+#: section is refused rather than partially applied.
+LIFECYCLE_SECTIONS = ("lifecycle",)
 
 #: What a rules pack is allowed to contain. A pack carrying anything else is
 #: refused rather than partially applied — an unknown section is either a newer
@@ -242,6 +250,8 @@ class ContentSigner:
                             % (kind, ", ".join(KINDS)))
         if kind == KIND_RULES:
             check_rules_payload(payload)
+        if kind == KIND_LIFECYCLE:
+            check_sections(payload, LIFECYCLE_SECTIONS, "lifecycle")
         if int(version) < 1:
             raise PackError("a pack version starts at 1 and only goes up")
 
@@ -258,27 +268,32 @@ class ContentSigner:
         return pack
 
 
-def check_rules_payload(payload: Dict[str, Any]) -> None:
-    """A rules pack carries data, and only the data this collector understands.
+def check_sections(payload: Dict[str, Any], allowed, kind: str) -> None:
+    """A pack carries the sections its interpreter understands, and no others.
 
-    An unrecognised section is either a newer format than the interpreter on the
-    far end, or content somebody is trying to smuggle past it. Neither should be
+    An unrecognised section is either a newer format than the far end can
+    honour, or content somebody is trying to smuggle past it. Neither should be
     applied in part.
     """
     if not isinstance(payload, dict):
-        raise PackError("a rules payload is an object of named sections")
-    unknown = sorted(set(payload) - set(RULES_SECTIONS))
+        raise PackError("a %s payload is an object of named sections" % kind)
+    unknown = sorted(set(payload) - set(allowed))
     if unknown:
         raise PackError(
-            "a rules pack may carry %s and nothing else; found %s. A pack "
+            "a %s pack may carry %s and nothing else; found %s. A pack "
             "carries DATA, never code — see the module docstring."
-            % (", ".join(RULES_SECTIONS), ", ".join(unknown)))
+            % (kind, ", ".join(allowed), ", ".join(unknown)))
     for section, entries in payload.items():
         if not isinstance(entries, list):
             raise PackError("section %r must be a list" % section)
         for entry in entries:
             if not isinstance(entry, dict):
                 raise PackError("every entry in %r must be an object" % section)
+
+
+def check_rules_payload(payload: Dict[str, Any]) -> None:
+    """A rules pack carries data, and only the data this collector understands."""
+    check_sections(payload, RULES_SECTIONS, "rules")
 
 
 def verify(public_key_pem: str, raw: Dict[str, Any], *,

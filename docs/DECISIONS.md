@@ -29,6 +29,7 @@ answer from *"we haven't done that yet."*
 | **D10** | What may a content pack carry? | **Data, never code** — and a correctly signed older pack is refused as a rollback | `tests/test_content_packs.py` |
 | **D11** | What do we say about a vulnerability nobody will patch? | **The segmentation that would contain it** — offered only where the boundary was derived, always with what it cannot see | `tests/test_containment.py` |
 | **D12** | May we lower a severity? | **Only on a complete window** — raising needs less evidence than lowering, and a withheld lowering is shown | `tests/test_severity.py` |
+| **D13** | Do we ship vendor end-of-support dates? | **No** — the mechanism ships, the data arrives as an operator's pack, and no record means unknown | `tests/test_lifecycle.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -627,6 +628,44 @@ system has no basis for one; it adjusts the band an operator acts on.
 It never lowers anything to `never`. That means the finding does not apply to
 the observed firmware, which is a matching judgement — exposure has nothing to
 say about it. The most a correction may do downward is NOW to NEXT.
+
+---
+
+## D13 — We ship the lifecycle mechanism and none of the dates
+
+**Asked because** a device's support status changes what every finding on it
+means. A CVE on a relay past end of support will never be patched — not this
+quarter, not ever — so containment stops being the pragmatic option and becomes
+the only one.
+
+**Answer.** Build the mechanism; ship no data.
+
+The CVE corpus ships because CISA publishes it and it can be checked. Vendor
+end-of-support dates cannot: they live in advisories, in contracts, and in
+whatever a utility negotiated. A plausible-looking table of them written into
+this repository would produce a screen saying a Siemens relay is out of support
+on a date nobody verified — and somebody may schedule a replacement against it.
+
+So lifecycle records arrive as a `lifecycle` content pack, the same server-side
+lane the corpus uses and for the same reason (D3): volatile facts about the
+outside world that never touch a collector, refreshable without contacting a Pi.
+The **source** travels with every record to the screen, so a person reading
+"end of support" knows whose claim it is.
+
+### The default is not "supported"
+
+A device with no lifecycle record is `unknown`. A device the estate could not
+identify well enough to look one up is `unidentified`. Two different gaps, and
+neither is a statement that the device is fine.
+
+Rendering an absent record as supported would be the same failure as an
+unassessed asset reported clean, or a switched-off collector counted as healthy
+— both of which this system has already made, in code that had tests. Here it is
+refused by construction, and `unknown` wears the loudest badge on the row.
+
+`fixes_are_coming` is three-valued for the same reason: "we do not know whether
+a fix is coming" is not "no fix is coming", and a bare boolean cannot hold the
+difference.
 
 ---
 

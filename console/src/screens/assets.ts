@@ -7,9 +7,36 @@
  * collectors saw it, at which sites, and what they disagreed about.
  */
 
-import { EstateApi, EstateAssetRow, rowCoverage } from "../api.js";
+import {
+  DeviceLifecycle,
+  EstateApi,
+  EstateAssetRow,
+  LifecycleResponse,
+  rowCoverage,
+} from "../api.js";
 import { measured } from "../coverage.js";
-import { esc, metric, table } from "../render.js";
+import { cls, esc, metric, table } from "../render.js";
+
+/**
+ * Whether this device is still supported, or honestly not known to be.
+ *
+ * `unknown` wears the loudest badge on the row, and that is deliberate: a
+ * device with no lifecycle record has not been assessed, and rendering that
+ * quietly — or worse, as supported — is the same failure as an unassessed
+ * asset reported clean.
+ */
+function lifecycleChip(item: DeviceLifecycle | undefined): string {
+  if (item === undefined) return "&mdash;";
+  const tone =
+    item.status === "supported" ? "ok"
+      : item.status === "end_of_sale" ? "warn"
+        : item.status === "unidentified" ? "warn" : "alarm";
+  const label = item.status.replace(/_/g, " ");
+  const title = item.reason
+    + (item.bearing_on_findings ? " — " + item.bearing_on_findings : "");
+  return `<span class="${cls("chip", "chip-" + tone)}" title="${esc(title)}">`
+    + `${esc(label)}</span>`;
+}
 
 function when(seconds: number | null): string {
   if (seconds === null || Number.isNaN(seconds)) return "—";
@@ -31,10 +58,16 @@ function warnings(row: EstateAssetRow): string {
 }
 
 export async function render(api: EstateApi): Promise<string> {
-  const [inventory, coverage] = await Promise.all([
-    api.inventory(),
-    api.coverage(),
-  ]);
+  const [inventory, coverage, lifecycle]:
+    [Awaited<ReturnType<EstateApi["inventory"]>>,
+     Awaited<ReturnType<EstateApi["coverage"]>>,
+     LifecycleResponse] = await Promise.all([
+       api.inventory(),
+       api.coverage(),
+       api.lifecycle(),
+     ]);
+
+  const byId = new Map(lifecycle.devices.map((d) => [d.estate_id, d]));
 
   const total = measured(
     inventory.count,
@@ -55,6 +88,7 @@ export async function render(api: EstateApi): Promise<string> {
       { header: "collectors", cell: (r) => esc(r.collectors.join(", ")) },
       { header: "observations", cell: (r) => esc(r.observation_count), numeric: true },
       { header: "last seen", cell: (r) => esc(when(r.last_seen)) },
+      { header: "lifecycle", cell: (r) => lifecycleChip(byId.get(r.estate_id)) },
       { header: "notes", cell: (r) => warnings(r) },
     ],
     inventory.assets.map((row) => ({ row, ...rowCoverage(row) })),
@@ -64,7 +98,12 @@ export async function render(api: EstateApi): Promise<string> {
     `<h1>Assets</h1>`,
     `<div class="metrics">`,
     metric("merged assets", total),
+    metric("past end of support",
+      measured(lifecycle.summary.unsupported.length,
+        lifecycle.summary.records_loaded ? "complete" : "unknown",
+        lifecycle.summary.explain)),
     `</div>`,
+    `<p class="note">${esc(lifecycle.summary.explain)}</p>`,
     `<p class="note">IP identities are scoped to a site and MAC identities are`,
     ` reported rather than merged across sites. The same private address at two`,
     ` plants stays two devices, because fusing them is invisible afterwards and`,

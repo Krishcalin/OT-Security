@@ -107,6 +107,35 @@ def _seed_packs(store: DemoStore, signer) -> None:
     }), published_by="control-room")
 
 
+#: DEMO DATA. Every `source` says so, and that is not decoration: the whole
+#: point of ot_server/lifecycle.py is that this product ships no lifecycle
+#: dates, because a plausible-looking table of them drives real replacement
+#: decisions. These exist so the screen has something to draw in a preview, and
+#: an operator reading them is told immediately whose claim they are.
+_DEMO_LIFECYCLE = {
+    "lifecycle": [
+        {"vendor": "Siemens", "product_pattern": r"S7-1200",
+         "status": "end_of_sale", "end_of_sale": "2024-10-01",
+         "end_of_support": "2031-10-01",
+         "source": "FABRICATED demo data - not a vendor statement"},
+        {"vendor": "ABB", "product_pattern": r"RTU560",
+         "status": "supported", "end_of_support": "2032-01-01",
+         "source": "FABRICATED demo data - not a vendor statement"},
+        {"vendor": "Schneider", "product_pattern": r"Modicon\s*M580",
+         "status": "end_of_support", "end_of_support": "2025-06-30",
+         "source": "FABRICATED demo data - not a vendor statement",
+         "note": "a device past end of support: no fix is coming for the "
+                 "CVEs matched against it, so containment is the only option"},
+    ],
+}
+
+
+def _seed_lifecycle(store: DemoStore, signer) -> None:
+    store.publish_pack(
+        signer.sign(fleet_packs.KIND_LIFECYCLE, 1, _DEMO_LIFECYCLE),
+        published_by="control-room")
+
+
 def build_app():
     store = DemoStore()
     authority = fleet_ca.CertificateAuthority.load_or_create(
@@ -116,6 +145,7 @@ def build_app():
     signer = fleet_packs.ContentSigner.load_or_create(
         os.environ.get("POWERNETVIEW_CA_DIR", "/var/lib/power-netview/ca"))
     _seed_packs(store, signer)
+    _seed_lifecycle(store, signer)
 
     if not os.environ.get("POWERNETVIEW_BOOTSTRAP_USER"):
         raise SystemExit(

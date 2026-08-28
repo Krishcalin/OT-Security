@@ -350,7 +350,7 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ## Testing & CI
 
-**643 tests** run without a database; 25 more cover the PostgreSQL store and
+**663 tests** run without a database; 25 more cover the PostgreSQL store and
 need one. The table below covers the standalone scanner only — the collector,
 server and console suites added by the sensor-fleet re-architecture are
 described in [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md).

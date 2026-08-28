@@ -488,7 +488,7 @@ def _payloads(directory, client=None):
     client = client or _app_with_operator()
     for name in ("coverage", "inventory", "vulnerabilities", "assets",
                  "analysis", "zones", "certificates", "packs",
-                 "health", "communications"):
+                 "health", "communications", "lifecycle"):
         body = client.get("/api/v1/estate/%s" % name).json()
         with open(os.path.join(directory, "%s.json" % name), "w",
                   encoding="utf-8") as fh:
@@ -596,6 +596,9 @@ class _PopulatedStore:
     # draw rather than fail on.
     def packs(self, kind=None):
         return []
+
+    def latest_pack(self, kind):
+        return None
 
     def latest_pack_version(self, kind):
         return 0

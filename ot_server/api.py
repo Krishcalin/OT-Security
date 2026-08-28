@@ -61,6 +61,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
 from . import comms as comms_module
+from . import lifecycle as lifecycle_module
 from . import containment as contain_module
 from . import severity as severity_module
 from . import enrolment, health as fleet_health, ingest
@@ -535,6 +536,30 @@ def create_app(store, require_operator: Optional[Callable] = None,
             # The count means nothing without this, so it is not a separate call.
             "coverage": {"trustworthy": cov.trustworthy,
                          "explain": cov.explain()},
+        }
+
+    @app.get("/api/v1/estate/lifecycle")
+    def estate_lifecycle(request: Request):
+        """Whether each device is still supported, or honestly unknown.
+
+        No lifecycle data ships with this product: vendor end-of-support dates
+        cannot be verified from here, and a plausible-looking table of them
+        would drive real replacement decisions. Records arrive as a `lifecycle`
+        content pack an operator publishes, and the source travels with every
+        record so a person reading the screen knows whose claim it is.
+        """
+        _operator(request)
+        pack = store.latest_pack(pack_module.KIND_LIFECYCLE)
+        records = lifecycle_module.load_records(
+            (pack or {}).get("payload") if pack else None)
+        assets = [a.to_dict()
+                  for a in estate_merge.merge(store.all_assets(),
+                                              store.collector_sites())]
+        results = lifecycle_module.assess_estate(assets, records)
+        return {
+            "devices": [r.to_dict() for r in results.values()],
+            "summary": lifecycle_module.summarise(results, len(records)),
+            "pack_version": int((pack or {}).get("version") or 0),
         }
 
     @app.get("/api/v1/estate/communications")

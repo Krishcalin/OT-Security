@@ -9,7 +9,7 @@ says what exists.
 
 > **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
 > in with a second factor (D9), the fleet takes signed content (D10), and
-> coverage no longer counts a collector that has stopped reporting. 643 tests
+> coverage no longer counts a collector that has stopped reporting. 663 tests
 > passing without a database; 25 more require one and are skipped without it
 > (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -608,6 +608,22 @@ because the demo addressed all three Purdue levels out of one `/24`. Fixture
 data shaped by a human is not fixture data shaped by a wire, and both times the
 difference hid the most interesting behaviour on the screen.
 
+**Asset lifecycle (ledger #5, D13).** A device's support status changes what
+every finding on it means, so it ships as a mechanism with no data: vendor
+end-of-support dates cannot be verified from inside this repository, and a
+plausible table of them would drive real replacement decisions. Records arrive
+as a `lifecycle` content pack — a third kind, server-side like the corpus — and
+the source travels with each one to the screen.
+
+The default is the whole of it. No record is `unknown`; a device too thinly
+identified to look up is `unidentified`; neither is "supported". `unknown` wears
+the loudest badge on the row, because rendering an absent record as fine would
+be the same failure as an unassessed asset reported clean.
+
+In the demo estate the three features join up on one device: the Marchwood
+Modicon M580 is past end of support, carries five matched CVEs, and has a
+containment plan — which is the only option it has, because no fix is coming.
+
 **What this says about the test suite.** 599 tests passed over a pipeline that
 had never matched a CVE. They were not wrong — they exercised prioritisation
 thoroughly, over an input shape nothing in the product produces. Every test
@@ -634,6 +650,7 @@ the protocol parsers already decode the point values it needs).
 | **D10** | a content pack carries data, never code | no remote code execution path into the plant; a signed older pack is refused as a rollback |
 | **D11** | containment where patching is not an option | offered only where the zone was derived, never as a bare deny, always with what the allow-list cannot see |
 | **D12** | lowering urgency needs a complete window | raising does not; a lowering the coverage will not carry is withheld and shown |
+| **D13** | no lifecycle dates ship | the mechanism does; an absent record is unknown, never supported |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |
