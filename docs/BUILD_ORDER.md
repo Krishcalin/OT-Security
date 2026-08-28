@@ -9,7 +9,7 @@ says what exists.
 
 > **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
 > in with a second factor (D9), the fleet takes signed content (D10), and
-> coverage no longer counts a collector that has stopped reporting. 624 tests
+> coverage no longer counts a collector that has stopped reporting. 643 tests
 > passing without a database; 25 more require one and are skipped without it
 > (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -580,6 +580,33 @@ product patterns and wants `Modicon M580` — the string the device actually
 announces. Five advisories matched once the seed said what a collector would
 report, which is a reminder that fixture data shaped by a human is not fixture
 data shaped by a wire.
+
+**The communications screen (ledger #6).** Flows have fed the zone
+derivation, the attack paths, the policy engine and — since D11 — every
+containment rule this console proposes, and nothing had ever shown them. A rule
+could say "denying this would cut control communication happening today" with no
+way for the operator to look at the communication in question.
+
+Direction is the analytic, not volume: a table sorted by packet count is a
+network graph and an operator already has one. What they do not have is whether
+anything is reaching DOWN toward the process from a higher Purdue level, which
+is what segmentation exists to prevent — so those sort first and are marked
+whatever their size.
+
+And `undetermined` is deliberately not `lateral`. They would look alike on a
+screen and mean opposite things: one says the two levels are equal, the other
+says at least one was never derived. Stating a direction over a level that came
+from the fallback would be the same error D6, D11 and D12 all refuse.
+
+An address that talked and has no device in the inventory is reported rather
+than dropped — the same gap as a detection whose asset row never arrived.
+
+**Two seed-data lessons, one commit apart.** The withheld-correction path was
+invisible because the demo said `M580` where the corpus wants `Modicon M580` —
+the string a device actually announces. Then every conversation read `lateral`
+because the demo addressed all three Purdue levels out of one `/24`. Fixture
+data shaped by a human is not fixture data shaped by a wire, and both times the
+difference hid the most interesting behaviour on the screen.
 
 **What this says about the test suite.** 599 tests passed over a pipeline that
 had never matched a CVE. They were not wrong — they exercised prioritisation

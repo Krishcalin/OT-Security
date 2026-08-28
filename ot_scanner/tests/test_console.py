@@ -188,7 +188,7 @@ def test_engine_limitations_are_rendered_not_hidden():
 # ── the shell and the screens (OTS-CON-001..006) ───────────────────────────
 
 SCREENS = ("estate", "assets", "findings", "topology", "change",
-           "fleet", "account")
+           "comms", "fleet", "account")
 PUBLIC = os.path.join(CONSOLE, "public")
 
 
@@ -487,7 +487,8 @@ def _payloads(directory, client=None):
 
     client = client or _app_with_operator()
     for name in ("coverage", "inventory", "vulnerabilities", "assets",
-                 "analysis", "zones", "certificates", "packs"):
+                 "analysis", "zones", "certificates", "packs",
+                 "health", "communications"):
         body = client.get("/api/v1/estate/%s" % name).json()
         with open(os.path.join(directory, "%s.json" % name), "w",
                   encoding="utf-8") as fh:

@@ -32,6 +32,8 @@ const FILES = {
   "/api/v1/estate/zones": "zones.json",
   "/api/v1/estate/certificates": "certificates.json",
   "/api/v1/estate/packs": "packs.json",
+  "/api/v1/estate/health": "health.json",
+  "/api/v1/estate/communications": "communications.json",
 };
 
 // The console talks to the network and nothing else, so the network is the only
@@ -49,7 +51,8 @@ globalThis.fetch = async (url) => {
 const { EstateApi } = await import("./dist/api.js");
 const api = new EstateApi();
 
-const screens = ["estate", "assets", "findings", "topology", "change"];
+const screens = ["estate", "assets", "findings", "topology", "change",
+                 "comms", "fleet"];
 const failures = [];
 
 for (const name of screens) {

@@ -60,6 +60,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
+from . import comms as comms_module
 from . import containment as contain_module
 from . import severity as severity_module
 from . import enrolment, health as fleet_health, ingest
@@ -534,6 +535,43 @@ def create_app(store, require_operator: Optional[Callable] = None,
             # The count means nothing without this, so it is not a separate call.
             "coverage": {"trustworthy": cov.trustworthy,
                          "explain": cov.explain()},
+        }
+
+    @app.get("/api/v1/estate/communications")
+    def estate_communications(request: Request):
+        """Who talks to whom, with both endpoints resolved.
+
+        The evidence under half this console's conclusions, finally visible: a
+        containment rule says "denying this would cut control communication
+        happening today", and until now there was no way to look at the
+        communication in question.
+        """
+        _operator(request)
+        from . import zones as zone_derivation
+
+        sites = store.collector_sites()
+        assets = [a.to_dict()
+                  for a in estate_merge.merge(store.all_assets(), sites)]
+        flows = store.all_flows()
+        topologies = {str(getattr(t, "site", "")): t
+                      for t in zone_derivation.derive(assets, flows, sites)}
+
+        def lookup_for(site):
+            topology = topologies.get(site)
+            return lambda ip: contain_module.zone_of(ip, topology)
+
+        summaries = [
+            ingest.summarise_coverage(cid, store.recent_windows(cid),
+                                      store.recent_gaps(cid))
+            for cid in store.collector_ids()]
+        cov = estate_merge.estate_coverage(summaries)
+        silent = fleet_health.assess(store.collectors_health()).unbelievable
+
+        items = comms_module.conversations(flows, assets, sites, lookup_for)
+        return {
+            "conversations": [c.to_dict() for c in items],
+            "summary": comms_module.summarise(
+                items, cov.explain(), cov.trustworthy and not silent),
         }
 
     @app.get("/api/v1/estate/vulnerabilities")

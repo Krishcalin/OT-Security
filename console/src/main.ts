@@ -18,6 +18,7 @@ import { Screen, RouterHost, start } from "./router.js";
 import * as account from "./screens/account.js";
 import * as assets from "./screens/assets.js";
 import * as change from "./screens/change.js";
+import * as comms from "./screens/comms.js";
 import * as estate from "./screens/estate.js";
 import * as findings from "./screens/findings.js";
 import * as fleet from "./screens/fleet.js";
@@ -85,6 +86,10 @@ class PerDrawApi extends EstateApi {
     return this.once("health", () => super.health());
   }
 
+  override communications() {
+    return this.once("communications", () => super.communications());
+  }
+
   // Deliberately NOT cached: the account screen re-reads it after enrolling or
   // removing a factor, and a cached answer would show the state before the
   // change the operator just made.
@@ -125,6 +130,12 @@ const SCREENS: readonly Screen[] = [
     label: "Change",
     question: "What changed, and what stopped being observed.",
     render: () => change.render(api),
+  },
+  {
+    id: "comms",
+    label: "Comms",
+    question: "Who talks to whom, and is anything reaching down to the process.",
+    render: () => comms.render(api),
   },
   {
     id: "fleet",

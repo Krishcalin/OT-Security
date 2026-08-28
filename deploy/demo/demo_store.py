@@ -348,30 +348,40 @@ class DemoStore:
 
 
 def _seed_assets() -> List[Dict]:
-    """Two substations, and both of them use 10.0.0.x.
+    """Two substations, addressed the way a substation actually is.
 
-    That overlap is the point: `estate.merge` scopes IP identity to a site, so
-    10.0.0.11 at Alderley and 10.0.0.11 at Marchwood must appear as TWO devices.
-    A demo estate without it would not show the behaviour the merge exists for.
+    Purdue levels are separated by subnet, because that is how zones get
+    derived and because a flat estate has no direction in it — every
+    conversation reads `lateral` and the communications screen has nothing to
+    say:
+
+        10.0.1.x   Level 1, basic control: PLCs and RTUs
+        10.0.2.x   Level 2, supervisory: HMIs
+        10.0.3.x   Level 3, site operations: engineering workstations
+
+    And both sites still use 10.0.1.11. That overlap is the point:
+    `estate.merge` scopes IP identity to a site, so the same address at
+    Alderley and at Marchwood must appear as TWO devices. A demo estate
+    without it would not show the behaviour the merge exists for.
     """
     return [
-        _asset("pi-alderley-01", "ip:10.0.0.11", ip="10.0.0.11",
+        _asset("pi-alderley-01", "ip:10.0.1.11", ip="10.0.1.11",
                mac="00:1b:1b:0a:11:01", vendor="Siemens", model="S7-1500",
                firmware="V4.2", role="plc", protocol="s7comm"),
-        _asset("pi-alderley-01", "ip:10.0.0.12", ip="10.0.0.12",
+        _asset("pi-alderley-01", "ip:10.0.1.12", ip="10.0.1.12",
                mac="00:1b:1b:0a:11:02", vendor="Siemens", model="S7-1200",
                role="plc", protocol="s7comm"),
-        _asset("pi-alderley-01", "ip:10.0.0.30", ip="10.0.0.30",
+        _asset("pi-alderley-01", "ip:10.0.1.30", ip="10.0.1.30",
                mac="00:0f:8f:0a:30:01", vendor="ABB", model="RTU560",
                role="rtu", protocol="iec104"),
-        _asset("pi-alderley-02", "ip:10.0.0.11", ip="10.0.0.11",
+        _asset("pi-alderley-02", "ip:10.0.1.11", ip="10.0.1.11",
                mac="00:1b:1b:0a:11:01", vendor="Siemens", role="plc",
                protocol="s7comm"),
-        _asset("pi-alderley-02", "ip:10.0.0.60", ip="10.0.0.60",
+        _asset("pi-alderley-02", "ip:10.0.2.60", ip="10.0.2.60",
                mac="9c:b6:54:0a:60:01", vendor="Advantech", role="hmi",
                protocol="modbus"),
         # Quiet since the previous window: the change screen's row.
-        _asset("pi-alderley-02", "ip:10.0.0.61", ip="10.0.0.61",
+        _asset("pi-alderley-02", "ip:10.0.2.61", ip="10.0.2.61",
                window="w-38", mac="9c:b6:54:0a:61:01", vendor="Advantech",
                role="hmi", protocol="modbus"),
         # The same address at another plant. Two devices, not one.
@@ -379,14 +389,14 @@ def _seed_assets() -> List[Dict]:
         # shorthand: the CVE corpus matches on product patterns, and
         # "Modicon M580" matches five advisories where "M580" matches none.
         # Getting that wrong in seed data hid the withheld-correction path.
-        _asset("pi-marchwood-01", "ip:10.0.0.11", ip="10.0.0.11",
+        _asset("pi-marchwood-01", "ip:10.0.1.11", ip="10.0.1.11",
                mac="00:80:f4:0b:11:01", vendor="Schneider",
                model="Modicon M580", firmware="2.7", role="plc",
                protocol="modbus", coverage="degraded"),
-        _asset("pi-marchwood-01", "ip:10.0.0.40", ip="10.0.0.40",
+        _asset("pi-marchwood-01", "ip:10.0.1.40", ip="10.0.1.40",
                mac="00:80:f4:0b:40:01", vendor="Schneider", role="rtu",
                protocol="dnp3", coverage="degraded"),
-        _asset("pi-marchwood-01", "ip:10.0.0.90", ip="10.0.0.90",
+        _asset("pi-marchwood-01", "ip:10.0.3.90", ip="10.0.3.90",
                mac="00:50:56:0b:90:01", vendor="VMware", role="engineering",
                protocol="rdp", coverage="degraded"),
     ]
@@ -406,21 +416,24 @@ def _seed_flows() -> List[Dict]:
                                "byte_count": packets * 74}}
 
     return [
-        flow("pi-alderley-01", "10.0.0.60", "10.0.0.11", "s7comm", 102),
-        flow("pi-alderley-01", "10.0.0.60", "10.0.0.12", "s7comm", 102),
-        flow("pi-alderley-01", "10.0.0.30", "10.0.0.11", "iec104", 2404),
-        flow("pi-alderley-02", "10.0.0.60", "10.0.0.30", "iec104", 2404),
-        flow("pi-marchwood-01", "10.0.0.90", "10.0.0.11", "modbus", 502),
-        flow("pi-marchwood-01", "10.0.0.40", "10.0.0.11", "dnp3", 20000),
+        flow("pi-alderley-01", "10.0.2.60", "10.0.1.11", "s7comm", 102),
+        flow("pi-alderley-01", "10.0.2.60", "10.0.1.12", "s7comm", 102),
+        flow("pi-alderley-01", "10.0.1.30", "10.0.1.11", "iec104", 2404),
+        flow("pi-alderley-02", "10.0.2.60", "10.0.1.30", "iec104", 2404),
+        # An engineering workstation at Level 3 reaching a controller at
+        # Level 1 directly. This is the conversation segmentation exists to
+        # prevent, and the one the communications screen is built to surface.
+        flow("pi-marchwood-01", "10.0.3.90", "10.0.1.11", "modbus", 502),
+        flow("pi-marchwood-01", "10.0.1.40", "10.0.1.11", "dnp3", 20000),
         # An engineering workstation reaching a controller directly.
-        flow("pi-marchwood-01", "10.0.0.90", "10.0.0.40", "rdp", 3389, 980),
+        flow("pi-marchwood-01", "10.0.3.90", "10.0.1.40", "rdp", 3389, 980),
     ]
 
 
 def _seed_detections() -> List[Dict]:
     return [
         {"detection_key": "det-1", "collector_id": "pi-marchwood-01",
-         "asset_key": "ip:10.0.0.90", "rule_id": "cleartext-rdp",
+         "asset_key": "ip:10.0.3.90", "rule_id": "cleartext-rdp",
          "severity": "high", "last_coverage": "degraded",
          "rulepack_version": "demo",
          "attributes": {"rule_id": "cleartext-rdp",
@@ -431,7 +444,7 @@ def _seed_detections() -> List[Dict]:
                         "remediation": "Terminate remote access at a jump host "
                                        "in the DMZ."}},
         {"detection_key": "det-2", "collector_id": "pi-alderley-01",
-         "asset_key": "ip:10.0.0.12", "rule_id": "s7-stop-observed",
+         "asset_key": "ip:10.0.1.12", "rule_id": "s7-stop-observed",
          "severity": "medium", "last_coverage": "complete",
          "rulepack_version": "demo",
          "attributes": {"rule_id": "s7-stop-observed",
@@ -443,7 +456,7 @@ def _seed_detections() -> List[Dict]:
         # A detection whose asset row never arrived. The findings screen calls
         # this out rather than dropping it — see estate.reattach_detections.
         {"detection_key": "det-3", "collector_id": "pi-marchwood-01",
-         "asset_key": "ip:10.0.0.199", "rule_id": "unknown-device",
+         "asset_key": "ip:10.0.1.199", "rule_id": "unknown-device",
          "severity": "low", "last_coverage": "degraded",
          "rulepack_version": "demo", "attributes": {}},
     ]

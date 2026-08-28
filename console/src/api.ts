@@ -360,6 +360,48 @@ export interface FleetHealthResponse {
   explain: string;
 }
 
+/** One end of an observed conversation, resolved to a device where possible. */
+export interface CommsEndpoint {
+  ip: string;
+  estate_id: string;
+  label: string;
+  zone_id: string;
+  purdue_level: number;
+  zone_basis: string;
+  /** True when this address talked and the inventory holds no device for it. */
+  unknown_device: boolean;
+}
+
+export interface Conversation {
+  site: string;
+  protocol: string;
+  port: number;
+  packets: number;
+  src: CommsEndpoint;
+  dst: CommsEndpoint;
+  /**
+   * `undetermined` is not `lateral`. One says the two Purdue levels are equal,
+   * the other says at least one of them was never derived.
+   */
+  direction: "downstream" | "upstream" | "lateral" | "undetermined";
+  crosses_zone: boolean;
+  note: string;
+}
+
+export interface CommsResponse {
+  conversations: Conversation[];
+  summary: {
+    observed: number;
+    downstream: number;
+    crossing_zones: number;
+    undetermined: number;
+    unknown_endpoints: string[];
+    coverage_explain: string;
+    trustworthy: boolean;
+    explain: string;
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -427,6 +469,10 @@ export class EstateApi {
 
   health(): Promise<FleetHealthResponse> {
     return this.get("/api/v1/estate/health");
+  }
+
+  communications(): Promise<CommsResponse> {
+    return this.get("/api/v1/estate/communications");
   }
 
   // ── operator session (OTS-SRV-006) ──────────────────────────────────────

@@ -12,7 +12,7 @@ first-class records and computes coverage from what actually arrived. Accepting
 that honesty and then rendering a continuous timeline would discard it at the
 last step.
 """
-from . import (analysis, api, authn, authn_api, ca, containment,
+from . import (analysis, api, authn, authn_api, ca, comms, containment,
                enrolment, estate, health, ingest, packs, qr, schema,
                severity, store, totp, vulnmatch, zones)
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
@@ -33,7 +33,8 @@ from .zones import (SiteTopology, ZoneBasis, ZoneConfidence,
                     derive as derive_zones, overall_confidence)
 
 __all__ = [
-    "api", "authn", "authn_api", "ca", "containment", "enrolment",
+    "api", "authn", "authn_api", "ca", "comms", "containment",
+    "enrolment",
     "health", "ingest", "packs", "qr", "schema", "severity", "store",
     "totp",
     "ContentSigner", "PackError", "SignedPack", "fleet_drift",
