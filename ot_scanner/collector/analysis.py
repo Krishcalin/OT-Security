@@ -50,7 +50,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
 
-L2_ETHERTYPES = (0x88B8, 0x88BA, 0x8892)          # GOOSE, SV, PROFINET
+# GOOSE, SV, PROFINET, LLDP. LLDP earns its place here for a reason the
+# others do not need: it is the ONLY passive source that names the ring
+# switches carrying the MPLS-TP transport. They speak no industrial protocol,
+# and their management traffic may never cross the mirror at all.
+L2_ETHERTYPES = (0x88B8, 0x88BA, 0x8892, 0x88CC)
 
 
 @dataclass
