@@ -151,11 +151,43 @@ class CaptureWindow:
     drops: DropDelta = field(default_factory=DropDelta)
     reasons: List[str] = field(default_factory=list)
     collector_id: str = ""
+    #: Frames whose TRANSPORT could not be opened — an MPLS pseudowire in a
+    #: shape this collector cannot follow. Distinct from packet loss: these
+    #: frames arrived intact and were not understood.
+    frames_unreadable: int = 0
+    #: Frames that reached a protocol decoder.
+    frames_decoded: int = 0
+    #: What was unreadable, so the operator is told which transport rather than
+    #: only how many frames of it.
+    unreadable_transports: Dict[str, int] = field(default_factory=dict)
+
+    @property
+    def readable_fraction(self) -> Optional[float]:
+        """Share of frames whose transport could be opened, or None if nothing
+        was accounted. `None` rather than 1.0 for the same reason
+        `observed_fraction` returns None: a confident 100% over no measurement
+        is the lie this module exists to prevent."""
+        total = self.frames_decoded + self.frames_unreadable
+        if total <= 0:
+            return None
+        return self.frames_decoded / total
 
     @property
     def coverage(self) -> Coverage:
         if not self.drops.measurable:
             return Coverage.UNKNOWN
+        # ANY unreadable frame degrades the window. That looks severe, and it
+        # is deliberate: this counter is narrow by construction — ordinary
+        # uninteresting traffic (ARP, STP) is counted elsewhere and never
+        # reaches here, so a non-zero value means frames arrived on a transport
+        # this collector could not open.
+        #
+        # The asymmetry is the point. A tap on the wrong side of an MPLS-TP
+        # pseudowire produces a perfectly quiet, entirely empty estate, and the
+        # only difference between that and a healthy network is this number.
+        # Better loudly degraded and wrong than quietly complete and wrong.
+        if self.frames_unreadable > 0:
+            return Coverage.DEGRADED
         lost = self.drops.total_lost or 0
         return Coverage.DEGRADED if lost > 0 else Coverage.COMPLETE
 
@@ -191,6 +223,22 @@ class CaptureWindow:
             return None
         return self.packets_analysed / offered
 
+    def _unreadable_clause(self) -> str:
+        where = ", ".join(
+            "%s (%d)" % (name, count)
+            for name, count in sorted(self.unreadable_transports.items(),
+                                      key=lambda kv: -kv[1])[:3])
+        frac = self.readable_fraction
+        share = ""
+        if frac is not None:
+            share = " — only %.1f%% of frames could be read" % (frac * 100)
+            if frac == 0.0:
+                share += ", so this window saw NOTHING it could interpret and " \
+                         "an empty estate here means the tap, not the network"
+        return ("%d frame(s) on a transport this collector could not open [%s]%s"
+                % (self.frames_unreadable, where or "unknown encapsulation",
+                   share))
+
     def explain(self) -> str:
         """One line an operator can act on."""
         if self.coverage is Coverage.COMPLETE:
@@ -201,6 +249,8 @@ class CaptureWindow:
                     "measured (%s). This window cannot be reported as clean."
                     % (self.packets_analysed, why))
         bits = []
+        if self.frames_unreadable:
+            bits.append(self._unreadable_clause())
         if self.drops.interface_dropped:
             bits.append("%d dropped at the interface" % self.drops.interface_dropped)
         if self.drops.interface_missed:
@@ -228,6 +278,10 @@ class CaptureWindow:
             "capture_dropped": self.drops.capture_dropped,
             "counter_reset": self.drops.counter_reset,
             "reasons": list(self.reasons),
+            "frames_decoded": self.frames_decoded,
+            "frames_unreadable": self.frames_unreadable,
+            "readable_fraction": self.readable_fraction,
+            "unreadable_transports": dict(self.unreadable_transports),
         }
 
 
@@ -252,11 +306,26 @@ class WindowAccountant:
         if not snapshot.capture_readable:
             reasons.append("capture counters unreadable at window start")
         self._open = {"id": window_id, "at": at, "snap": snapshot,
-                      "reasons": reasons, "packets": 0}
+                      "reasons": reasons, "packets": 0,
+                      "decoded": 0, "unreadable": 0, "transports": {}}
 
     def record_packets(self, count: int) -> None:
         if self._open is not None:
             self._open["packets"] += count
+
+    def record_decode(self, decoded: int = 0, unreadable: int = 0,
+                      transports: Optional[Dict[str, int]] = None) -> None:
+        """How many of this window's frames could be READ, as opposed to
+        received. Packet loss and decode failure are different blindnesses and
+        a window has to carry both: frames lost at the NIC never arrived, while
+        these arrived intact on a transport nothing here could open."""
+        if self._open is None:
+            return
+        self._open["decoded"] += decoded
+        self._open["unreadable"] += unreadable
+        for name, count in (transports or {}).items():
+            self._open["transports"][name] = \
+                self._open["transports"].get(name, 0) + count
 
     def close_window(self, at: float, snapshot: DropSnapshot) -> CaptureWindow:
         if self._open is None:
@@ -281,6 +350,9 @@ class WindowAccountant:
             drops=delta,
             reasons=reasons,
             collector_id=self.collector_id,
+            frames_decoded=start.get("decoded", 0),
+            frames_unreadable=start.get("unreadable", 0),
+            unreadable_transports=dict(start.get("transports") or {}),
         )
         self._open = None
         return window

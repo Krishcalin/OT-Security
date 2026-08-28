@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from .capture import CaptureSource, Frame
 from .coverage import CaptureWindow, WindowAccountant
@@ -85,14 +85,20 @@ class CaptureService:
                  health: Optional[CaptureHealth] = None,
                  clock: Callable[[], float] = time.time,
                  preflight: Optional[Preflight] = None,
-                 on_frames: Optional[Callable[[List[Frame]], None]] = None):
+                 on_frames: Optional[Callable[[List[Frame]], None]] = None,
+                 read_decode_counters: Optional[Callable[[], Any]] = None):
         self.source = source
         self.config = config or CollectorConfig()
         self.exclusion = exclusion or SelfExclusion()
         self.store = store
         self.health = health or CaptureHealth()
         self.clock = clock
+        # Pulled at window close rather than handed a reference to the
+        # analyser, so this module keeps owning capture and nothing else.
+        # Left None by an embedder that does no decoding: coverage then behaves
+        # exactly as it did before readability was accounted at all.
         self.on_frames = on_frames
+        self.read_decode_counters = read_decode_counters
         self._preflight = preflight
         self._accountant = WindowAccountant(
             collector_id=self.config.collector_id,
@@ -159,6 +165,14 @@ class CaptureService:
     def _close_window(self, now: float) -> WindowReport:
         # ONE counter read closes this window and opens the next. Reading twice
         # leaves an unaccounted gap between them.
+        if self.read_decode_counters is not None:
+            counters = self.read_decode_counters()
+            if counters is not None:
+                self._accountant.record_decode(
+                    decoded=getattr(counters, "decoded", 0),
+                    unreadable=getattr(counters, "unreadable", 0),
+                    transports=getattr(counters, "transports", None))
+
         snapshot = self.source.stats()
         window = self._accountant.close_window(now, snapshot)
         self.health.observe(window)

@@ -267,7 +267,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                              window_seconds=args.window_seconds,
                              enforce_preflight=False)
     svc = CaptureService(source, config, exclusion=exclusion, store=store,
-                         on_frames=(analyzer.feed if analyzer else None))
+                         on_frames=(analyzer.feed if analyzer else None),
+                         read_decode_counters=(
+                             analyzer.take_decode_counters if analyzer
+                             else None))
 
     sink = open(args.out, "w", encoding="utf-8") if args.out else None
     seen: set = set(exclusion.warnings())      # already printed above

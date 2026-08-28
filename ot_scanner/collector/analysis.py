@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from . import rulepack
+from . import decap, rulepack
 from .capture import Frame
 from .observations import (ObservationBatch, ObservationBuilder, asset_key)
 
@@ -54,18 +54,57 @@ L2_ETHERTYPES = (0x88B8, 0x88BA, 0x8892)          # GOOSE, SV, PROFINET
 
 
 @dataclass
+class DecodeCounters:
+    """What one window made of the frames it was handed.
+
+    `unreadable` is narrow ON PURPOSE: it counts only frames whose TRANSPORT
+    could not be opened — an MPLS pseudowire in a shape this collector cannot
+    follow. Frames that decoded perfectly well and simply were not interesting
+    (ARP, STP) land in `not_analysed` and say nothing about coverage.
+
+    Keeping them apart is what lets any non-zero `unreadable` degrade a window
+    without every window being degraded by ordinary background traffic.
+    """
+
+    decoded: int = 0
+    unreadable: int = 0
+    not_analysed: int = 0
+    #: Encapsulation we could not follow -> how many frames of it, so the
+    #: operator is told WHAT is unreadable rather than only how much.
+    transports: Dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class AnalysisStats:
     frames_seen: int = 0
     frames_decoded: int = 0
     frames_l2: int = 0
     frames_ip: int = 0
+    #: Frames whose transport encapsulation could not be followed. Before this
+    #: existed, 50,000 pseudowire frames produced 0 devices, 0 recorded
+    #: failures, and a window reported COMPLETE over an empty estate.
+    frames_unreadable: int = 0
+    #: Decoded, but not a protocol this analyser acts on. Benign.
+    frames_not_analysed: int = 0
+    #: Frames that arrived already wrapped in MPLS, decoded successfully.
+    frames_decapsulated: int = 0
     decode_failures: int = 0
 
     @property
     def undecodable_fraction(self) -> Optional[float]:
+        """Share of frames this analyser could make NOTHING of.
+
+        Two routes reach that outcome and both belong here: a decoder that
+        raised (`decode_failures`), and a transport that could not be opened in
+        the first place (`frames_unreadable`). They are separate counters
+        because they need separate fixes — one is a malformed frame, the other
+        is a tap on the wrong side of a pseudowire — but a caller asking "is
+        this link readable at all?" must not be told 0% by a number that only
+        counts one of them.
+        """
         if self.frames_seen == 0:
             return None
-        return self.decode_failures / self.frames_seen
+        return (self.decode_failures + self.frames_unreadable) / self.frames_seen
 
 
 class IncrementalAnalyzer:
@@ -76,6 +115,7 @@ class IncrementalAnalyzer:
                  scanner_root: Optional[str] = None):
         self.collector_id = collector_id
         self.stats = AnalysisStats()
+        self._window = DecodeCounters()
         self.rulepack = rulepack.compute(scanner_root)
         self._analyzer = analyzer if analyzer is not None else self._build(verbose)
         self.builder = ObservationBuilder(
@@ -118,7 +158,24 @@ class IncrementalAnalyzer:
                 self.stats.decode_failures += 1
 
     def _dispatch(self, dpkt, frame: Frame) -> None:
-        eth = dpkt.ethernet.Ethernet(frame.raw)
+        # Open any transport encapsulation FIRST. On an MPLS-TP NNI the RTU's
+        # own MAC, IP and IEC 104 session are all behind a label stack and a
+        # pseudowire control word; parsing the outer frame yields the provider
+        # edge router and nothing else.
+        opened = decap.decapsulate(frame.raw)
+        if not opened.understood:
+            # NOT a silent return. This is the frame shape that made an
+            # unreadable transport look like a quiet network.
+            self.stats.frames_unreadable += 1
+            self._window.unreadable += 1
+            where = decap.describe(opened)
+            self._window.transports[where] = \
+                self._window.transports.get(where, 0) + 1
+            return
+        if opened.encapsulated:
+            self.stats.frames_decapsulated += 1
+
+        eth = dpkt.ethernet.Ethernet(opened.frame)
         ts = datetime.fromtimestamp(frame.timestamp or 0)
         src_mac = ":".join("%02X" % b for b in eth.src)
         dst_mac = ":".join("%02X" % b for b in eth.dst)
@@ -128,9 +185,15 @@ class IncrementalAnalyzer:
                 src_mac, dst_mac, eth.type, bytes(eth.data), ts)
             self.stats.frames_l2 += 1
             self.stats.frames_decoded += 1
+            self._window.decoded += 1
             return
 
         if not isinstance(eth.data, dpkt.ip.IP):
+            # Decoded fine, just not ours — ARP, STP and friends. Counted
+            # separately from `unreadable` so ordinary background traffic does
+            # not degrade every window.
+            self.stats.frames_not_analysed += 1
+            self._window.not_analysed += 1
             return
 
         ip = eth.data
@@ -140,6 +203,8 @@ class IncrementalAnalyzer:
         elif isinstance(transport, dpkt.udp.UDP):
             proto = "UDP"
         else:
+            self.stats.frames_not_analysed += 1
+            self._window.not_analysed += 1
             return
 
         self._analyzer._handle_ip_packet(
@@ -148,6 +213,20 @@ class IncrementalAnalyzer:
             proto, bytes(transport.data), ts, len(frame.raw))
         self.stats.frames_ip += 1
         self.stats.frames_decoded += 1
+        self._window.decoded += 1
+
+    # ── readability accounting ────────────────────────────────────────────
+    def take_decode_counters(self) -> DecodeCounters:
+        """This window's decode outcome, and reset for the next one.
+
+        Injected into the capture service so a window that could not be READ
+        cannot be reported as one that was clean. The service owns capture and
+        the analyser owns decoding; this is the one number that has to cross
+        between them, and it crosses as a pull rather than by giving the
+        service a reference to the analyser.
+        """
+        taken, self._window = self._window, DecodeCounters()
+        return taken
 
     # ── emit ──────────────────────────────────────────────────────────────
     def build_batch(self, window_id: str, coverage: str,
