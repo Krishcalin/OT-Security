@@ -419,6 +419,33 @@ def create_app(store, require_operator: Optional[Callable] = None,
         return {"status": "ok"}
 
     # ── estate plane (operator role required) ─────────────────────────────
+    def _read(*pages):
+        """Whether these query results are the whole of what was stored.
+
+        Every estate route reads through `all_assets`, `all_flows` or
+        `all_detections`, each of which carries a LIMIT. Measured on a
+        100-collector fleet at 120 devices per ring: 12,000 assets in the
+        database, 5,000 returned, and nothing in the response to say so.
+
+        The ordering makes it worse rather than better. Rows come back
+        `last_seen DESC`, so truncation discards the LEAST recently seen first
+        — and on a distribution network the quietest device is an FRTU on a
+        ring main unit that only transmits on a fault. The rows dropped first
+        are the ones most worth having.
+
+        Coverage already travels with every count, because a count without it
+        is a lie about the network. This is the same lie about the QUERY, so it
+        travels the same way: in the response, never as a separate call
+        somebody has to know to make.
+
+        The pages are bound at their call sites with `:=` so the route can name
+        them here without re-running the query.
+        """
+        notes = [page.explain() for page in pages
+                 if page is not None and not getattr(page, "complete", True)]
+        return {"complete": not notes,
+                "explain": " ".join(notes) or "the whole estate was read"}
+
     @app.get("/api/v1/estate/collectors/{collector_id}/coverage")
     def coverage(collector_id: str, request: Request):
         _operator(request)
@@ -524,7 +551,8 @@ def create_app(store, require_operator: Optional[Callable] = None,
         why merging them would be unrecoverable.
         """
         _operator(request)
-        assets = estate_merge.merge(store.all_assets(), store.collector_sites())
+        _ap = store.all_assets()
+        assets = estate_merge.merge(_ap, store.collector_sites())
         summaries = [
             ingest.summarise_coverage(cid, store.recent_windows(cid),
                                       store.recent_gaps(cid))
@@ -536,6 +564,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
             # The count means nothing without this, so it is not a separate call.
             "coverage": {"trustworthy": cov.trustworthy,
                          "explain": cov.explain()},
+            "read": _read(_ap),
         }
 
     @app.get("/api/v1/estate/lifecycle")
@@ -552,9 +581,9 @@ def create_app(store, require_operator: Optional[Callable] = None,
         pack = store.latest_pack(pack_module.KIND_LIFECYCLE)
         records = lifecycle_module.load_records(
             (pack or {}).get("payload") if pack else None)
+        _ap = store.all_assets()
         assets = [a.to_dict()
-                  for a in estate_merge.merge(store.all_assets(),
-                                              store.collector_sites())]
+                  for a in estate_merge.merge(_ap, store.collector_sites())]
         results = lifecycle_module.assess_estate(assets, records)
         return {
             "devices": [r.to_dict() for r in results.values()],
@@ -575,9 +604,9 @@ def create_app(store, require_operator: Optional[Callable] = None,
         from . import zones as zone_derivation
 
         sites = store.collector_sites()
-        assets = [a.to_dict()
-                  for a in estate_merge.merge(store.all_assets(), sites)]
-        flows = store.all_flows()
+        _ap = store.all_assets()
+        assets = [a.to_dict() for a in estate_merge.merge(_ap, sites)]
+        flows = (_fp := store.all_flows())
         topologies = {str(getattr(t, "site", "")): t
                       for t in zone_derivation.derive(assets, flows, sites)}
 
@@ -609,7 +638,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
         _operator(request)
         corpus = vulnmatch.load_corpus()
         sites = store.collector_sites()
-        assets = estate_merge.merge(store.all_assets(), sites)
+        assets = estate_merge.merge((_ap := store.all_assets()), sites)
         asset_dicts = [a.to_dict() for a in assets]
         matches = vulnmatch.match_estate(asset_dicts, corpus,
                                          vulnmatch.load_matcher())
@@ -623,7 +652,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
         # Both halves already existed and had never been introduced.
         from . import zones as zone_derivation
 
-        flows = store.all_flows()
+        flows = (_fp := store.all_flows())
         topologies = zone_derivation.derive(asset_dicts, flows, sites)
         flows_by_site = {}
         for flow in flows:
@@ -674,6 +703,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
             "matches": match_dicts,
             "containment": contain_module.summarise(containments),
             "correction": severity_module.summarise(corrections),
+            "read": _read(_ap, _fp),
         }
 
     @app.get("/api/v1/estate/analysis")
@@ -689,13 +719,13 @@ def create_app(store, require_operator: Optional[Callable] = None,
         from . import analysis as engines
 
         sites = store.collector_sites()
-        assets = estate_merge.merge(store.all_assets(), sites)
+        assets = estate_merge.merge((_ap := store.all_assets()), sites)
 
         # Stored detections carry the COLLECTOR's asset key; the engines look
         # them up by estate_id. Handing them over unchanged attaches nothing and
         # every asset reads as detection-free — a clean estate, produced by a
         # wiring fault. See estate.reattach_detections.
-        raw = store.all_detections()
+        raw = (_dp := store.all_detections())
         detections = estate_merge.reattach_detections(assets, raw)
 
         summaries = [
@@ -705,13 +735,14 @@ def create_app(store, require_operator: Optional[Callable] = None,
         cov = estate_merge.estate_coverage(summaries)
 
         report = engines.run_all([a.to_dict() for a in assets], detections,
-                                 store.all_flows(),
+                                 (_fp := store.all_flows()),
                                  coverage_explain=cov.explain(), sites=sites)
         body = report.to_dict()
         # A detection whose asset row never arrived is a hole in the inventory,
         # not a rounding error: the estate has findings for a device it cannot
         # show. Reported rather than quietly dropped.
         body["orphaned_detections"] = len(raw) - len(detections)
+        body["read"] = _read(_ap, _fp, _dp)
         return body
 
     @app.get("/api/v1/estate/zones")
@@ -729,9 +760,9 @@ def create_app(store, require_operator: Optional[Callable] = None,
         from . import zones as zone_derivation
 
         sites = store.collector_sites()
-        assets = estate_merge.merge(store.all_assets(), sites)
+        assets = estate_merge.merge((_ap := store.all_assets()), sites)
         topologies = zone_derivation.derive([a.to_dict() for a in assets],
-                                            store.all_flows(), sites)
+                                            (_fp := store.all_flows()), sites)
         confidence = zone_derivation.overall_confidence(topologies)
         return {
             "sites": [t.to_dict() for t in topologies],
@@ -741,6 +772,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
             "explain": confidence.explain(),
             "state": ("none" if confidence.zones == 0
                       else "derived" if confidence.usable else "rejected"),
+            "read": _read(_ap, _fp),
         }
 
     # ── enrolment plane (Phase 6) ─────────────────────────────────────────

@@ -290,6 +290,16 @@ def _flag_cross_site_macs(assets: List[EstateAsset]) -> None:
                 % (mac, ", ".join(others)))
 
 
+#: Attributes where two collectors disagreeing is worth an operator's
+#: attention rather than a silent first-wins. Every one of these either drives a
+#: CVE match or names the device on a SCADA mimic, so quietly keeping whichever
+#: row arrived first would decide something on a coin toss.
+CONFLICT_REPORTED = frozenset((
+    "vendor", "make", "model", "firmware", "device_type",
+    "os_name", "os_version", "serial_number", "asset_identifier", "hostname",
+))
+
+
 def _build(estate_id: str, members) -> EstateAsset:
     asset = EstateAsset(estate_id=estate_id)
     seen_sites: Set[str] = set()
@@ -334,8 +344,7 @@ def _build(estate_id: str, members) -> EstateAsset:
             existing = asset.attributes.get(name)
             if existing in (None, "", []):
                 asset.attributes[name] = value
-            elif existing != value and name in ("vendor", "model", "firmware",
-                                                "device_type"):
+            elif existing != value and name in CONFLICT_REPORTED:
                 asset.warnings.append(
                     "collectors disagree on %s: %r vs %r — the merge kept %r"
                     % (name, existing, value, existing))

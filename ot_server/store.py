@@ -26,6 +26,61 @@ from typing import Any, Dict, List, Optional
 from . import schema
 
 
+class Page(list):
+    """Rows, and whether they are all of the rows.
+
+    Every estate route reads the whole estate through one of the `all_*`
+    queries, each of which carries a LIMIT. Measured on a 100-collector fleet
+    with 120 devices per ring: 12,000 assets in the database, 5,000 returned,
+    7,000 silently absent — and 20,000 of 40,000 flows likewise. The console
+    rendered a confident inventory of exactly 5,000 devices with nothing
+    anywhere to say it was a fraction.
+
+    That is the same failure this system has now made four times: a switched-off
+    collector counted as healthy, an unassessed asset reported clean, an
+    unreadable transport reported as a quiet network, and now a truncated
+    inventory reported as an inventory. Every one of them a confident number
+    over a question nobody asked.
+
+    The ORDER BY makes it worse rather than better. Rows come back
+    `last_seen DESC`, so truncation discards the LEAST recently seen first — and
+    on a distribution network the quietest device is an FRTU on a ring main unit
+    that only transmits on a fault. The rows dropped first are the ones most
+    worth having.
+
+    So a query returns a Page. It is a list, so every existing caller keeps
+    working, and it carries `total` so no caller can claim completeness it was
+    never given. `complete` is the property routes are expected to surface, in
+    exactly the way OTS-CON-004 makes a count carry its coverage.
+    """
+
+    def __init__(self, rows, total=None, limit=None):
+        super().__init__(rows)
+        #: Rows matching the query, ignoring the limit. None when not counted.
+        self.total = total
+        self.limit = limit
+
+    @property
+    def complete(self) -> bool:
+        """False when rows were left behind. `None` total means unknown, which
+        is NOT complete — same asymmetry as Coverage.UNKNOWN."""
+        if self.total is None:
+            return False
+        return len(self) >= self.total
+
+    @property
+    def missing(self) -> int:
+        return max(0, (self.total or 0) - len(self))
+
+    def explain(self) -> str:
+        if self.complete:
+            return ""
+        return ("showing %d of %d — %d row(s) were not read because the query "
+                "limit is %s. The rows omitted are the least recently seen, "
+                "which on an OT network are the devices that speak rarely."
+                % (len(self), self.total or 0, self.missing, self.limit))
+
+
 class StoreError(RuntimeError):
     pass
 
@@ -277,11 +332,27 @@ class Store:
                         (site, collector_id))
         self.conn.commit()
 
-    def all_assets(self, limit: int = 5000) -> List[Dict]:
-        """Every collector's asset rows, for the estate merge."""
-        return self.assets(collector_id=None, limit=limit)
+    def _count(self, table: str) -> int:
+        """How many rows the query WOULD have returned without its limit.
 
-    def all_flows(self, limit: int = 20000) -> List[Dict]:
+        A second query rather than a window function: measured at 0.05s over
+        12,000 rows, and it keeps the row-building SQL exactly as it was.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM " + table)
+            return int(cur.fetchone()[0])
+
+    def all_assets(self, limit: int = 5000) -> Page:
+        """Every collector's asset rows, for the estate merge.
+
+        Returns a Page, so a route cannot present this as the whole estate
+        without being told whether it is. See Page for what that cost at a
+        100-collector fleet.
+        """
+        return Page(self.assets(collector_id=None, limit=limit),
+                    total=self._count("asset"), limit=limit)
+
+    def all_flows(self, limit: int = 20000) -> Page:
         """Every collector's flow rows, for zone derivation and attack paths.
 
         The collector_id travels with the row and is not decoration: `zones.derive`
@@ -294,9 +365,11 @@ class Store:
                 "SELECT flow_key, collector_id, first_seen, last_seen, "
                 "observation_count, attributes FROM flow "
                 "ORDER BY last_seen DESC NULLS LAST LIMIT %s", (limit,))
-            return [{"flow_key": r[0], "collector_id": r[1], "first_seen": r[2],
-                     "last_seen": r[3], "observation_count": r[4],
-                     "attributes": r[5]} for r in cur.fetchall()]
+            rows = [{"flow_key": r[0], "collector_id": r[1],
+                     "first_seen": r[2], "last_seen": r[3],
+                     "observation_count": r[4], "attributes": r[5]}
+                    for r in cur.fetchall()]
+        return Page(rows, total=self._count("flow"), limit=limit)
 
     def collectors_health(self) -> List[Dict]:
         """Every collector row, for the fleet health assessment.
@@ -688,7 +761,7 @@ class Store:
         self.conn.commit()
         return bool(changed)
 
-    def all_detections(self, limit: int = 20000) -> List[Dict]:
+    def all_detections(self, limit: int = 20000) -> Page:
         """Every collector's detections, unfiltered.
 
         Deliberately not `WHERE asset_key = ANY(<keys the merge knows>)`. That
@@ -708,10 +781,11 @@ class Store:
                 # looking like it had kept the important ones.
                 "FROM detection ORDER BY last_seen DESC NULLS LAST LIMIT %s",
                 (limit,))
-            return [{"detection_key": r[0], "collector_id": r[1],
+            rows = [{"detection_key": r[0], "collector_id": r[1],
                      "asset_key": r[2], "rule_id": r[3], "severity": r[4],
                      "last_coverage": r[5], "rulepack_version": r[6],
                      "attributes": r[7]} for r in cur.fetchall()]
+        return Page(rows, total=self._count("detection"), limit=limit)
 
 
 def _pack_row(row) -> Optional[Dict]:

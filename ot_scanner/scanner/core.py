@@ -128,6 +128,31 @@ try:
 except ImportError:
     pass
 
+try:
+    from .protocols.lldp import ETH_LLDP, LLDPAnalyzer
+    from .protocols.lldp import device_type_for as lldp_device_type
+    _OPTIONAL_L2_ANALYZERS.append(("LLDPAnalyzer", LLDPAnalyzer))
+except Exception:  # pragma: no cover - optional
+    ETH_LLDP = 0x88CC
+    LLDPAnalyzer = None
+
+    def lldp_device_type(_capabilities):        # pragma: no cover - optional
+        return "unknown"
+
+try:
+    from .protocols.ring import BPDU_MULTICAST, ETH_CFM, RingAnalyzer
+    _OPTIONAL_L2_ANALYZERS.append(("RingAnalyzer", RingAnalyzer))
+except Exception:  # pragma: no cover - optional
+    BPDU_MULTICAST = "01:80:C2:00:00:00"
+    ETH_CFM = 0x8902
+    RingAnalyzer = None
+
+try:
+    from .protocols.snmp import SNMPAnalyzer
+    _OPTIONAL_IP_ANALYZERS.append(("SNMPAnalyzer", SNMPAnalyzer))
+except Exception:  # pragma: no cover - optional
+    SNMPAnalyzer = None
+
 # ── Fingerprint & Vulnerability engines ──────────────────────────────────────
 
 try:
@@ -248,6 +273,8 @@ class PCAPAnalyzer:
 
         # ── IP-transport analyzers ───────────────────────────────────────
         # Always-available core analyzers
+        self._lldp_analyzer    = LLDPAnalyzer() if LLDPAnalyzer else None
+        self._ring_analyzer    = RingAnalyzer() if RingAnalyzer else None
         self._modbus_analyzer  = ModbusAnalyzer()
         self._s7comm_analyzer  = S7CommAnalyzer()
         self._enip_analyzer    = EtherNetIPAnalyzer()
@@ -569,7 +596,21 @@ class PCAPAnalyzer:
         eth_type: int, payload: bytes,
         ts: datetime,
     ) -> None:
-        """Dispatch Layer-2 frames to GOOSE, SV, and PROFINET DCP analyzers."""
+        """Dispatch L2 frames to GOOSE, SV, PROFINET DCP, LLDP and ring."""
+        if self._ring_analyzer and (
+                eth_type == ETH_CFM
+                or (eth_type < 0x0600 and dst_mac.upper() == BPDU_MULTICAST)):
+            self._ring_analyzer.analyze_frame(
+                src_mac, dst_mac, eth_type, payload, ts)
+            return
+
+        if eth_type == ETH_LLDP and self._lldp_analyzer:
+            advert = self._lldp_analyzer.analyze_frame(
+                src_mac, dst_mac, eth_type, payload, ts)
+            if advert:
+                self._handle_lldp_result(src_mac, advert, ts)
+            return
+
         if eth_type == ETH_GOOSE and self._goose_analyzer:
             result = self._goose_analyzer.analyze_frame(
                 src_mac, dst_mac, eth_type, payload, ts)
@@ -586,6 +627,75 @@ class PCAPAnalyzer:
             self._pn_dcp_analyzer.analyze_frame(
                 src_mac, dst_mac, eth_type, payload, ts)
             return
+
+    def _handle_lldp_result(
+        self, src_mac: str, advert: dict, ts: datetime,
+    ) -> None:
+        """Register a switch from its own advertisement.
+
+        This CREATES a device, which the GOOSE handler deliberately does not.
+        The difference is the point: a GOOSE publisher is an IED that also
+        speaks other protocols, so it will be discovered anyway. A ring switch
+        speaks nothing else at all. If LLDP only enriched devices already known
+        from IP traffic, the transport network — the switches carrying every
+        substation on the ring — would never appear in the inventory.
+
+        Keyed on the Management Address the switch advertised, which is the
+        address an operator would actually reach it on. With no management
+        address it is keyed on its MAC, because a switch known only as a MAC is
+        still a switch, and dropping it would be the same silence this whole
+        module is built to avoid.
+        """
+        management_ip = advert.get("management_ip") or ""
+        if management_ip:
+            device = self._get_device(management_ip)
+        else:
+            # asset_key() falls back to the MAC for L2-only devices, so this
+            # travels correctly all the way to the estate merge.
+            key = "lldp:%s" % src_mac.lower()
+            if key not in self._devices:
+                self._devices[key] = OTDevice(ip="")
+            device = self._devices[key]
+
+        device.mac = device.mac or src_mac
+        device.update_time(ts)
+        # The estate filter admits a device on (protocols or ports) AND
+        # packet_count >= min_packets. Without this the switch is built
+        # correctly, carries its identification, and is then dropped on the way
+        # out — which is how it behaved when this handler was first written.
+        device.packet_count += 1
+
+        if advert.get("system_name"):
+            device.hostname = device.hostname or advert["system_name"]
+        # Identification only where the description was RECOGNISED. An
+        # unrecognised one leaves make, model and version empty on purpose —
+        # the version is matched against the CVE corpus.
+        for field_name in ("make", "vendor", "model", "firmware",
+                           "os_name", "os_version"):
+            value = advert.get(field_name)
+            if value and not getattr(device, field_name, None):
+                setattr(device, field_name, value)
+        # Recognised or not, the device ADVERTISED ITSELF. That is what lifts
+        # it over min_packets, and it must not depend on whether a pattern
+        # matched: an unrecognised switch is still a switch, and the estate
+        # would otherwise contain only the vendors somebody wrote a regex for.
+        device.identified_by = (device.identified_by
+                                or advert.get("identified_by")
+                                or "lldp-advertisement")
+        if advert.get("chassis_id") and not device.asset_identifier:
+            device.asset_identifier = advert["chassis_id"]
+        if advert.get("make"):
+            device.vendor_confidence = "high"
+
+        typed = lldp_device_type(advert.get("capabilities") or [])
+        if typed != "unknown" and device.device_type in ("", "unknown", None):
+            device.device_type = typed
+            device.role = typed.lower()
+
+        device.add_protocol(ProtocolDetection(
+            protocol="LLDP", port=0, confidence="high", transport="Ethernet",
+            details={k: v for k, v in advert.items() if k != "src_mac"},
+            first_seen=ts, last_seen=ts, packet_count=1))
 
     def _handle_goose_result(
         self, src_mac: str, result: dict, ts: datetime,
@@ -695,7 +805,22 @@ class PCAPAnalyzer:
         for device in self._devices.values():
             self._compute_communication_profile(device)
 
-        # ── Filter: OT devices + ground-truth project-file devices ────
+        # ── Filter: OT devices + ground truth + self-identified ───────
+        #
+        # `min_packets` exists to keep a single stray packet from inventing a
+        # device. It must NOT apply to a device that named itself.
+        #
+        # Measured: LLDP's default transmit interval is 30 seconds and the
+        # capture window is 60, so a ring switch emits exactly TWO
+        # advertisements per window — precisely `min_packets`. One dropped
+        # frame, a longer configured interval (the standard permits up to
+        # 32768s) or a short window, and the switch silently leaves the
+        # inventory. It would come back next window and leave again, and the
+        # estate would flicker with no explanation anywhere.
+        #
+        # A device that answered with its own vendor, model and version is not
+        # noise at any packet count, so `identified_by` overrides the
+        # threshold. That covers LLDP, MMS Identify and SNMP sysDescr alike.
         results = [
             d for d in self._devices.values()
             if (
@@ -703,6 +828,7 @@ class PCAPAnalyzer:
                 and d.packet_count >= self.min_packets
             )
             or d.vendor_confidence == "ground_truth"
+            or getattr(d, "identified_by", None)
         ]
 
         # ── Vulnerability assessment ─────────────────────────────────────
@@ -736,11 +862,24 @@ class PCAPAnalyzer:
                     if self.verbose:
                         print(f"  [!] CVE matching error for {device.ip}: {exc}")
 
-        # Sort devices by IP
-        devices_sorted = sorted(
-            results,
-            key=lambda d: tuple(int(x) for x in d.ip.split(".")),
-        )
+        # Sort devices by IP, tolerating devices that have none.
+        #
+        # `int(x) for x in d.ip.split(".")` raised ValueError on any device
+        # without a dotted quad. That never fired because nothing in this file
+        # had ever CREATED such a device — and yet `asset_key` documents
+        # supporting them ("MAC as the fallback for L2-only devices; a GOOSE
+        # publisher has no IP"). The support was declared at one end of the
+        # pipeline and impossible at the other. A ring switch that advertises
+        # no management address is exactly that case.
+        def _sort_key(device):
+            parts = (device.ip or "").split(".")
+            if len(parts) == 4 and all(p.isdigit() for p in parts):
+                return (0, tuple(int(p) for p in parts), "")
+            # After the addressed devices, ordered by MAC so the listing is
+            # still stable.
+            return (1, (), (device.mac or "").lower())
+
+        devices_sorted = sorted(results, key=_sort_key)
 
         # Sort flows by packet count (descending)
         flows_sorted = sorted(

@@ -56,6 +56,51 @@ export interface InventoryResponse {
   assets: EstateAssetRow[];
   count: number;
   coverage: { trustworthy: boolean; explain: string };
+  /**
+   * Whether the QUERY read the whole estate, which is a different question
+   * from whether the collectors saw the whole network.
+   *
+   * At 100 collectors the estate reads hit a row limit and the console was
+   * handed a confident inventory that was a fraction of itself. `coverage`
+   * could not have told anyone: every collector was healthy.
+   */
+  read: { complete: boolean; explain: string };
+}
+
+/**
+ * What a device says it is, and where that came from.
+ *
+ * Held loosely on purpose. These arrive in `attributes` from whichever passive
+ * source could name the device — an LLDP advertisement, an SNMP sysDescr, an
+ * MMS Identify response — and any of them may be absent. An FRTU that speaks
+ * only IEC 104 will never have a model or a firmware version, because that
+ * protocol carries no identification service at all; the cell must read as a
+ * gap in what CAN be known, not as a device nobody looked at.
+ */
+export interface DeviceIdentity {
+  make: string;
+  model: string;
+  osName: string;
+  osVersion: string;
+  hostname: string;
+  assetIdentifier: string;
+  identifiedBy: string;
+}
+
+export function identityOf(row: EstateAssetRow): DeviceIdentity {
+  const text = (name: string): string => {
+    const value = row.attributes[name];
+    return typeof value === "string" ? value : "";
+  };
+  return {
+    make: text("make") || text("vendor"),
+    model: text("model"),
+    osName: text("os_name"),
+    osVersion: text("os_version") || text("firmware"),
+    hostname: text("hostname"),
+    assetIdentifier: text("asset_identifier"),
+    identifiedBy: text("identified_by"),
+  };
 }
 
 export interface VulnMatch {

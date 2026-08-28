@@ -179,8 +179,21 @@ class ObservationBuilder:
             "ip": getattr(device, "ip", "") or "",
             "mac": getattr(device, "mac", "") or "",
             "vendor": getattr(device, "vendor", "") or "",
+            # `make` is not `vendor`: vendor is who wrote the firmware,
+            # make is the badge on the front. "Schneider Electric" vs
+            # "Schneider Electric (Modicon)". The CVE corpus matches on both.
+            "make": getattr(device, "make", "") or "",
             "model": getattr(device, "model", "") or "",
             "firmware": getattr(device, "firmware", "") or "",
+            "os_name": getattr(device, "os_name", "") or "",
+            "os_version": getattr(device, "os_version", "") or "",
+            "hostname": getattr(device, "hostname", "") or "",
+            "serial_number": getattr(device, "serial_number", "") or "",
+            # The station address, not the IP. See OTDevice.asset_identifier.
+            "asset_identifier": getattr(device, "asset_identifier", "") or "",
+            # An identification with no provenance is a claim. This is what
+            # lets the console show a version and say where it came from.
+            "identified_by": getattr(device, "identified_by", "") or "",
             "device_type": str(getattr(device, "device_type", "") or ""),
             "role": getattr(device, "role", "") or "",
             "criticality": getattr(device, "criticality", "") or "",

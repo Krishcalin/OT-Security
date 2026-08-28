@@ -474,6 +474,20 @@ class OTDevice:
     make: Optional[str] = None              # e.g. "Siemens", "ABB"
     model: Optional[str] = None             # e.g. "S7-1500 CPU 1516-3 PN/DP"
     firmware: Optional[str] = None
+    #: The PLATFORM and its version, kept apart from `firmware` because the CVE
+    #: corpus is keyed on the platform ("Cisco IOS", "HiOS", "ROS") while
+    #: `firmware` is whatever string the device printed. For a switch they are
+    #: usually the same number; for an IED they are usually not.
+    os_name: Optional[str] = None
+    os_version: Optional[str] = None
+    #: The address an operator names this device by in the control system: an
+    #: IEC 104 common address, an MMS IED name, a Modbus unit id. NOT the IP —
+    #: an FRTU keeps its station address across a re-addressing, and the
+    #: station address is what appears on the SCADA mimic.
+    asset_identifier: Optional[str] = None
+    #: Which source produced the identification, so an operator reading
+    #: "HiOS 08.5.02" can tell a parsed advertisement from a guess.
+    identified_by: Optional[str] = None
     hardware_version: Optional[str] = None
     serial_number: Optional[str] = None
     product_code: Optional[str] = None
