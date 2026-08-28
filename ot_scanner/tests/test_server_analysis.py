@@ -81,13 +81,24 @@ def test_absent_fields_are_left_empty_not_invented():
 # ── an engine that ran without its inputs says so ──────────────────────────
 
 def test_compliance_runs_but_declares_what_it_could_not_assess():
-    report = analysis.run_all([_asset()], [], flows=[])
+    """Zones withheld explicitly. They are derived by default now, so relying on
+    their absence would make this test stop meaning anything."""
+    report = analysis.run_all([_asset()], [], flows=[], derive_zones=False)
     compliance = [e for e in report.engines if e.engine == "compliance"][0]
     assert compliance.status is EngineStatus.DEGRADED
     assert not compliance.trustworthy
     assert any("zone" in lim.lower() for lim in compliance.limitations), (
         "segmentation controls must not be counted as passing when zones are "
         "unavailable")
+
+
+def test_compliance_still_declares_its_field_gaps_once_zones_exist():
+    """Zones remove one limitation; they do not make the device model complete.
+    10 of 49 fields still survive the wire."""
+    report = analysis.run_all([_asset()], [], flows=[])
+    compliance = [e for e in report.engines if e.engine == "compliance"][0]
+    assert compliance.status is EngineStatus.DEGRADED
+    assert any("communication_profile" in lim for lim in compliance.limitations)
 
 
 def test_risk_names_the_specific_fields_it_lacked():
@@ -104,7 +115,7 @@ def test_risk_names_the_specific_fields_it_lacked():
 def test_attack_paths_is_skipped_without_zones():
     """An attack path is a claim about reachability. Reachability without
     segmentation data is a guess wearing the shape of a finding."""
-    report = analysis.run_all([_asset()], [], flows=[])
+    report = analysis.run_all([_asset()], [], flows=[], derive_zones=False)
     attack = [e for e in report.engines if e.engine == "attack_paths"][0]
     assert attack.status is EngineStatus.SKIPPED
     assert "guess" in attack.reason
@@ -113,7 +124,7 @@ def test_attack_paths_is_skipped_without_zones():
 def test_policy_is_skipped_without_zones():
     """A generated ruleset that does not know the segmentation it enforces could
     be applied to a live plant network."""
-    report = analysis.run_all([_asset()], [], flows=[])
+    report = analysis.run_all([_asset()], [], flows=[], derive_zones=False)
     policy = [e for e in report.engines if e.engine == "policy"][0]
     assert policy.status is EngineStatus.SKIPPED
     assert "live plant network" in policy.reason
@@ -122,7 +133,7 @@ def test_policy_is_skipped_without_zones():
 def test_drift_is_skipped_without_a_baseline():
     """'Nothing changed' against no baseline is the most confident wrong answer
     available here."""
-    report = analysis.run_all([_asset()], [], flows=[])
+    report = analysis.run_all([_asset()], [], flows=[], derive_zones=False)
     drift = [e for e in report.engines if e.engine == "drift"][0]
     assert drift.status is EngineStatus.SKIPPED
     assert "confident wrong answer" in drift.reason
@@ -142,15 +153,35 @@ def test_drift_runs_with_a_baseline_and_does_not_call_absence_removal():
 # ── the report as a whole ──────────────────────────────────────────────────
 
 def test_no_engine_reports_trustworthy_on_a_partial_estate():
-    """The point of the module. Every engine here runs on a device model missing
-    most of its fields, and none of them may claim otherwise."""
+    """Compliance and risk consume the device model, and 10 of 49 fields survive
+    the wire — so neither may ever report itself trustworthy, zones or not.
+
+    attack_paths and policy are excluded from this claim deliberately: they
+    consume zones and flows rather than the lossy device fields, so once zones
+    exist they legitimately CAN be trustworthy. Asserting otherwise would have
+    forced a permanent false limitation onto two honest engines."""
     report = analysis.run_all([_asset()], [], flows=[])
-    assert not report.any_trustworthy
+    model_consumers = [e for e in report.engines
+                       if e.engine in ("compliance", "risk")]
+    assert model_consumers and not any(e.trustworthy for e in model_consumers)
 
 
 def test_the_report_names_what_was_skipped():
-    report = analysis.run_all([_asset()], [], flows=[])
+    report = analysis.run_all([_asset()], [], flows=[], derive_zones=False)
     assert set(report.to_dict()["skipped"]) == {"attack_paths", "policy", "drift"}
+
+
+def test_derived_zones_leave_only_drift_skipped():
+    """What the zone derivation bought: two engines that were blocked now run."""
+    assets = [{"estate_id": "e%d" % i, "site": "S", "ip": "10.10.1.%d" % i,
+               "coverage": "complete",
+               "attributes": {"ip": "10.10.1.%d" % i, "role": "plc",
+                              "device_type": "PLC"}} for i in (10, 11)]
+    flows = [{"collector_id": "pi-a",
+              "attributes": {"src_ip": "10.10.1.10", "dst_ip": "10.10.1.11",
+                             "protocol": "Modbus", "dst_port": 502}}]
+    report = analysis.run_all(assets, [], flows=flows, sites={"pi-a": "S"})
+    assert set(report.to_dict()["skipped"]) == {"drift"}
 
 
 def test_the_report_carries_the_coverage_it_was_computed_from():

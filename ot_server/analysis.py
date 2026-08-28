@@ -280,6 +280,15 @@ def run_risk(devices, zones=None,
                                 for d in devices])
 
 
+def _flows_are_typed(flows) -> bool:
+    """True if these are CommFlow objects rather than stored dicts.
+
+    Checked because the failure mode is silent: an engine handed dicts finds no
+    attribute it recognises, produces nothing, and reports success.
+    """
+    return all(hasattr(f, "src_ip") and not isinstance(f, dict) for f in flows)
+
+
 def run_attack_paths(devices, flows, zones=None, edges=None,
                      violations=None) -> EngineResult:
     """BFS pathfinding across the estate.
@@ -288,12 +297,18 @@ def run_attack_paths(devices, flows, zones=None, edges=None,
     reachability, and reachability without segmentation data is a guess — one
     that would be presented in the same shape as a real finding.
     """
+    if not _flows_are_typed(flows):
+        return EngineResult(
+            "attack_paths", EngineStatus.ERROR,
+            reason="flows were not rehydrated into CommFlow objects; the engine "
+                   "would have found nothing and reported success")
     if not zones or not edges:
         return EngineResult(
             "attack_paths", EngineStatus.SKIPPED,
-            reason="requires Purdue zones and topology edges, which are not yet "
-                   "derived server-side. An attack path computed without "
-                   "segmentation data is a guess wearing the shape of a finding.")
+            reason="no usable Purdue zones. Either none could be derived, or the "
+                   "derivation was mostly fallback levels and was rejected — see "
+                   "the zone basis. An attack path computed without segmentation "
+                   "data is a guess wearing the shape of a finding.")
     try:
         from scanner.attack.engine import AttackPathEngine
 
@@ -314,12 +329,17 @@ def run_policy(devices, flows, zones=None, violations=None,
     segmentation it is enforcing is worse than none, because somebody may apply
     it to a live plant network.
     """
+    if not _flows_are_typed(flows):
+        return EngineResult(
+            "policy", EngineStatus.ERROR,
+            reason="flows were not rehydrated into CommFlow objects")
     if not zones:
         return EngineResult(
             "policy", EngineStatus.SKIPPED,
-            reason="requires Purdue zones. A ruleset generated without knowing "
+            reason="no usable Purdue zones. A ruleset generated without knowing "
                    "the segmentation it enforces could be applied to a live "
-                   "plant network.")
+                   "plant network, so a mostly-guessed derivation is rejected "
+                   "rather than used.")
     try:
         from scanner.policy.engine import PolicyEngine
 
@@ -361,6 +381,10 @@ class AnalysisReport:
     fidelity: Fidelity = field(default_factory=Fidelity)
     engines: List[EngineResult] = field(default_factory=list)
     coverage_explain: str = ""
+    #: How the Purdue levels underneath these results were arrived at. Carried
+    #: even when the zones were rejected, because "we derived zones and did not
+    #: trust them" is a different state from "we had none".
+    zone_basis: str = ""
 
     @property
     def any_trustworthy(self) -> bool:
@@ -372,6 +396,7 @@ class AnalysisReport:
                          "total": self.fidelity.total,
                          "explain": self.fidelity.explain()},
             "coverage": self.coverage_explain,
+            "zones": self.zone_basis,
             "engines": [e.to_dict() for e in self.engines],
             "skipped": [e.engine for e in self.engines
                         if e.status is EngineStatus.SKIPPED],
@@ -382,9 +407,32 @@ def run_all(assets: List[Dict], detections: Optional[List[Dict]] = None,
             flows: Optional[List[Dict]] = None,
             zones=None, edges=None, violations=None,
             baseline: Optional[List[Dict]] = None,
-            coverage_explain: str = "") -> AnalysisReport:
-    """Every server-side engine over the merged estate, each stating its limits."""
+            coverage_explain: str = "",
+            sites: Optional[Dict[str, str]] = None,
+            derive_zones: bool = True) -> AnalysisReport:
+    """Every server-side engine over the merged estate, each stating its limits.
+
+    Zones are derived per site when not supplied. A derivation whose levels came
+    mostly from the topology engine's fallback does NOT unblock the engines that
+    need segmentation: "we had no zones" is visibly absent, "we had bad zones" is
+    confidently wrong, and the second is the worse failure.
+    """
     fidelity = device_fidelity()
+    zone_note = ""
+    if zones is None and derive_zones:
+        from . import zones as zone_derivation
+
+        topologies = zone_derivation.derive(assets, flows or [], sites)
+        confidence = zone_derivation.overall_confidence(topologies)
+        zone_note = confidence.explain()
+        if confidence.usable:
+            zones, violations_derived, edges_derived = zone_derivation.flatten(
+                topologies)
+            violations = violations if violations is not None else violations_derived
+            edges = edges if edges is not None else edges_derived
+        else:
+            # Derived, but not good enough to build a firewall rule on.
+            zones = None
     by_asset: Dict[str, List[Dict]] = {}
     for detection in detections or []:
         by_asset.setdefault(detection.get("asset_key", ""), []).append(detection)
@@ -392,12 +440,21 @@ def run_all(assets: List[Dict], detections: Optional[List[Dict]] = None,
     devices = [rehydrate(a, by_asset.get(a.get("estate_id", ""), []))
                for a in assets]
 
-    report = AnalysisReport(fidelity=fidelity, coverage_explain=coverage_explain)
+    # Rehydrated ONCE, here. Passing the stored dicts straight through let
+    # attack-paths iterate records it could not read, find nothing, and report
+    # RAN — indistinguishable from a network with no attack paths.
+    from . import zones as _zone_module
+
+    comm_flows = [_zone_module.rehydrate_flow(f) for f in (flows or [])]
+    comm_flows = [f for f in comm_flows if f.src_ip and f.dst_ip]
+
+    report = AnalysisReport(fidelity=fidelity, coverage_explain=coverage_explain,
+                            zone_basis=zone_note)
     report.engines = [
         run_compliance(devices, zones, violations, fidelity),
         run_risk(devices, zones, fidelity),
-        run_attack_paths(devices, flows or [], zones, edges, violations),
-        run_policy(devices, flows or [], zones, violations, edges),
+        run_attack_paths(devices, comm_flows, zones, edges, violations),
+        run_policy(devices, comm_flows, zones, violations, edges),
         run_drift(assets, baseline),
     ]
     return report

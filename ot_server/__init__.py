@@ -12,7 +12,7 @@ first-class records and computes coverage from what actually arrived. Accepting
 that honesty and then rendering a continuous timeline would discard it at the
 last step.
 """
-from . import api, estate, ingest, schema, store, vulnmatch
+from . import analysis, api, estate, ingest, schema, store, vulnmatch, zones
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
                      asset_state, decide, summarise_coverage, validate)
 from .schema import DDL, RETENTION_MONTHS, SCHEMA_VERSION
@@ -20,6 +20,8 @@ from .estate import (EstateAsset, EstateCoverage, estate_coverage, merge)
 from .store import Store, StoreError
 from .vulnmatch import (AssetMatch, Corpus, MatchState, Priority,
                         load_corpus, match_estate, reprioritise)
+from .zones import (SiteTopology, ZoneBasis, ZoneConfidence,
+                    derive as derive_zones, overall_confidence)
 
 __all__ = [
     "api", "ingest", "schema", "store",
@@ -31,4 +33,7 @@ __all__ = [
     "EstateAsset", "EstateCoverage", "estate_coverage", "merge",
     "AssetMatch", "Corpus", "MatchState", "Priority",
     "load_corpus", "match_estate", "reprioritise",
+    "analysis", "zones",
+    "SiteTopology", "ZoneBasis", "ZoneConfidence", "derive_zones",
+    "overall_confidence",
 ]

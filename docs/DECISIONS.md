@@ -22,6 +22,7 @@ answer from *"we haven't done that yet."*
 | **D3** | Where do CVE / KEV / EPSS live? | **Server only** — never on a collector | `tests/test_collector_manifest.py` |
 | **D4** | Does the collector ever transmit? | **No** — no send path exists | `tests/test_collector_capture.py` |
 | **D5** | Do packet payloads leave the plant? | **No** — records carry conclusions, not bytes | `tests/test_collector_analysis.py` |
+| **D6** | Are Purdue zones derived across the estate? | **No** — per site, and a mostly-guessed derivation is refused | `tests/test_server_zones.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -142,6 +143,42 @@ a security label on it, and at many sites the capture legally cannot leave.
 payload-named fields *and* any binary value, as belt and braces against a future
 analyser attaching one. Bytes are **dropped rather than encoded** — base64 of a
 payload is still the payload.
+
+---
+
+## D6 — Zones are derived per site, and a guessed derivation is refused
+
+**Asked because** three things were blocked on zones — attack-path analysis,
+firewall policy generation and the topology view — and nothing derived them from
+estate data.
+
+**Answer.** Zones are derived **per site**, never across the estate. Each zone
+records the **basis** of its Purdue level — `role`, `protocol` or `defaulted` —
+and a derivation where more than half the levels came from the fallback is
+**refused**: the engines that need segmentation stay `SKIPPED`, with the reason
+naming which of the two states applies.
+
+**Reasoning — the site scope.** The same trap as the asset merge, one level up.
+`TopologyEngine` groups devices into /24 subnets, and `10.10.1.0/24` exists at
+almost every plant. Deriving across the estate fuses two substations into one
+zone, and then a cross-plant flow reads as a segmentation breach inside one site
+while a real breach inside a site is hidden by the merge — wrong in both
+directions at once.
+
+**Reasoning — the refusal.** `_assign_purdue_levels` always returns a level; its
+documented fallback is *default to Level 1*. A recognised role and a fall-through
+are indistinguishable in its output, and both are then consumed by a firewall
+rule generator whose output someone may apply to a live plant network. Refusing
+is the conservative direction: **"we had no zones" is visibly absent, "we had bad
+zones" is confidently wrong**, and only the second gets deployed.
+
+The classification does not reimplement the level assignment — it re-runs the
+engine's own predicates afterwards, so it cannot drift from the assignment it
+describes.
+
+**What enforces it.** `tests/test_server_zones.py`. Deriving estate-wide instead
+of per site fails 5 tests; letting a mostly-defaulted derivation count as usable
+fails 2.
 
 ---
 

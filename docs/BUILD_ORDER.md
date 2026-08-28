@@ -157,10 +157,10 @@ certificates, and `verify=False`. The SQL is tested against a real PostgreSQL
 rather than an in-memory double, because a double is a second implementation
 that passes while production fails.
 
-### Phase 4 — Server analysis · **MOSTLY COMPLETE**
+### Phase 4 — Server analysis · **COMPLETE**
 
-Estate merge, server-side CVE matching and coverage through the API are built.
-The five analysis engines (`OTS-SRV-003`) remain — see below.
+Estate merge, server-side CVE matching, coverage through the API, the five
+analysis engines (`OTS-SRV-003`) and the Purdue zone derivation they needed.
 
 **The merge had a trap in it.** Collectors emit `ip:10.0.0.1`, and private
 ranges overlap across plants: a PLC at Substation A and an unrelated one at
@@ -192,18 +192,48 @@ high EPSS alone is `NEXT`, because EPSS is a probability rather than an
 observation, and a priority that fires on everything is one an operator stops
 reading. No corpus loaded yields `UNKNOWN`, never "clean".
 
-**Still to build — `OTS-SRV-003`.** Compliance, risk, attack-path, drift and
-policy engines exist in `scanner/` and are server-side by the partition, but are
-not yet wired to merged estate data. Each needs an adapter from `EstateAsset` to
-the shape it expects; they were left rather than half-wired.
+**`OTS-SRV-003` — five engines, each declaring what it could not see.**
+Compliance, risk, attack-path, drift and policy run on merged estate data
+through `ot_server/analysis.py`. `rehydrate()` rebuilds an `OTDevice` from the
+wire format, and because 10 of its 49 fields survive that trip, **every result
+names the fields it could not consider** — a compliance pass computed without
+`communication_profile` is not the same claim as one computed with it.
 
-### Phase 5 — Console
+An engine without its required inputs is `SKIPPED` with a reason, never run on
+nothing: drift without a baseline would answer *nothing changed*, which is the
+most confident wrong answer available.
+
+**Purdue zones are derived server-side (D6).** They were the missing input that
+kept attack-path and policy skipped. Derivation is **per site** — deriving across
+the estate would fuse two plants that share `10.10.1.0/24` — and each zone
+records whether its level came from a role, from the protocol mix, or from the
+topology engine's fallback. A derivation that is mostly fallback is **refused**,
+because a firewall ruleset built on guessed segmentation may be applied to a live
+plant network.
+
+The same work exposed a silent bug worth recording: stored flow dicts were passed
+straight to the engines. Policy raised, which surfaced; attack-path iterated
+records it could not read, found nothing, and reported `RAN` — indistinguishable
+from a network with no attack paths, and that is the answer an operator believes.
+Flows are now rehydrated once, and an engine handed the wrong type says so.
+
+### Phase 5 — Console · **PRIMITIVES BUILT, SCREENS PENDING**
 
 TypeScript front end: estate, assets, findings, topology, change view.
 
 `OTS-CON-004` is the one that constrains the design: every screen presenting
 counts or clean states must display the coverage those numbers rest on, and a
 degraded window must be **visibly marked, not footnoted**.
+
+**It is enforced by the type checker rather than by review.** A branded
+`Measured<T>` carries its coverage, and `metric()` accepts nothing else — so a
+bare number is unrenderable and forgetting coverage is a build failure, not a
+missed review comment. `src/con004.expect-errors.ts` holds the four cases that
+must not compile.
+
+Built: the coverage primitives, the render layer, the API client. Pending: the
+HTML shell, routing and the screens themselves. `OTS-CON-005` (topology view) is
+now unblocked by the zone derivation.
 
 ### Phase 6 — Fleet operations
 
