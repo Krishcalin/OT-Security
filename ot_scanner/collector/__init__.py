@@ -18,6 +18,8 @@ from .coverage import (Coverage, CaptureWindow, DropDelta, DropSnapshot,
 from .observations import (Observation, ObservationBatch, ObservationBuilder,
                            Provenance, RecordKind, asset_key, scrub)
 from .self_exclusion import ExclusionMode, SelfExclusion, SelfIdentity
+from .spool import Spool, SpoolLoss, SpoolStats, backoff_delay
+from .transport import (SendResult, Transport, TransportConfig, TransportError)
 from .service import (CaptureRefused, CaptureService, CollectorConfig,
                       WindowReport)
 from .counters import (CombinedCounters, NullCounters, PacketSocketCounters,
@@ -40,5 +42,7 @@ __all__ = [
     "Observation", "ObservationBatch", "ObservationBuilder", "Provenance",
     "RecordKind", "asset_key", "scrub",
     "ExclusionMode", "SelfExclusion", "SelfIdentity",
+    "Spool", "SpoolLoss", "SpoolStats", "backoff_delay",
+    "SendResult", "Transport", "TransportConfig", "TransportError",
     "CaptureRefused", "CaptureService", "CollectorConfig", "WindowReport",
 ]
