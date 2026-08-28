@@ -346,7 +346,10 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ## Testing & CI
 
-**76 unit tests** covering all 9 analysis engines, the 4 new protocol analyzers, and the CISA KEV importer, running in < 0.3 seconds with no PCAP dependencies.
+**343 tests** run without a database; 22 more cover the PostgreSQL store and
+need one. The table below covers the standalone scanner only — the collector,
+server and console suites added by the sensor-fleet re-architecture are
+described in [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md).
 
 ```bash
 cd ot_scanner
@@ -368,7 +371,10 @@ python -m pytest tests/ -v
 | `test_exporters.py` | 4 | ServiceNow, Splunk, Elastic, Webhook |
 | `test_protocols.py` | 8 | HART-IP, GE-SRTP, Niagara Fox, KNXnet/IP analyzers |
 
-**GitHub Actions CI** runs on every push and PR against Python 3.8, 3.10, and 3.12.
+**GitHub Actions CI** runs on every push and PR against Python 3.8, 3.10 and
+3.12, with a PostgreSQL service for the store tests and a separate Node job for
+the console. Both jobs refuse to let their suite skip: a skipped test on a
+summary page is indistinguishable from a passing one.
 
 ---
 

@@ -35,6 +35,34 @@ export function esc(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => escapes[c] ?? c);
 }
 
+/**
+ * A class attribute, assembled from names this code chose.
+ *
+ * Interpolating a class into markup directly reads exactly like interpolating a
+ * value into it, and the guard in `tests/test_console.py` cannot tell the two
+ * apart — nor should it have to. Routing class names through a named call keeps
+ * "everything interpolated into markup is a call" a rule with no exceptions,
+ * and exceptions are how a rule like this stops being enforced.
+ *
+ * `false` and `undefined` drop out, so a conditional class is written without a
+ * ternary in the template.
+ */
+export function cls(...names: readonly (string | false | undefined)[]): string {
+  return names.filter((n): n is string => typeof n === "string" && n !== "")
+    .join(" ");
+}
+
+/**
+ * Join fragments that these primitives already produced.
+ *
+ * Named rather than a bare `.join("")` in the template for the same reason as
+ * `cls`: it says out loud that the contents are rendered HTML and not data that
+ * skipped `esc`.
+ */
+export function fragments(parts: readonly string[]): string {
+  return parts.join("");
+}
+
 export function coverageChip(coverage: Coverage, basis: string): string {
   const b = badge(coverage, basis);
   return (

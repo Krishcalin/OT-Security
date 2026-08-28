@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OT Sensor Fleet — console</title>
+    <link rel="stylesheet" href="/console.css" />
+  </head>
+  <body>
+    <header class="shell-head">
+      <div class="brand">OT Sensor Fleet</div>
+      <nav id="nav" class="nav"></nav>
+    </header>
+
+    <div id="banner" class="banner-slot"></div>
+
+    <!--
+      The starting content is a FAILURE message, not a spinner.
+
+      If the bundle does not load — it was never built, the mount is missing, a
+      script error stops it — the page keeps whatever was here. A spinner would
+      sit there suggesting work in progress, and a blank page would read as a
+      plant with nothing in it. Both are the same mistake this system spends its
+      whole design avoiding, arriving at the last step. So the untouched state
+      says plainly that nothing was read, and main.js replaces it on boot.
+    -->
+    <main id="app">
+      <div class="panel panel-alarm">
+        <h2>The console did not start</h2>
+        <p>
+          No estate data has been read, so nothing on this page describes your
+          plant. <strong>This is not an empty estate</strong> — it is a console
+          that failed to load.
+        </p>
+        <p>
+          If this server was deployed without a built console, run
+          <code>npm install &amp;&amp; npm run build</code> in
+          <code>console/</code> and reload.
+        </p>
+      </div>
+    </main>
+
+    <noscript>
+      <div class="panel panel-alarm">
+        <h2>This console needs JavaScript</h2>
+        <p>
+          Every figure it shows is read from the estate API at load time. With
+          scripting disabled it can show nothing, and shows nothing rather than
+          a page of empty tables that would read as a clean estate.
+        </p>
+      </div>
+    </noscript>
+
+    <script type="module" src="/dist/main.js"></script>
+  </body>
+</html>

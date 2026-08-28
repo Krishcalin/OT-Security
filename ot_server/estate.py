@@ -215,6 +215,57 @@ def merge(rows: Iterable[Dict], sites: Optional[Dict[str, str]] = None
     return assets
 
 
+def reattach_detections(assets: Iterable[EstateAsset],
+                        detections: Iterable[Dict]) -> List[Dict]:
+    """Re-key per-collector detections onto the merged assets they belong to.
+
+    The engines take detections keyed by `asset_key` and look them up by
+    `estate_id`. Stored detections carry the COLLECTOR's key — `ip:10.0.0.1` —
+    so handing them over unchanged attaches nothing: every asset then looks
+    detection-free, which reads as a clean estate rather than as a wiring fault.
+    That is the failure mode this whole server is built to refuse, so the
+    translation is explicit and tested rather than assumed.
+
+    Keyed on (collector_id, asset_key), never on the asset key alone. Two plants
+    both have a 10.0.0.1; matching on the key by itself would hang Substation
+    B's finding on Substation A's device — the merge trap from `merge()`, one
+    level down, and just as invisible afterwards.
+
+    A detection whose (collector, key) pair matches no merged asset is DROPPED
+    and returned nowhere, because inventing an owner for it would be worse. The
+    caller is told how many were orphaned via `orphaned_detections`.
+    """
+    owner: Dict[Tuple[str, str], str] = {}
+    for asset in assets:
+        for contribution in asset.contributions:
+            owner[(contribution.collector_id, contribution.asset_key)] =                 asset.estate_id
+
+    out: List[Dict] = []
+    for detection in detections:
+        key = (detection.get("collector_id", ""),
+               detection.get("asset_key", ""))
+        estate_id = owner.get(key)
+        if estate_id is None:
+            continue
+        row = dict(detection)
+        row["collector_asset_key"] = row.get("asset_key", "")
+        row["asset_key"] = estate_id
+        out.append(row)
+    return out
+
+
+def orphaned_detections(assets: Iterable[EstateAsset],
+                        detections: Iterable[Dict]) -> int:
+    """How many detections named an asset the merge does not know about.
+
+    Non-zero is a real signal — a detection arrived for a device whose asset row
+    did not, so the estate is missing a device it has findings for. Reported
+    rather than silently discarded.
+    """
+    detections = list(detections)
+    return len(detections) - len(reattach_detections(assets, detections))
+
+
 def _flag_cross_site_macs(assets: List[EstateAsset]) -> None:
     """Report a MAC seen at more than one site, on every asset that has it.
 

@@ -7,9 +7,10 @@ Specification: **OTS-SRS-001**. This document is the *order of work* and the
 record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
-> **Status at 2026-08-28** — Phases 1–4 complete. 273 tests passing (263
-> without a database). `OTS-NFR-001` is **deferred to live commissioning** on
-> the Pi — see [Live commissioning](#live-commissioning).
+> **Status at 2026-08-28** — Phases 1–5 complete. 343 tests passing without
+> a database; 22 more require one and are skipped without it (CI refuses
+> that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi
+> — see [Live commissioning](#live-commissioning).
 
 ---
 
@@ -217,9 +218,10 @@ records it could not read, found nothing, and reported `RAN` — indistinguishab
 from a network with no attack paths, and that is the answer an operator believes.
 Flows are now rehydrated once, and an engine handed the wrong type says so.
 
-### Phase 5 — Console · **PRIMITIVES BUILT, SCREENS PENDING**
+### Phase 5 — Console · **COMPLETE**
 
-TypeScript front end: estate, assets, findings, topology, change view.
+TypeScript front end: estate, assets, findings, topology, change view, served
+from the analysis server (D7).
 
 `OTS-CON-004` is the one that constrains the design: every screen presenting
 counts or clean states must display the coverage those numbers rest on, and a
@@ -231,9 +233,55 @@ bare number is unrenderable and forgetting coverage is a build failure, not a
 missed review comment. `src/con004.expect-errors.ts` holds the four cases that
 must not compile.
 
-Built: the coverage primitives, the render layer, the API client. Pending: the
-HTML shell, routing and the screens themselves. `OTS-CON-005` (topology view) is
-now unblocked by the zone derivation.
+**Two endpoints had to exist first.** Three of the five screens had no data
+source: the five analysis engines and the zone derivation were reachable only
+from Python. `/api/v1/estate/analysis` and `/api/v1/estate/zones` expose them,
+and wiring the first one surfaced a bug that would have been invisible in
+production. The engines look detections up by `estate_id`; the store holds them
+under the **collector's** asset key. Passed through unchanged they attach to
+nothing, every asset reads as detection-free, and the console draws a clean
+estate produced by a wiring fault. `estate.reattach_detections` re-keys them on
+`(collector_id, asset_key)` — never on the key alone, because both plants have a
+10.0.0.1 and matching on it would hang Substation B's finding on Substation A's
+device. Detections whose asset row never arrived are **counted and reported**
+rather than dropped.
+
+**What the type checker cannot see, three guards do.**
+
+- A screen can build its own markup and interpolate a value straight into it;
+  the result is only a string, so `tsc` has no objection. Every interpolation
+  inside markup must therefore be a **call to a named function** — a rule with
+  no allowlist to maintain, because a guard that must be edited to keep passing
+  eventually gets edited without being read.
+- `moduleResolution: bundler` accepts `./coverage`, and the browser does not.
+  There is no bundler here — tsc's output is loaded as native ESM — so an
+  extensionless import type-checks perfectly and 404s at runtime, rendering as a
+  screen that never appears.
+- The compiled console is **executed** against payloads dumped from the real
+  app, with only `fetch` standing in. Sabotaging one screen with those first two
+  defects leaves `tsc --noEmit` completely clean and fails all three guards.
+
+**The shell owns what no screen is trusted to remember.** The estate banner is
+rendered above every screen by the shell, because a rule each screen must apply
+for itself is one the sixth screen, written in a hurry a year from now, will
+not. A failed load clears the page rather than leaving the previous screen's
+figures under a new heading — a stale count is indistinguishable from a current
+one. And the per-draw request cache never outlives the draw, so the banner and
+the tile beneath it cannot give two different answers to the same question.
+
+**A defect the rendered output found.** The coverage badge named a mechanism —
+"frames were lost", "capture loss could not be measured". True while every
+coverage state came from a capture window; false as soon as they did not. An
+unassessed vulnerability count is `unknown` because no corpus is loaded, and a
+skipped engine is `unknown` because it never ran; both rendered a tooltip
+blaming packet capture, contradicting the basis printed beside it. The title now
+states the consequence and leaves the cause to the basis.
+
+**CI has a Node job.** `test_console.py` skipped silently without it, and a
+skipped test on a summary page reads exactly like a passing one — which would
+have left `OTS-CON-004` enforced by nothing behind a green badge.
+`OT_CONSOLE_REQUIRED` turns that skip into a hard error in the job that exists
+to run it.
 
 ### Phase 6 — Fleet operations
 
@@ -252,6 +300,8 @@ already decode the point values it needs).
 | **D1** | the management NIC must not bridge the OT L2 domain | capture NIC has no IP and TX disabled; management NIC on a dedicated VLAN, ACL to the server only |
 | **D2** | continuous capture, and drops are reported | packet-drop accounting is mandatory, not diagnostic |
 | **D3** | volatile facts live on the server | `cvedb/` never ships to a collector; a KEV addition re-prioritises the estate without touching a Pi |
+| **D6** | zones are derived per site | a mostly-defaulted derivation is refused; the engines stay `SKIPPED` and say which of the two empty states applies |
+| **D7** | the console is served by the server | one origin, so no CORS relaxation of the fail-closed estate plane; only `public/` and `dist/` are mounted |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |

@@ -21,7 +21,7 @@ an operator watches for.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 from . import schema
 
@@ -281,15 +281,38 @@ class Store:
         """Every collector's asset rows, for the estate merge."""
         return self.assets(collector_id=None, limit=limit)
 
-    def detections_for(self, asset_keys: Iterable[str]) -> List[Dict]:
-        keys = list(asset_keys)
-        if not keys:
-            return []
+    def all_flows(self, limit: int = 20000) -> List[Dict]:
+        """Every collector's flow rows, for zone derivation and attack paths.
+
+        The collector_id travels with the row and is not decoration: `zones.derive`
+        attributes a flow to a site through it, and a flow that arrived without
+        one lands in its own scope rather than being folded into a neighbouring
+        plant.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT flow_key, collector_id, first_seen, last_seen, "
+                "observation_count, attributes FROM flow "
+                "ORDER BY last_seen DESC NULLS LAST LIMIT %s", (limit,))
+            return [{"flow_key": r[0], "collector_id": r[1], "first_seen": r[2],
+                     "last_seen": r[3], "observation_count": r[4],
+                     "attributes": r[5]} for r in cur.fetchall()]
+
+    def all_detections(self, limit: int = 20000) -> List[Dict]:
+        """Every collector's detections, unfiltered.
+
+        Deliberately not `WHERE asset_key = ANY(<keys the merge knows>)`. That
+        query cannot return a detection whose asset row never arrived, so the
+        count of orphans computed from it is always zero — a check that reports
+        clean because it was structurally unable to look. The filtering happens
+        after the merge, in `estate.reattach_detections`, where the (collector,
+        key) pair is available and the orphans are visible.
+        """
         with self.conn.cursor() as cur:
             cur.execute(
                 "SELECT detection_key, collector_id, asset_key, rule_id, "
                 "severity, last_coverage, rulepack_version, attributes "
-                "FROM detection WHERE asset_key = ANY(%s)", (keys,))
+                "FROM detection ORDER BY severity DESC LIMIT %s", (limit,))
             return [{"detection_key": r[0], "collector_id": r[1],
                      "asset_key": r[2], "rule_id": r[3], "severity": r[4],
                      "last_coverage": r[5], "rulepack_version": r[6],

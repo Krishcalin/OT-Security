@@ -73,6 +73,17 @@ export interface CoverageBadge {
  * "we could not tell" is the state most likely to be mistaken for "fine", and
  * making it quiet on screen would restore exactly the ambiguity the three-state
  * model exists to remove.
+ *
+ * The title states the CONSEQUENCE and leaves the cause to `basis`.
+ *
+ * It used to name a mechanism — "frames were lost", "capture loss could not be
+ * measured" — which was true when every coverage state came from a capture
+ * window and became false as soon as they did not. An unassessed vulnerability
+ * count is `unknown` because no corpus is loaded, and a skipped engine is
+ * `unknown` because it never ran; both rendered a tooltip blaming packet
+ * capture, directly contradicting the basis printed beside it. A confident
+ * explanation of the wrong cause is worse than no explanation, and this is the
+ * one place in the console that speaks in the operator's ear.
  */
 export function badge(coverage: Coverage, basis: string): CoverageBadge {
   switch (coverage) {
@@ -82,13 +93,13 @@ export function badge(coverage: Coverage, basis: string): CoverageBadge {
       return {
         label: "degraded",
         tone: "warn",
-        title: `${basis} — frames were lost, so this is a floor, not a total`,
+        title: `${basis} — something in this chain was incomplete, so treat this as a floor rather than a total`,
       };
     case "unknown":
       return {
         label: "not measured",
         tone: "alarm",
-        title: `${basis} — capture loss could not be measured, so this cannot be read as clean`,
+        title: `${basis} — this was not measured, so it cannot be read as clean`,
       };
   }
 }

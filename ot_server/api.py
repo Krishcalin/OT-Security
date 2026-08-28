@@ -72,9 +72,14 @@ def collector_identity(headers: Dict[str, str],
     return subject
 
 
-def create_app(store, require_operator: Optional[Callable] = None):
+def create_app(store, require_operator: Optional[Callable] = None,
+               console_dir: Optional[str] = None):
     """Build the ASGI app. `store` is injected so the routes can be tested
-    against a double without Postgres running."""
+    against a double without Postgres running.
+
+    `console_dir` overrides where the operator console is served from;
+    None means the repository's `console/`, and a deployment without one
+    simply serves no static files."""
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.responses import JSONResponse
 
@@ -247,7 +252,108 @@ def create_app(store, require_operator: Optional[Callable] = None):
             "matches": [m.to_dict() for m in matches],
         }
 
+    @app.get("/api/v1/estate/analysis")
+    def estate_analysis(request: Request):
+        """The five server-side engines over the merged estate (OTS-SRV-003).
+
+        Every result names what it could not consider, and an engine without its
+        required inputs is SKIPPED with a reason rather than run on nothing —
+        drift without a baseline would answer *nothing changed*, which is the
+        most confident wrong answer available.
+        """
+        _operator(request)
+        from . import analysis as engines
+
+        sites = store.collector_sites()
+        assets = estate_merge.merge(store.all_assets(), sites)
+
+        # Stored detections carry the COLLECTOR's asset key; the engines look
+        # them up by estate_id. Handing them over unchanged attaches nothing and
+        # every asset reads as detection-free — a clean estate, produced by a
+        # wiring fault. See estate.reattach_detections.
+        raw = store.all_detections()
+        detections = estate_merge.reattach_detections(assets, raw)
+
+        summaries = [
+            ingest.summarise_coverage(cid, store.recent_windows(cid),
+                                      store.recent_gaps(cid))
+            for cid in store.collector_ids()]
+        cov = estate_merge.estate_coverage(summaries)
+
+        report = engines.run_all([a.to_dict() for a in assets], detections,
+                                 store.all_flows(),
+                                 coverage_explain=cov.explain(), sites=sites)
+        body = report.to_dict()
+        # A detection whose asset row never arrived is a hole in the inventory,
+        # not a rounding error: the estate has findings for a device it cannot
+        # show. Reported rather than quietly dropped.
+        body["orphaned_detections"] = len(raw) - len(detections)
+        return body
+
+    @app.get("/api/v1/estate/zones")
+    def estate_zones(request: Request):
+        """Purdue zones, derived per site, with how each level was arrived at
+        (decision D6, unblocks OTS-CON-005).
+
+        `state` is the field that matters. "none" and "rejected" both leave the
+        topology view empty, and they are not the same thing: one says the
+        estate had nothing to derive from, the other says a derivation was made
+        and was not trusted enough to draw. Collapsing them would let a guessed
+        segmentation be read as an observed one.
+        """
+        _operator(request)
+        from . import zones as zone_derivation
+
+        sites = store.collector_sites()
+        assets = estate_merge.merge(store.all_assets(), sites)
+        topologies = zone_derivation.derive([a.to_dict() for a in assets],
+                                            store.all_flows(), sites)
+        confidence = zone_derivation.overall_confidence(topologies)
+        return {
+            "sites": [t.to_dict() for t in topologies],
+            "zones": confidence.zones,
+            "defaulted": confidence.defaulted,
+            "usable": confidence.usable,
+            "explain": confidence.explain(),
+            "state": ("none" if confidence.zones == 0
+                      else "derived" if confidence.usable else "rejected"),
+        }
+
+    _mount_console(app, console_dir)
     return app
+
+
+def _mount_console(app, console_dir: Optional[str]) -> None:
+    """Serve the operator console as static files from this same app.
+
+    Same origin on purpose: the console client sends `credentials:
+    "same-origin"` and takes no API base URL, so there is one deployable and no
+    CORS relaxation of the estate plane to make a second one reachable.
+
+    The shell is unauthenticated and that is deliberate — it contains no estate
+    data. Every figure it shows comes from `/api/v1/estate/*`, which is
+    fail-closed, so an unauthorised visitor gets the frame and a 503 in place of
+    every number rather than an empty page that reads as an empty plant.
+
+    Only `public/` and `dist/` are mounted. `src/` and `node_modules/` stay
+    unreachable: serving the tree wholesale would publish the source and its
+    dependencies to anyone who can reach the port.
+    """
+    if console_dir is None:
+        console_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "console")
+    public = os.path.join(console_dir, "public")
+    dist = os.path.join(console_dir, "dist")
+    if not os.path.isdir(public):
+        return                     # server-only deployment; the API still runs
+
+    from fastapi.staticfiles import StaticFiles
+
+    if os.path.isdir(dist):
+        app.mount("/dist", StaticFiles(directory=dist), name="console-dist")
+    # Mounted last so every API route is matched first.
+    app.mount("/", StaticFiles(directory=public, html=True), name="console")
 
 
 class _BatchLookup:

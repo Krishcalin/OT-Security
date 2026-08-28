@@ -23,6 +23,7 @@ answer from *"we haven't done that yet."*
 | **D4** | Does the collector ever transmit? | **No** — no send path exists | `tests/test_collector_capture.py` |
 | **D5** | Do packet payloads leave the plant? | **No** — records carry conclusions, not bytes | `tests/test_collector_analysis.py` |
 | **D6** | Are Purdue zones derived across the estate? | **No** — per site, and a mostly-guessed derivation is refused | `tests/test_server_zones.py` |
+| **D7** | Where does the operator console live? | **In the server** — one origin, one deployable | `tests/test_console.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -179,6 +180,44 @@ describes.
 **What enforces it.** `tests/test_server_zones.py`. Deriving estate-wide instead
 of per site fails 5 tests; letting a mostly-defaulted derivation count as usable
 fails 2.
+
+---
+
+## D7 — The console is served by the analysis server
+
+**Asked because** the console had to be delivered somehow, and the obvious
+alternative — a static bundle on whatever web server the plant already runs — is
+how most front ends ship.
+
+**Answer.** The server serves it, from the same origin as the API.
+
+**Why.** A second origin means the browser sends no credentials to the estate
+API unless CORS is opened for it. The estate plane is the half of this system
+that is fail-closed on purpose: ingest credentials do not grant console access
+(`OTS-SRV-006`), because a certificate lifted from a substation cabinet must not
+yield a map of the plant. Relaxing its cross-origin policy to make a separate
+bundle reachable would widen exactly the surface that requirement narrows, and
+it would widen it in a configuration file rather than in code anyone reviews.
+
+One origin also means one deployable. The console client takes no API base URL
+and sends `credentials: "same-origin"`; there is no environment where those are
+configured wrongly, because there is no configuration.
+
+**What that costs, and what is done about it.** A static mount is a way to serve
+files that were never meant to be served.
+
+- Only `console/public/` and `console/dist/` are mounted. Mounting the console
+  directory would publish `src/` and `node_modules/` to anyone who can reach the
+  port; four tests assert those paths 404.
+- The shell is **unauthenticated and empty**. It contains no estate data — every
+  figure on it is fetched from `/api/v1/estate/*`, which still answers 503
+  without an operator. An unauthorised visitor gets the frame and an explicit
+  refusal in place of every number, which is deliberately not the same as a page
+  of empty tables.
+- If the console was never built, `index.html` says so. Its untouched content is
+  a failure message rather than a spinner or a blank page: a blank page reads as
+  a plant with nothing in it, which is the failure this system exists to
+  prevent, arriving at the last step where a person actually reads it.
 
 ---
 

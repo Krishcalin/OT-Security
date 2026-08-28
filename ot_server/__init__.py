@@ -16,7 +16,8 @@ from . import analysis, api, estate, ingest, schema, store, vulnmatch, zones
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
                      asset_state, decide, summarise_coverage, validate)
 from .schema import DDL, RETENTION_MONTHS, SCHEMA_VERSION
-from .estate import (EstateAsset, EstateCoverage, estate_coverage, merge)
+from .estate import (EstateAsset, EstateCoverage, estate_coverage, merge,
+                     orphaned_detections, reattach_detections)
 from .store import Store, StoreError
 from .vulnmatch import (AssetMatch, Corpus, MatchState, Priority,
                         load_corpus, match_estate, reprioritise)
@@ -31,6 +32,7 @@ __all__ = [
     "Store", "StoreError",
     "estate", "vulnmatch",
     "EstateAsset", "EstateCoverage", "estate_coverage", "merge",
+    "orphaned_detections", "reattach_detections",
     "AssetMatch", "Corpus", "MatchState", "Priority",
     "load_corpus", "match_estate", "reprioritise",
     "analysis", "zones",

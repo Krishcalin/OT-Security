@@ -10,3 +10,10 @@ pytest>=7.0
 # `pip install -r requirements-dev.txt` from ot_scanner/ sets up everything.
 fastapi>=0.110
 psycopg[binary]>=3.1
+
+# starlette's TestClient imports httpx, and neither fastapi nor starlette
+# depends on it. Without this the API tests do not skip — they ERROR at import,
+# which on a summary page looks like an infrastructure problem rather than an
+# untested estate plane. It is installed here explicitly rather than relied on
+# as somebody else's transitive dependency.
+httpx>=0.27

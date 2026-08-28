@@ -1,0 +1,330 @@
+/*
+ * Console styling (OTS-CON-004).
+ *
+ * The visual rule this file exists to enforce: a qualified number must not look
+ * like a clean one. Coverage is carried in the type system so it cannot be
+ * omitted, but a badge rendered in quiet grey beside a large confident figure is
+ * omission by another route — the operator's eye takes the number and skips the
+ * caveat.
+ *
+ * So a qualified metric is marked on the tile itself, not only in its chip, and
+ * "not measured" is the loudest state on the page rather than a neutral grey.
+ * Unknown coverage is the state most likely to be mistaken for fine.
+ */
+
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --line: #262b36;
+  --ink: #e6e9ef;
+  --ink-dim: #9aa3b2;
+  --ok: #4a9d5f;
+  --warn: #c98a2b;
+  --alarm: #c4453f;
+  --link: #6aa0d8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.92em;
+  color: var(--ink-dim);
+}
+
+/* ── shell ─────────────────────────────────────────────────────────────── */
+
+.shell-head {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-link {
+  color: var(--ink-dim);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.nav-link:hover {
+  color: var(--ink);
+  background: #1f232c;
+}
+
+.nav-active {
+  color: var(--ink);
+  background: #232833;
+}
+
+.banner-slot:empty {
+  display: none;
+}
+
+main {
+  padding: 24px;
+  max-width: 1400px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 18px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 28px 0 10px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.note {
+  color: var(--ink-dim);
+  max-width: 78ch;
+  margin: 8px 0 16px;
+}
+
+.loading {
+  color: var(--ink-dim);
+  padding: 40px 0;
+}
+
+/* ── banners and panels ────────────────────────────────────────────────── */
+
+.banner {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.banner-ok {
+  background: #16241a;
+  color: #b9dcc2;
+}
+
+/*
+ * Full width, above the content, and unmissable. The requirement is "visibly
+ * marked, not footnoted", and a footnote is exactly what a small tinted strip
+ * under the tables would be.
+ */
+.banner-alarm {
+  background: #2c1518;
+  color: #f2c9c7;
+  border-bottom: 2px solid var(--alarm);
+}
+
+.panel {
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin: 16px 0;
+  max-width: 90ch;
+}
+
+.panel h2 {
+  margin-top: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.panel-alarm {
+  border-left: 4px solid var(--alarm);
+}
+
+.panel-warn {
+  border-left: 4px solid var(--warn);
+}
+
+/* ── metrics ───────────────────────────────────────────────────────────── */
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.metric {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 18px;
+  min-width: 190px;
+}
+
+/*
+ * A qualified figure is marked on the tile, not only in its chip. A number can
+ * be read from across a room; a chip cannot, and a tile that looks identical to
+ * a trustworthy one has already told the operator the wrong thing before the
+ * chip is read.
+ */
+.metric-qualified {
+  border-left: 4px solid var(--warn);
+  background: #1d1a15;
+}
+
+.metric-label {
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+.metric-value {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 2px 0 6px;
+}
+
+.metric-cov {
+  font-size: 12px;
+}
+
+/* A zero that cannot be trusted says so in words, beneath the figure. */
+.zero {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e0b98a;
+  max-width: 28ch;
+}
+
+/* ── chips ─────────────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.chip-ok {
+  background: #16241a;
+  color: #a9d3b4;
+  border-color: #24402c;
+}
+
+.chip-warn {
+  background: #2a2114;
+  color: #e0b98a;
+  border-color: #4a3a1f;
+}
+
+/* Never a neutral grey: "we could not tell" must not look restful. */
+.chip-alarm {
+  background: #2c1518;
+  color: #f0b3b0;
+  border-color: #5a2a2c;
+}
+
+/* ── tables ────────────────────────────────────────────────────────────── */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0 24px;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  color: var(--ink-dim);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Per row, because one collector may be blind while another is healthy. */
+.row-qualified {
+  background: #1b1814;
+}
+
+.warn-list,
+.hit-list,
+.limits {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.warn-list li,
+.limits li {
+  color: #e0b98a;
+}
+
+.hit-why {
+  color: var(--ink-dim);
+}
+
+/* ── engines ───────────────────────────────────────────────────────────── */
+
+.engine {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  max-width: 90ch;
+}
+
+.engine-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.engine-name {
+  font-weight: 600;
+}
+
+.engine-reason {
+  color: var(--ink-dim);
+  margin-top: 6px;
+}
+
+/*
+ * Limitations are part of the result, so they are styled as content rather than
+ * as fine print. An engine result read without them is a different claim from
+ * the one the engine actually made.
+ */
+.limits {
+  margin-top: 8px;
+}

@@ -239,11 +239,14 @@ class _FakeStore:
     """Enough store for the estate routes. The SQL has its own suite against a
     real PostgreSQL; this exercises the wiring."""
 
-    def __init__(self, rows=None, sites=None, windows=None, gaps=None):
+    def __init__(self, rows=None, sites=None, windows=None, gaps=None,
+                 flows=None, detections=None):
         self._rows = rows or []
         self._sites = sites or {}
         self._windows = windows or {}
         self._gaps = gaps or {}
+        self._flows = flows or []
+        self._detections = detections or []
 
     def collector_ids(self):
         return sorted(self._sites)
@@ -266,6 +269,12 @@ class _FakeStore:
 
     def latest_window(self, cid):
         return "w-1"
+
+    def all_flows(self, limit=20000):
+        return list(self._flows)
+
+    def all_detections(self, limit=20000):
+        return list(self._detections)
 
 
 def _client(store, operator=True):
@@ -325,9 +334,126 @@ def test_the_vulnerability_endpoint_states_whether_a_corpus_was_loaded():
     "/api/v1/estate/inventory",
     "/api/v1/estate/vulnerabilities",
     "/api/v1/estate/assets",
+    "/api/v1/estate/analysis",
+    "/api/v1/estate/zones",
 ])
 def test_the_estate_plane_is_fail_closed_without_operator_auth(path):
     """OTS-SRV-006. A certificate lifted from a substation cabinet must not
     yield a map of the plant."""
     client = _client(_two_sites(), operator=False)
     assert client.get(path).status_code == 503
+
+
+# ── detections must find their merged asset (OTS-SRV-003 wiring) ───────────
+
+def test_stored_detections_are_rekeyed_onto_the_merged_asset():
+    """The engines look detections up by estate_id; the store holds them under
+    the COLLECTOR's asset key. Passed through unchanged they attach to nothing,
+    and every asset then reads as detection-free — a clean estate produced by a
+    wiring fault rather than by a clean plant."""
+    rows = [_row("pi-a")]
+    assets = estate.merge(rows, {"pi-a": "Substation A"})
+    detections = [{"collector_id": "pi-a", "asset_key": "ip:10.0.0.1",
+                   "rule_id": "r1", "severity": "high"}]
+    out = estate.reattach_detections(assets, detections)
+    assert len(out) == 1
+    assert out[0]["asset_key"] == assets[0].estate_id
+    # The original key is kept rather than overwritten, so the collector's view
+    # is still traceable from the merged one.
+    assert out[0]["collector_asset_key"] == "ip:10.0.0.1"
+
+
+def test_a_detection_is_not_hung_on_another_plants_asset():
+    """The merge trap one level down. Both plants have a 10.0.0.1; matching on
+    the asset key alone would attach Substation B's finding to Substation A's
+    device, and nothing afterwards looks wrong."""
+    rows = [_row("pi-a"), _row("pi-b")]
+    sites = {"pi-a": "Substation A", "pi-b": "Substation B"}
+    assets = estate.merge(rows, sites)
+    by_site = {a.site: a.estate_id for a in assets}
+    detections = [{"collector_id": "pi-b", "asset_key": "ip:10.0.0.1",
+                   "rule_id": "r1", "severity": "high"}]
+    out = estate.reattach_detections(assets, detections)
+    assert len(out) == 1
+    assert out[0]["asset_key"] == by_site["Substation B"]
+    assert out[0]["asset_key"] != by_site["Substation A"]
+
+
+def test_a_detection_with_no_matching_asset_is_reported_not_invented():
+    """Its device never arrived. Dropping it silently would hide a hole in the
+    inventory; inventing an owner for it would be worse."""
+    assets = estate.merge([_row("pi-a")], {"pi-a": "Substation A"})
+    orphan = [{"collector_id": "pi-a", "asset_key": "ip:10.9.9.9"}]
+    assert estate.reattach_detections(assets, orphan) == []
+    assert estate.orphaned_detections(assets, orphan) == 1
+
+
+# ── the analysis and zone endpoints (OTS-SRV-003, OTS-CON-005) ─────────────
+
+def test_the_analysis_endpoint_names_what_each_engine_could_not_consider():
+    body = _client(_two_sites()).get("/api/v1/estate/analysis").json()
+    assert body["engines"], "no engine reported"
+    for engine in body["engines"]:
+        assert set(engine) >= {"engine", "status", "reason", "limitations",
+                               "trustworthy"}
+
+
+def test_drift_is_skipped_rather_than_answering_nothing_changed():
+    """With no baseline recorded, 'nothing changed' is the most confident wrong
+    answer available."""
+    body = _client(_two_sites()).get("/api/v1/estate/analysis").json()
+    drift = [e for e in body["engines"] if e["engine"] == "drift"]
+    assert drift and drift[0]["status"] == "skipped"
+    assert "baseline" in drift[0]["reason"]
+
+
+def test_the_analysis_endpoint_reports_orphaned_detections():
+    store = _FakeStore(
+        rows=[_row("pi-a")], sites={"pi-a": "Substation A"},
+        detections=[{"collector_id": "pi-a", "asset_key": "ip:10.9.9.9"}])
+    body = _client(store).get("/api/v1/estate/analysis").json()
+    assert body["orphaned_detections"] == 1
+
+
+def test_detections_reach_the_engines_through_the_endpoint():
+    """The wiring, end to end: a stored detection under a collector key must
+    arrive attached rather than orphaned."""
+    store = _FakeStore(
+        rows=[_row("pi-a")], sites={"pi-a": "Substation A"},
+        detections=[{"collector_id": "pi-a", "asset_key": "ip:10.0.0.1",
+                     "rule_id": "r1", "severity": "high",
+                     "attributes": {"rule_id": "r1"}}])
+    body = _client(store).get("/api/v1/estate/analysis").json()
+    assert body["orphaned_detections"] == 0
+
+
+def test_the_zone_endpoint_separates_none_derived_from_derived_and_rejected():
+    """Both draw an empty topology and they are not the same claim: one had
+    nothing to derive from, the other derived something and did not trust it."""
+    empty = _FakeStore(sites={"pi-a": "Substation A"})
+    body = _client(empty).get("/api/v1/estate/zones").json()
+    assert body["state"] == "none"
+    assert body["zones"] == 0
+
+    populated = _client(_two_sites()).get("/api/v1/estate/zones").json()
+    assert populated["state"] in ("derived", "rejected", "none")
+    if populated["zones"]:
+        assert populated["state"] == ("derived" if populated["usable"]
+                                      else "rejected")
+
+
+def test_zones_are_reported_per_site():
+    """Estate-wide derivation would fuse two plants that share 10.10.1.0/24."""
+    body = _client(_two_sites()).get("/api/v1/estate/zones").json()
+    sites = {s["site"] for s in body["sites"]}
+    assert sites == {"Substation A", "Substation B"}
+
+
+def test_every_zone_records_how_its_level_was_arrived_at():
+    """A guessed level must not be indistinguishable from an observed one — the
+    rules someone writes from this may reach a live plant network."""
+    body = _client(_two_sites()).get("/api/v1/estate/zones").json()
+    for site in body["sites"]:
+        for zone in site["zones"]:
+            assert zone["level_basis"] in ("role", "protocol", "defaulted",
+                                           "unknown")
