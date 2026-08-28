@@ -74,16 +74,29 @@ export interface CoverageBadge {
  * making it quiet on screen would restore exactly the ambiguity the three-state
  * model exists to remove.
  *
- * The title states the CONSEQUENCE and leaves the cause to `basis`.
+ * The LABEL and the TITLE both state the consequence and leave the cause to
+ * `basis`. That took two goes to get right, and both mistakes were the same
+ * mistake.
  *
- * It used to name a mechanism — "frames were lost", "capture loss could not be
- * measured" — which was true when every coverage state came from a capture
- * window and became false as soon as they did not. An unassessed vulnerability
- * count is `unknown` because no corpus is loaded, and a skipped engine is
- * `unknown` because it never ran; both rendered a tooltip blaming packet
- * capture, directly contradicting the basis printed beside it. A confident
- * explanation of the wrong cause is worse than no explanation, and this is the
- * one place in the console that speaks in the operator's ear.
+ * The title used to name a mechanism — "frames were lost", "capture loss could
+ * not be measured" — which was true when every coverage state came from a
+ * capture window and became false the moment they did not.
+ *
+ * The label then did it again, more quietly. "not measured" reads correctly
+ * over a capture window and wrongly over everything else `unknown` now covers:
+ * a revoked certificate was measured perfectly well and is simply not valid; a
+ * skipped engine never ran; an unassessed vulnerability had no corpus to assess
+ * against; a silent collector's reading is stale rather than absent. The chip
+ * asserted a cause the basis beside it contradicted — on a table row, where the
+ * label is read and the tooltip is not.
+ *
+ * So the label is now cause-free. Every `unknown` means one thing regardless of
+ * how it arose: this has not been established as clean. The basis says why, and
+ * `measured()` refuses to build a value without one.
+ *
+ * It stays an ALARM tone. "Unconfirmed" must not look restful — that is the
+ * state most likely to be mistaken for fine, and making it quiet on screen
+ * would restore exactly the ambiguity the three-state model removes.
  */
 export function badge(coverage: Coverage, basis: string): CoverageBadge {
   switch (coverage) {
@@ -97,9 +110,9 @@ export function badge(coverage: Coverage, basis: string): CoverageBadge {
       };
     case "unknown":
       return {
-        label: "not measured",
+        label: "unconfirmed",
         tone: "alarm",
-        title: `${basis} — this was not measured, so it cannot be read as clean`,
+        title: `${basis} — this has not been established as clean`,
       };
   }
 }

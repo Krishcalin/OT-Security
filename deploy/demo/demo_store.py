@@ -68,6 +68,7 @@ class DemoStore:
         self._assets = _seed_assets()
         self._flows = _seed_flows()
         self._detections = _seed_detections()
+        self._packs: Dict[Any, Dict] = {}
 
     # ── the estate ────────────────────────────────────────────────────────
 
@@ -140,13 +141,37 @@ class DemoStore:
         ]
 
     def latest_pack_version(self, kind: str) -> int:
-        return 0
+        return max([r["version"] for r in self._packs.values()
+                    if r["kind"] == kind] or [0])
 
     def reported_pack_versions(self) -> Dict[str, Any]:
-        return {cid: None for cid in self.sites}
+        """One current, one a version behind, one that has never said.
+
+        The three states the fleet view has to keep apart — and the middle one
+        is the whole reason it exists: a collector that refused or missed a pack
+        keeps running and goes quiet about everything the newer pack would have
+        found.
+        """
+        return {"pi-alderley-01": 2, "pi-alderley-02": 1,
+                "pi-marchwood-01": None}
+
+    def publish_pack(self, pack, published_by: str = "") -> None:
+        self._packs[(pack.kind, pack.version)] = {
+            "kind": pack.kind, "version": pack.version,
+            "created_at": pack.created_at, "digest": pack.digest,
+            "signature": pack.signature, "payload": pack.payload,
+            "published_by": published_by}
+
+    def latest_pack(self, kind: str) -> Optional[Dict]:
+        rows = [r for r in self._packs.values() if r["kind"] == kind]
+        if not rows:
+            return None
+        return dict(max(rows, key=lambda r: r["version"]))
 
     def packs(self, kind=None) -> List[Dict]:
-        return []
+        return [dict(r) for r in sorted(self._packs.values(),
+                                        key=lambda r: -r["version"])
+                if kind in (None, r["kind"])]
 
     # ── certificates ──────────────────────────────────────────────────────
 

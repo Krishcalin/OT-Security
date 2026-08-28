@@ -44,6 +44,7 @@ for path in (_ROOT, _HERE, os.path.join(_ROOT, "ot_scanner")):
 
 from demo_store import DemoStore                           # noqa: E402
 from ot_server import ca as fleet_ca                       # noqa: E402
+from ot_server import packs as fleet_packs                 # noqa: E402
 from ot_server.api import create_app                       # noqa: E402
 
 
@@ -74,11 +75,47 @@ def _seed_certificates(store: DemoStore, authority) -> None:
                 issued.serial, "cabinet found open during an inspection")
 
 
+def _seed_packs(store: DemoStore, signer) -> None:
+    """Two published packs, signed by the real signer.
+
+    Signed rather than fabricated, so the fleet view is reading the same
+    issuance record a deployment would and the digests on screen are the
+    digests of the content beside them.
+    """
+    store.publish_pack(signer.sign(fleet_packs.KIND_RULES, 1, {
+        "indicators": [
+            {"kind": "ip", "value": "203.0.113.9", "why": "staging host"},
+        ],
+        "signatures": [
+            {"rule_id": "iec104-unauthorised-command", "protocol": "iec104",
+             "severity": "high", "title": "Command from an unexpected source"},
+        ],
+    }), published_by="control-room")
+    store.publish_pack(signer.sign(fleet_packs.KIND_RULES, 2, {
+        "indicators": [
+            {"kind": "ip", "value": "203.0.113.9", "why": "staging host"},
+            {"kind": "domain", "value": "updates.example.invalid",
+             "why": "observed beaconing"},
+        ],
+        "signatures": [
+            {"rule_id": "iec104-unauthorised-command", "protocol": "iec104",
+             "severity": "high", "title": "Command from an unexpected source"},
+            {"rule_id": "modbus-write-from-workstation", "protocol": "modbus",
+             "severity": "high", "title": "Write coil from an engineering host"},
+        ],
+        "advisories": [{"id": "ICSA-26-001", "title": "Vendor advisory"}],
+    }), published_by="control-room")
+
+
 def build_app():
     store = DemoStore()
     authority = fleet_ca.CertificateAuthority.load_or_create(
         os.environ.get("POWERNETVIEW_CA_DIR", "/var/lib/power-netview/ca"))
     _seed_certificates(store, authority)
+
+    signer = fleet_packs.ContentSigner.load_or_create(
+        os.environ.get("POWERNETVIEW_CA_DIR", "/var/lib/power-netview/ca"))
+    _seed_packs(store, signer)
 
     if not os.environ.get("POWERNETVIEW_BOOTSTRAP_USER"):
         raise SystemExit(
@@ -90,7 +127,7 @@ def build_app():
 
     return create_app(store,
                       console_dir=os.path.join(_ROOT, "console"),
-                      ca=authority, local_auth=True)
+                      ca=authority, signer=signer, local_auth=True)
 
 
 app = build_app()

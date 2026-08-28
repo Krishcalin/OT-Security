@@ -425,6 +425,38 @@ def test_only_the_built_console_is_reachable(path):
     assert _app().get(path).status_code == 404
 
 
+def test_the_unknown_label_does_not_assert_a_cause_either():
+    """The second time this mistake was made, and more quietly than the first.
+
+    The TITLE was fixed to stop naming a mechanism. The LABEL kept doing it:
+    "not measured" reads correctly over a capture window and wrongly over
+    everything else `unknown` now covers — a revoked certificate was measured
+    perfectly well and is simply not valid; a skipped engine never ran; an
+    unassessed vulnerability had no corpus. The chip asserted a cause the basis
+    beside it contradicted, on a table row where the label is read and the
+    tooltip is not.
+
+    Every `unknown` means one thing regardless of how it arose: this has not
+    been established as clean.
+    """
+    src = _read("coverage.ts")
+    labels = re.findall(r'label:\s*"([^"]+)"', src)
+    assert labels, "the badge labels could not be found"
+    for label in labels:
+        for mechanism in ("measured", "frames", "capture", "packet", "lost"):
+            assert mechanism not in label.lower(), (
+                "the %r label names %r as a cause, which is wrong for every "
+                "coverage state that did not arise that way" % (label, mechanism))
+
+
+def test_unknown_is_still_the_loudest_state_on_the_page():
+    """Cause-free must not become restful. It is the state most likely to be
+    mistaken for fine."""
+    src = _read("coverage.ts")
+    unknown = src[src.index('case "unknown"'):]
+    assert '"alarm"' in unknown[:400]
+
+
 def test_a_coverage_badge_does_not_assert_a_cause_it_cannot_know():
     """The badge titles used to name a mechanism — "frames were lost", "capture
     loss could not be measured". That was true while every coverage state came
