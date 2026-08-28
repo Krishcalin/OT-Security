@@ -10,8 +10,37 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # Report every leg. A failure on one Python version is information, not a
+      # reason to stop testing the others.
+      fail-fast: false
       matrix:
         python-version: ["3.8", "3.10", "3.12"]
+
+    # PostgreSQL for the server store tests (Q1: PostgreSQL only).
+    #
+    # Without this the store tests SKIP, and a skipped test in CI reads exactly
+    # like a passing one on the summary page — which is the same
+    # looks-clean-but-was-never-checked failure the whole product is built to
+    # avoid. tests/test_server_store.py refuses to skip when CI=true, so a
+    # service that fails to start is a red build rather than a quiet one.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: otfleet
+          # Ephemeral, per-job container reachable only from this runner.
+          POSTGRES_PASSWORD: ci-throwaway
+          POSTGRES_DB: otfleet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U otfleet -d otfleet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      OT_TEST_DSN: postgresql://otfleet:ci-throwaway@localhost:5432/otfleet
 
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +60,14 @@ jobs:
       - name: Run tests
         working-directory: ot_scanner
         run: python -m pytest tests/ -v --tb=short
+
+      - name: Confirm the store tests actually ran
+        working-directory: ot_scanner
+        # Belt and braces on top of the in-test guard: if the Postgres service
+        # is unreachable these deselect to zero and the run would otherwise be
+        # green having tested no SQL at all.
+        run: |
+          python -m pytest tests/test_server_store.py -q \
+            | tee /tmp/store.txt
+          grep -qE "[0-9]+ passed" /tmp/store.txt
+          ! grep -q "skipped" /tmp/store.txt

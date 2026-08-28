@@ -1,1 +1,12 @@
+# Test dependencies for the whole repository — scanner, collector AND server.
+#
+# The suite in ot_scanner/tests/ covers all three, so running it needs the
+# server's dependencies too. Without them the server tests do not fail, they
+# ERROR at import, which reads as a broken checkout rather than a missing
+# install.
 pytest>=7.0
+
+# Server (ot_server/). Kept here rather than referenced with -r so a single
+# `pip install -r requirements-dev.txt` from ot_scanner/ sets up everything.
+fastapi>=0.110
+psycopg[binary]>=3.1

@@ -26,6 +26,19 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 sys.path.insert(0, _ROOT)
 
 DSN = os.environ.get("OT_TEST_DSN")
+
+# A SKIPPED test in CI reads exactly like a passing one on the summary page.
+# That is the same looks-clean-but-was-never-checked failure this whole product
+# is built to avoid, so the skip is allowed on a developer machine and REFUSED
+# in CI: if the Postgres service did not come up, the build goes red rather than
+# quietly green having exercised no SQL at all.
+_IN_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
+if _IN_CI and not DSN:
+    raise RuntimeError(
+        "OT_TEST_DSN is unset in CI. The PostgreSQL store tests would skip, and "
+        "a skipped test on the summary page is indistinguishable from a passing "
+        "one. Start the postgres service or remove this suite deliberately.")
+
 pytestmark = pytest.mark.skipif(
     not DSN, reason="set OT_TEST_DSN to run the PostgreSQL store tests")
 
