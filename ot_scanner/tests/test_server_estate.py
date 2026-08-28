@@ -52,14 +52,25 @@ def test_the_same_ip_at_one_site_is_one_asset():
     assert assets[0].seen_by == 2
 
 
-def test_a_mac_joins_across_sites_and_says_so():
-    """MAC is the stronger identity, so it merges — but a device at two sites is
-    either one that moved or address spoofing, and somebody should look."""
+def test_a_mac_at_two_sites_is_flagged_and_NOT_merged():
+    """An earlier version merged here, reasoning that OUI addresses are unique
+    enough to catch a moved device. That contradicted the module's own rule the
+    moment uniqueness failed — and in OT it does: cloned hardware, counterfeit
+    devices, vendors shipping duplicate addresses. Fusing two plants' devices is
+    the unrecoverable direction, so the shared address is reported instead."""
     rows = [_row("pi-a", key="mac:aa:bb:cc:dd:ee:ff", ip="", mac="aa:bb:cc:dd:ee:ff"),
             _row("pi-b", key="mac:aa:bb:cc:dd:ee:ff", ip="", mac="aa:bb:cc:dd:ee:ff")]
     assets = estate.merge(rows, {"pi-a": "Site A", "pi-b": "Site B"})
-    assert len(assets) == 1
-    assert any("two sites" in w or "2 sites" in w for w in assets[0].warnings)
+    assert len(assets) == 2, "devices at two plants were fused on a shared MAC"
+    for asset in assets:
+        assert any("NOT merged" in w for w in asset.warnings)
+
+
+def test_a_mac_joins_within_one_site():
+    rows = [_row("pi-a1", key="mac:aa:bb:cc:dd:ee:ff", ip="", mac="aa:bb:cc:dd:ee:ff"),
+            _row("pi-a2", key="mac:aa:bb:cc:dd:ee:ff", ip="", mac="aa:bb:cc:dd:ee:ff")]
+    assets = estate.merge(rows, {"pi-a1": "Site A", "pi-a2": "Site A"})
+    assert len(assets) == 1 and assets[0].seen_by == 2
 
 
 def test_an_ip_and_a_mac_view_of_one_device_converge_within_a_site():

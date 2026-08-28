@@ -20,10 +20,9 @@ provenance of each contribution has already been averaged away.
 
 THE RULE
 ────────
-  * An IP identity is scoped to a SITE. `10.0.0.1` at Substation A and
-    `10.0.0.1` at Substation B are two assets, always.
-  * A MAC identity is global. OUI-assigned addresses are unique enough to join
-    across sites, which is what catches a device that moved.
+  * BOTH identities are scoped to a SITE. `10.0.0.1` at Substation A and
+    `10.0.0.1` at Substation B are two assets, always — and so are two devices
+    sharing a MAC at different plants.
   * An asset carrying both identities links them, so a collector that sees only
     the IP and one that sees only the MAC still converge — within the site.
 
@@ -31,12 +30,21 @@ WHEN IN DOUBT, DO NOT MERGE
 ───────────────────────────
 Two assets that are really one is a visible, recoverable error: an operator sees
 a duplicate and says so. One asset that is really two is invisible and
-unrecoverable. So every ambiguity resolves toward keeping them apart, and the
-ambiguity is reported rather than silently settled.
+unrecoverable. Every ambiguity therefore resolves toward keeping them apart, and
+the ambiguity is reported rather than silently settled.
 
-A MAC observed at two different sites is the one case where the safe answer is
-not obvious — it may be a device that moved, or it may be spoofing. It merges,
-because the MAC is the stronger identity, and it is FLAGGED so somebody looks.
+WHY MAC IS NOT A GLOBAL KEY, THOUGH IT LOOKS LIKE ONE
+─────────────────────────────────────────────────────
+An earlier version merged on MAC across sites, on the reasoning that OUI-assigned
+addresses are unique enough to catch a device that moved. That contradicted the
+rule above the moment the uniqueness assumption failed — and in OT it does fail:
+cloned and counterfeit hardware, virtualised devices, and vendors shipping
+duplicate addresses are all real. The result would be two plants' devices fused,
+each carrying the other's findings, unrecoverably.
+
+So a MAC seen at another site is REPORTED on both assets and merges neither. A
+device that genuinely moved appears twice with a warning naming the other site,
+which is the recoverable error and the one an operator can act on.
 """
 from __future__ import annotations
 
@@ -75,8 +83,10 @@ def scoped_ip_identity(site: str, ip: str) -> str:
     return "site:%s/ip:%s" % (site or UNKNOWN_SITE, ip)
 
 
-def mac_identity(mac: str) -> str:
-    return "mac:%s" % mac.lower()
+def scoped_mac_identity(site: str, mac: str) -> str:
+    """A MAC identity, scoped to its site. See the module docstring for why this
+    is not global."""
+    return "site:%s/mac:%s" % (site or UNKNOWN_SITE, mac.lower())
 
 
 @dataclass
@@ -165,7 +175,7 @@ def _identities(site: str, row: Dict) -> List[str]:
     if ip:
         out.append(scoped_ip_identity(site, ip))
     if mac:
-        out.append(mac_identity(mac))
+        out.append(scoped_mac_identity(site, mac))
     if not out:
         out.append("key:%s/%s" % (site or UNKNOWN_SITE, key))
     return out
@@ -201,7 +211,32 @@ def merge(rows: Iterable[Dict], sites: Optional[Dict[str, str]] = None
     assets: List[EstateAsset] = []
     for estate_id, members in sorted(grouped.items()):
         assets.append(_build(estate_id, members))
+    _flag_cross_site_macs(assets)
     return assets
+
+
+def _flag_cross_site_macs(assets: List[EstateAsset]) -> None:
+    """Report a MAC seen at more than one site, on every asset that has it.
+
+    Not a merge — see the module docstring. The operator is told the same
+    hardware address appears at two plants and can decide whether that is a
+    device that moved, a clone, or spoofing. The system does not guess.
+    """
+    by_mac: Dict[str, List[EstateAsset]] = {}
+    for asset in assets:
+        if asset.mac:
+            by_mac.setdefault(asset.mac.lower(), []).append(asset)
+    for mac, sharing in by_mac.items():
+        sites = sorted({a.site for a in sharing})
+        if len(sites) < 2:
+            continue
+        for asset in sharing:
+            others = [s for s in sites if s != asset.site]
+            asset.warnings.append(
+                "MAC %s also appears at %s. NOT merged — a shared address across "
+                "plants is a moved device, a clone, or spoofing, and fusing them "
+                "would be unrecoverable. Confirm before treating as one device."
+                % (mac, ", ".join(others)))
 
 
 def _build(estate_id: str, members) -> EstateAsset:
@@ -259,11 +294,6 @@ def _build(estate_id: str, members) -> EstateAsset:
     asset.ip = sorted(ips)[0] if ips else ""
     asset.mac = sorted(macs)[0] if macs else ""
 
-    if len(seen_sites) > 1:
-        asset.warnings.append(
-            "this MAC was observed at %d sites (%s). It may be a device that "
-            "moved, or address spoofing — merged on the stronger identity, but "
-            "worth confirming" % (len(seen_sites), ", ".join(sorted(seen_sites))))
     if len(ips) > 1:
         asset.warnings.append(
             "multiple addresses on one device: %s" % ", ".join(sorted(ips)))

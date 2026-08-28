@@ -253,13 +253,6 @@ class Store:
                      "last_observed_window": r[5], "last_coverage": r[6],
                      "attributes": r[7]} for r in cur.fetchall()]
 
-
-def _json(value: Any) -> str:
-    import json
-
-    return json.dumps(value, separators=(",", ":"), default=str)
-
-
     # ── estate-wide reads (Phase 4) ───────────────────────────────────────
     def collector_sites(self) -> Dict[str, str]:
         """collector_id -> site. The scope every IP identity is merged within.
@@ -301,3 +294,9 @@ def _json(value: Any) -> str:
                      "asset_key": r[2], "rule_id": r[3], "severity": r[4],
                      "last_coverage": r[5], "rulepack_version": r[6],
                      "attributes": r[7]} for r in cur.fetchall()]
+
+
+def _json(value: Any) -> str:
+    import json
+
+    return json.dumps(value, separators=(",", ":"), default=str)
