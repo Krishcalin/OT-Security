@@ -7,11 +7,11 @@ Specification: **OTS-SRS-001**. This document is the *order of work* and the
 record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
-> **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
-> (enrolment, certificate lifecycle and signed content distribution done); the
-> console signs operators in with a second factor (D9). 558 tests passing
-> without a database; 25 more require one and are skipped without it (CI
-> refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
+> **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
+> in with a second factor (D9), the fleet takes signed content (D10), and
+> coverage no longer counts a collector that has stopped reporting. 581 tests
+> passing without a database; 25 more require one and are skipped without it
+> (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
 
 ---
@@ -285,7 +285,7 @@ have left `OTS-CON-004` enforced by nothing behind a green badge.
 `OT_CONSOLE_REQUIRED` turns that skip into a hard error in the job that exists
 to run it.
 
-### Phase 6 — Fleet operations · **ENROLMENT AND LIFECYCLE DONE**
+### Phase 6 — Fleet operations · **COMPLETE**
 
 Enrolment, certificate lifecycle, signed updates, rule-pack distribution, health
 alarms.
@@ -479,7 +479,51 @@ silent. So the fleet view now reports who is behind and who has never announced
 a version — separate states, because only one of them is a collector to go and
 look at.
 
-**Still to do in this phase.** Server-side health alarms. Once the fleet is stable, two borrowed capabilities
+### Fleet health · **DONE**, and it was a correctness fix
+
+The last item in the phase, and it turned out not to be a feature.
+
+**Coverage is computed over the windows that ARRIVED, and nothing in it looks at
+when.** `store.recent_windows` returns the last fifty rows ordered by receipt
+with no time filter, and `ingest.summarise_coverage` has no notion of now. So a
+collector switched off a week ago still has fifty complete windows in the table.
+It summarised as trustworthy, `estate_coverage` counted it among the healthy,
+and the estate screen showed a clean plant — indefinitely, for a site nobody was
+watching.
+
+That is precisely the failure this system exists to refuse, arriving through the
+one dimension the coverage model never considered. "We looked and saw nothing"
+and "we stopped looking last Tuesday" are indistinguishable to a model that only
+measures what was delivered.
+
+`ot_server/health.py` makes silence a first-class state, and
+`coverage_is_believable` is what the estate endpoint now consults before
+counting anybody as healthy. `tests/test_fleet_health.py` pins both halves: one
+test proves `estate_coverage` alone still calls a week-dead collector
+trustworthy, and the next proves the endpoint refuses to.
+
+The alarms themselves follow `collector/health.py`'s reasoning on the capture
+side — **sustained, not instant**. A missed heartbeat is a lost packet or a busy
+link; six missed is a collector that is not coming back on its own. And every
+alarm names something a person can go and do, because one that does not is a
+page at 3am that begins with an hour of guessing:
+
+| alarm | what it means | why it is separate |
+|---|---|---|
+| silent | nothing heard for half an hour | somebody at the cabinet; its stored coverage is no longer counted |
+| never reported | enrolled and never announced itself | somebody forgot to start it — a different first move |
+| capture unmeasurable | drop counters unreadable | a window whose loss cannot be measured supports no clean result |
+| capture degraded | frames dropping | resize the buffer; every count from this site is a floor |
+| queue growing / critical | capturing faster than delivering | fix the link *before* the spool wraps and observations are lost for good |
+| content behind | running an older detection pack | it will not report what the newer pack would have found |
+
+A **disabled** collector raises nothing at all. Somebody switched it off, and
+alarming on it is how an operator learns to dismiss the list without reading it.
+A **silent** collector raises only the silence: its last-known capture state
+describes last Tuesday, and sending somebody to fix a ring buffer on a device
+that is not running is worse than saying nothing.
+
+**Phase 6 is complete.** Once the fleet is stable, two borrowed capabilities
 become candidates: learned communication zones (Claroty's virtual zones,
 extending the existing `topology/`) and process-variable baselining (Nozomi —
 the protocol parsers already decode the point values it needs).

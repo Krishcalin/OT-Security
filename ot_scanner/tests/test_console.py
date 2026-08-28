@@ -17,6 +17,7 @@ NOT compile; if it ever does, OTS-CON-004 has quietly become a convention again.
 """
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import shutil
@@ -372,6 +373,15 @@ class _EmptyStore:
     def latest_window(self, cid):
         return ""
 
+    def collectors_health(self):
+        return []
+
+    def latest_pack_version(self, kind):
+        return 0
+
+    def reported_pack_versions(self):
+        return {}
+
 
 def _app():
     pytest.importorskip("fastapi")
@@ -520,6 +530,20 @@ class _PopulatedStore:
 
     def latest_window(self, collector_id):
         return "w-1"
+
+    # A collector row is what fleet health reasons over. `last_heartbeat`
+    # is the column the coverage model never looked at, and the reason a
+    # switched-off collector could report a clean plant indefinitely.
+    def collectors_health(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return [
+            {"collector_id": "pi-a", "site": "Substation A",
+             "last_heartbeat": now, "capture_state": "complete",
+             "queue_depth": 0, "enabled": True, "rulepack_version": "1"},
+            {"collector_id": "pi-b", "site": "Substation B",
+             "last_heartbeat": now, "capture_state": "degraded",
+             "queue_depth": 0, "enabled": True, "rulepack_version": "1"},
+        ]
 
     # ── fleet identities (Phase 6) ────────────────────────────────────────
     def __init__(self):

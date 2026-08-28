@@ -115,6 +115,39 @@ class DemoStore:
     def record_heartbeat(self, payload: Dict) -> None:
         pass
 
+    def collectors_health(self) -> List[Dict]:
+        """All three reporting, one of them unhappy.
+
+        Deliberately not a silent collector: silence makes the whole estate
+        untrustworthy, which is correct and would bury every other screen under
+        one alarm. The demo shows a collector that is up and struggling, which
+        is the commoner and more interesting state.
+        """
+        now = _now()
+        return [
+            {"collector_id": "pi-alderley-01", "site": "Alderley Substation",
+             "last_heartbeat": now, "capture_state": "complete",
+             "queue_depth": 0, "enabled": True, "rulepack_version": "1",
+             "collector_version": "0.1.0"},
+            {"collector_id": "pi-alderley-02", "site": "Alderley Substation",
+             "last_heartbeat": now, "capture_state": "complete",
+             "queue_depth": 12, "enabled": True, "rulepack_version": "1",
+             "collector_version": "0.1.0"},
+            {"collector_id": "pi-marchwood-01", "site": "Marchwood Substation",
+             "last_heartbeat": now, "capture_state": "degraded",
+             "queue_depth": 780, "enabled": True, "rulepack_version": "1",
+             "collector_version": "0.1.0"},
+        ]
+
+    def latest_pack_version(self, kind: str) -> int:
+        return 0
+
+    def reported_pack_versions(self) -> Dict[str, Any]:
+        return {cid: None for cid in self.sites}
+
+    def packs(self, kind=None) -> List[Dict]:
+        return []
+
     # ── certificates ──────────────────────────────────────────────────────
 
     def certificates(self, collector_id: Optional[str] = None) -> List[Dict]:

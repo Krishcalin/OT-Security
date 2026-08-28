@@ -10,6 +10,7 @@ in the output looks wrong.
 """
 from __future__ import annotations
 
+import datetime
 import os
 import sys
 
@@ -269,6 +270,22 @@ class _FakeStore:
 
     def latest_window(self, cid):
         return "w-1"
+
+    # A collector row is what fleet health reasons over. `last_heartbeat`
+    # is the column the coverage model never looked at, and the reason a
+    # switched-off collector could report a clean plant indefinitely.
+    def collectors_health(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return [{"collector_id": cid, "site": site, "last_heartbeat": now,
+                 "capture_state": "complete", "queue_depth": 0,
+                 "enabled": True, "rulepack_version": "1"}
+                for cid, site in sorted(self._sites.items())]
+
+    def latest_pack_version(self, kind):
+        return 0
+
+    def reported_pack_versions(self):
+        return {}
 
     def all_flows(self, limit=20000):
         return list(self._flows)

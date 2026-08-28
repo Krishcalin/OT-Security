@@ -298,6 +298,23 @@ class Store:
                      "last_seen": r[3], "observation_count": r[4],
                      "attributes": r[5]} for r in cur.fetchall()]
 
+    def collectors_health(self) -> List[Dict]:
+        """Every collector row, for the fleet health assessment.
+
+        Includes `last_heartbeat`, which is the column the coverage model never
+        looked at — and the reason a switched-off collector could report a clean
+        plant indefinitely.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT collector_id, site, last_heartbeat, capture_state, "
+                "queue_depth, rulepack_version, enabled, collector_version "
+                "FROM collector ORDER BY collector_id")
+            return [{"collector_id": r[0], "site": r[1], "last_heartbeat": r[2],
+                     "capture_state": r[3], "queue_depth": r[4],
+                     "rulepack_version": r[5], "enabled": r[6],
+                     "collector_version": r[7]} for r in cur.fetchall()]
+
     # ── content packs (Phase 6) ───────────────────────────────────────────
 
     def publish_pack(self, pack, published_by: str = "") -> None:

@@ -60,7 +60,9 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
-from . import enrolment, ingest, packs as pack_module, vulnmatch
+from . import enrolment, health as fleet_health, ingest
+from . import packs as pack_module
+from . import vulnmatch
 from .ingest import Decision, Verdict
 
 COLLECTOR_ID_HEADER = "X-Collector-Id"
@@ -448,14 +450,27 @@ def create_app(store, require_operator: Optional[Callable] = None,
                                       store.recent_gaps(cid))
             for cid in store.collector_ids()]
         cov = estate_merge.estate_coverage(summaries)
+
+        # The correction that matters. `summarise_coverage` reads stored
+        # windows and never asks when they arrived, so a collector that stopped
+        # reporting still summarises as trustworthy off history. Silence is
+        # folded in here, and it makes the estate untrustworthy — because a
+        # site nobody is watching is not a site with nothing wrong.
+        silent = fleet_health.assess(store.collectors_health()).unbelievable
+
         return {
             "collectors": cov.collectors,
             "trustworthy_collectors": cov.trustworthy_collectors,
             "blind_collectors": sorted(cov.blind_collectors),
             "degraded_collectors": sorted(cov.degraded_collectors),
             "collectors_with_gaps": sorted(cov.collectors_with_gaps),
-            "trustworthy": cov.trustworthy,
-            "explain": cov.explain(),
+            "silent_collectors": sorted(silent),
+            "trustworthy": cov.trustworthy and not silent,
+            "explain": cov.explain() + (
+                ("; %d collector(s) have stopped reporting (%s) and their "
+                 "stored coverage is no longer counted — a switched-off sensor "
+                 "reads as a clean plant"
+                 % (len(silent), ", ".join(sorted(silent)))) if silent else ""),
             "per_collector": [
                 {"collector_id": s.collector_id, "windows": s.windows,
                  "complete": s.complete, "degraded": s.degraded,
@@ -464,6 +479,25 @@ def create_app(store, require_operator: Optional[Callable] = None,
                  "trustworthy": s.trustworthy}
                 for s in summaries],
         }
+
+    @app.get("/api/v1/estate/health")
+    def estate_health(request: Request):
+        """Which collectors need somebody to go and look at them.
+
+        Coverage answers what the windows that ARRIVED were worth. It has no
+        notion of when they arrived, so a collector that stopped a week ago
+        still summarises as trustworthy off fifty stored windows. This is the
+        half that notices.
+        """
+        _operator(request)
+        latest = store.latest_pack_version(pack_module.KIND_RULES)
+        behind = {}
+        if latest:
+            for collector_id, version in store.reported_pack_versions().items():
+                if version and int(version) < latest:
+                    behind[collector_id] = latest - int(version)
+        return fleet_health.assess(store.collectors_health(),
+                                   behind=behind).to_dict()
 
     @app.get("/api/v1/estate/inventory")
     def estate_inventory(request: Request):

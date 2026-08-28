@@ -406,6 +406,15 @@ class _AuthStore:
     def latest_window(self, collector_id):
         return ""
 
+    def collectors_health(self):
+        return []
+
+    def latest_pack_version(self, kind):
+        return 0
+
+    def reported_pack_versions(self):
+        return {}
+
     def spend_recovery_code(self, username, fingerprint):
         codes = self.recovery.get(username) or {}
         if codes.get(fingerprint, "spent") is not None:

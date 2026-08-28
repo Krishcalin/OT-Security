@@ -26,6 +26,11 @@ export interface EstateCoverageResponse {
   blind_collectors: string[];
   degraded_collectors: string[];
   collectors_with_gaps: string[];
+  /**
+   * Collectors that have stopped reporting. Their stored windows still read as
+   * complete, which is why they are named here rather than counted.
+   */
+  silent_collectors?: string[];
   trustworthy: boolean;
   explain: string;
   per_collector: CollectorCoverage[];
@@ -240,6 +245,40 @@ export interface PacksResponse {
   drift: PackDrift;
 }
 
+/** Something a person can go and do about one collector. */
+export interface FleetAlarm {
+  collector_id: string;
+  kind: string;
+  severity: "info" | "warning" | "critical";
+  detail: string;
+  action: string;
+}
+
+export interface CollectorHealthRow {
+  collector_id: string;
+  site: string;
+  state: "reporting" | "late" | "silent" | "never_reported" | "disabled";
+  seconds_since_heartbeat: number | null;
+  capture_state: string;
+  queue_depth: number;
+  /**
+   * False when this collector's STORED coverage must not be counted. A silent
+   * collector's fifty complete windows describe last week.
+   */
+  coverage_believable: boolean;
+  alarms: FleetAlarm[];
+}
+
+export interface FleetHealthResponse {
+  collectors: CollectorHealthRow[];
+  alarms: FleetAlarm[];
+  silent: string[];
+  never_reported: string[];
+  coverage_not_believable: string[];
+  healthy: boolean;
+  explain: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -303,6 +342,10 @@ export class EstateApi {
 
   packs(): Promise<PacksResponse> {
     return this.get("/api/v1/estate/packs");
+  }
+
+  health(): Promise<FleetHealthResponse> {
+    return this.get("/api/v1/estate/health");
   }
 
   // ── operator session (OTS-SRV-006) ──────────────────────────────────────

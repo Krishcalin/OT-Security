@@ -15,12 +15,15 @@ import {
   CertificateRow,
   CertificatesResponse,
   EstateApi,
+  CollectorHealthRow,
+  FleetAlarm,
+  FleetHealthResponse,
   PackDrift,
   PackRow,
   PacksResponse,
 } from "../api.js";
 import { Coverage, measured } from "../coverage.js";
-import { cls, esc, metric, table } from "../render.js";
+import { cls, esc, fragments, metric, table } from "../render.js";
 
 /**
  * What a fleet running mixed content is worth.
@@ -46,6 +49,101 @@ function driftCoverage(drift: PackDrift): { coverage: Coverage; basis: string } 
     return { coverage: "degraded", basis: drift.explain };
   }
   return { coverage: "complete", basis: drift.explain };
+}
+
+/**
+ * How much of the fleet is actually reporting.
+ *
+ * `unknown` when anyone is silent, and that is the whole point: their stored
+ * coverage still reads as complete, so a count that included them would be a
+ * confident number about sites nobody is watching.
+ */
+function healthCoverage(fleet: FleetHealthResponse): {
+  coverage: Coverage;
+  basis: string;
+} {
+  if (fleet.coverage_not_believable.length) {
+    return { coverage: "unknown", basis: fleet.explain };
+  }
+  if (fleet.alarms.length) {
+    return { coverage: "degraded", basis: fleet.explain };
+  }
+  return { coverage: "complete", basis: fleet.explain };
+}
+
+function alarmRow(alarm: FleetAlarm): string {
+  const tone = alarm.severity === "critical" ? "alarm"
+    : alarm.severity === "warning" ? "warn" : "ok";
+  return [
+    '<div class="engine">',
+    '  <div class="engine-head">',
+    '    <span class="engine-name">' + esc(alarm.collector_id) + "</span>",
+    '    <span class="' + cls("chip", "chip-" + tone) + '">'
+      + esc(alarm.kind.replace(/_/g, " ")) + "</span>",
+    "  </div>",
+    '  <div class="engine-reason">' + esc(alarm.detail) + "</div>",
+    '  <ul class="limits"><li>' + esc(alarm.action) + "</li></ul>",
+    "</div>",
+  ].join("");
+}
+
+function healthPanel(fleet: FleetHealthResponse): string {
+  const { coverage, basis } = healthCoverage(fleet);
+  const reporting = fleet.collectors.filter(
+    (c) => c.state === "reporting").length;
+
+  const rows = table<CollectorHealthRow>(
+    [
+      { header: "collector", cell: (c) => esc(c.collector_id) },
+      { header: "site", cell: (c) => esc(c.site || "—") },
+      { header: "state", cell: (c) => stateChipFor(c) },
+      {
+        header: "last heard",
+        cell: (c) => esc(c.seconds_since_heartbeat === null
+          ? "never"
+          : Math.round(c.seconds_since_heartbeat / 60) + " min ago"),
+      },
+      { header: "capture", cell: (c) => esc(c.capture_state) },
+      { header: "queued", cell: (c) => esc(c.queue_depth), numeric: true },
+    ],
+    fleet.collectors.map((row) => ({
+      row,
+      coverage: row.state === "reporting"
+        ? ("complete" as Coverage)
+        : row.state === "late"
+          ? ("degraded" as Coverage)
+          : ("unknown" as Coverage),
+      basis: row.coverage_believable
+        ? "reporting; its coverage is counted"
+        : "its stored coverage still reads as complete and is not counted",
+    })),
+  );
+
+  return [
+    "<h2>Collector health</h2>",
+    '<p class="note">Coverage says what the windows that ARRIVED were worth.',
+    " It has no notion of when they arrived, so a collector switched off last",
+    " week still summarises as trustworthy off fifty stored windows. This is",
+    " the half that notices.</p>",
+    '<div class="metrics">',
+    metric("collectors reporting", measured(reporting, coverage, basis)),
+    metric("open alarms",
+      measured(fleet.alarms.length,
+        fleet.alarms.length ? ("degraded" as Coverage) : coverage, basis)),
+    "</div>",
+    fleet.alarms.length
+      ? fragments(fleet.alarms.map((alarm) => alarmRow(alarm)))
+      : '<p class="note">Nothing needs looking at.</p>',
+    rows,
+  ].join("");
+}
+
+function stateChipFor(row: CollectorHealthRow): string {
+  const tone = row.state === "reporting" ? "ok"
+    : row.state === "late" ? "warn"
+      : row.state === "disabled" ? "ok" : "alarm";
+  return '<span class="' + cls("chip", "chip-" + tone) + '">'
+    + esc(row.state.replace(/_/g, " ")) + "</span>";
 }
 
 function packPanel(packs: PacksResponse): string {
@@ -172,7 +270,9 @@ export async function render(api: EstateApi): Promise<string> {
   const certificates: CertificatesResponse = await api.certificates();
 
   if (!certificates.ca_configured) {
-    return ["<h1>Fleet</h1>", noCa(), packPanel(await api.packs())].join("");
+    const [packs, fleet] = await Promise.all([api.packs(), api.health()]);
+    return ["<h1>Fleet</h1>", healthPanel(fleet), noCa(),
+            packPanel(packs)].join("");
   }
 
   const rows = certificates.certificates;
@@ -195,10 +295,11 @@ export async function render(api: EstateApi): Promise<string> {
     rows.map((row) => ({ row, ...rowCoverage(row) })),
   );
 
-  const packs = await api.packs();
+  const [packs, fleet] = await Promise.all([api.packs(), api.health()]);
 
   return [
     "<h1>Fleet</h1>",
+    healthPanel(fleet),
     '<div class="metrics">',
     metric("valid certificates", measured(valid.length, state, basis)),
     metric(
