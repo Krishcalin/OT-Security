@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 480 480" role="img"
+     aria-label="OTSec">
+  <title>OTSec</title>
+  <!--
+    The mark alone — shield and eye, no wordmark, no pylons.
+
+    It exists because the header slot is 26px and the favicon is 16px. At that
+    size the lockup's wordmark is a smudge and the pylons are noise, so the
+    console used to crop the full logo with `object-fit: cover`, which is a
+    guess about where the shield happens to sit. This is the same drawing with
+    the crop decided here instead: square viewBox, shield centred, nothing in
+    it that cannot survive 16 pixels.
+  -->
+  <defs>
+    <linearGradient id="otsm-bevel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8ecf3"/>
+      <stop offset="0.5" stop-color="#9aa7bb"/>
+      <stop offset="1" stop-color="#c9d3e0"/>
+    </linearGradient>
+    <linearGradient id="otsm-face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a2c"/>
+      <stop offset="1" stop-color="#0a0f1c"/>
+    </linearGradient>
+    <radialGradient id="otsm-iris" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.28" stop-color="#0b1020"/>
+      <stop offset="0.32" stop-color="#1e6fe0"/>
+      <stop offset="0.72" stop-color="#4aa8ff"/>
+      <stop offset="1" stop-color="#0d3f8a"/>
+    </radialGradient>
+    <clipPath id="otsm-eye">
+      <path d="M120 250 C175 176 345 176 400 250 C345 324 175 324 120 250 Z"/>
+    </clipPath>
+  </defs>
+
+  <path d="M260 20 L470 78 V276 C470 386 380 452 260 500 C140 452 50 386 50 276
+           V78 Z" fill="url(#otsm-bevel)"/>
+  <path d="M260 44 L446 95 V276 C446 372 366 432 260 476 C154 432 74 372 74 276
+           V95 Z" fill="url(#otsm-face)"/>
+
+  <!-- Traces kept, thickened. At 16px they read as texture rather than as
+       lines, which is what they are for at this size. -->
+  <g stroke="#3f7fd6" stroke-width="5" fill="none" opacity="0.9"
+     stroke-linecap="round">
+    <path d="M170 200 V112 M260 194 V88 M350 200 V112"/>
+    <path d="M170 300 V388 M260 306 V412 M350 300 V388"/>
+  </g>
+  <g fill="#6fb2ff">
+    <circle cx="170" cy="108" r="9"/><circle cx="260" cy="84" r="9"/>
+    <circle cx="350" cy="108" r="9"/>
+    <circle cx="170" cy="392" r="9"/><circle cx="260" cy="416" r="9"/>
+    <circle cx="350" cy="392" r="9"/>
+  </g>
+
+  <path d="M120 250 C175 176 345 176 400 250 C345 324 175 324 120 250 Z"
+        fill="#070b16" stroke="url(#otsm-bevel)" stroke-width="11"/>
+  <g clip-path="url(#otsm-eye)">
+    <circle cx="260" cy="250" r="66" fill="url(#otsm-iris)"/>
+    <circle cx="260" cy="250" r="24" fill="#05070d"/>
+  </g>
+</svg>

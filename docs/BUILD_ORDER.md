@@ -440,7 +440,24 @@ against external oracles (RFC 6238 Appendix B, ISO/IEC 18004's worked example)
 rather than against themselves, and that wiring this is an opt-in that leaves
 the fail-closed posture exactly as it was.
 
-The product is branded **Power NetView** on the console and the sign-in page.
+The product is branded **OTSec** on the console and the sign-in page.
+
+**The rename to OTSec** came later and is recorded here because the list of
+places it touched is not obvious from the console. Beyond the two pages and the
+artwork: the TOTP `ISSUER`, which is what an authenticator writes into a
+permanent entry on an operator's phone; the session cookie, whose rename signs
+out every live session — acceptable exactly once, at a rename; the bootstrap
+environment variables; the demo image, its volume and its unix account; and the
+collector's temporary-file prefixes. None of those render anywhere, which is
+why a hand-done rename skips them and an operator ends up reading two product
+names for one product.
+
+`tests/test_branding.py` now scans every shipping surface for the retired name,
+and asserts that every asset a page references exists — because the committed
+artwork is a drawn stand-in, and the swap that brings the supplied logo in must
+fail in CI rather than on the sign-in page, where a missing brand reads as a
+phishing site. See `docs/brand/README.md`, which also records why that artwork
+keeps its own field instead of being keyed transparent.
 
 **Two things this cost, both worth recording.** `authn_api.py` was written with
 `from __future__ import annotations`, which is the trap the top of `api.py`

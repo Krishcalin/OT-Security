@@ -44,7 +44,7 @@ from . import authn
 from . import qr as qr_module
 from . import totp as totp_module
 
-COOKIE_NAME = "pnv_session"
+COOKIE_NAME = "otsec_session"
 
 
 def _cookie_secure(request) -> bool:

@@ -1,11 +1,11 @@
 """
-A preview of the Power NetView console.
+A preview of the OTSec console.
 
-    docker build -f deploy/demo/Dockerfile -t power-netview-demo .
+    docker build -f deploy/demo/Dockerfile -t otsec-demo .
     docker run --rm -p 8080:8080 \
-      -e POWERNETVIEW_BOOTSTRAP_USER=operator \
-      -e POWERNETVIEW_BOOTSTRAP_PASSWORD='<something you choose>' \
-      power-netview-demo
+      -e OTSEC_BOOTSTRAP_USER=operator \
+      -e OTSEC_BOOTSTRAP_PASSWORD='<something you choose>' \
+      otsec-demo
 
 Then open http://localhost:8080/.
 
@@ -139,18 +139,18 @@ def _seed_lifecycle(store: DemoStore, signer) -> None:
 def build_app():
     store = DemoStore()
     authority = fleet_ca.CertificateAuthority.load_or_create(
-        os.environ.get("POWERNETVIEW_CA_DIR", "/var/lib/power-netview/ca"))
+        os.environ.get("OTSEC_CA_DIR", "/var/lib/otsec/ca"))
     _seed_certificates(store, authority)
 
     signer = fleet_packs.ContentSigner.load_or_create(
-        os.environ.get("POWERNETVIEW_CA_DIR", "/var/lib/power-netview/ca"))
+        os.environ.get("OTSEC_CA_DIR", "/var/lib/otsec/ca"))
     _seed_packs(store, signer)
     _seed_lifecycle(store, signer)
 
-    if not os.environ.get("POWERNETVIEW_BOOTSTRAP_USER"):
+    if not os.environ.get("OTSEC_BOOTSTRAP_USER"):
         raise SystemExit(
-            "Set POWERNETVIEW_BOOTSTRAP_USER and "
-            "POWERNETVIEW_BOOTSTRAP_PASSWORD on `docker run`.\n"
+            "Set OTSEC_BOOTSTRAP_USER and "
+            "OTSEC_BOOTSTRAP_PASSWORD on `docker run`.\n"
             "There is no default: a preview image with a baked-in credential "
             "is a published credential the moment somebody runs it on a "
             "routable address.")

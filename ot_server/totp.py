@@ -66,7 +66,7 @@ SECRET_BYTES = 20
 #: operators whose clock drifted by a few seconds.
 DEFAULT_DRIFT_STEPS = 1
 
-ISSUER = "Power NetView"
+ISSUER = "OTSec"
 
 
 def new_secret() -> str:
