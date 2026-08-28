@@ -399,6 +399,60 @@ def _seed_assets() -> List[Dict]:
         _asset("pi-marchwood-01", "ip:10.0.3.90", ip="10.0.3.90",
                mac="00:50:56:0b:90:01", vendor="VMware", role="engineering",
                protocol="rdp", coverage="degraded"),
+
+        # ── the three identification outcomes ─────────────────────────────
+        #
+        # The point of the assets screen is that these look DIFFERENT from
+        # each other. A demo showing only devices that identified cleanly
+        # would hide the case the design exists for.
+
+        # 1. A ring switch, named by its own LLDP advertisement. Nothing else
+        #    on the network can see this box: it speaks no industrial
+        #    protocol, and its management traffic never crosses the mirror.
+        #    The management address in the advertisement is why it has an IP
+        #    here at all.
+        _asset("pi-marchwood-01", "ip:10.0.0.2", ip="10.0.0.2",
+               mac="00:80:63:0b:00:02", vendor="Hirschmann", make="Hirschmann",
+               model="RSP20", os_name="HiOS", os_version="08.5.02",
+               firmware="08.5.02", hostname="MARCHWOOD-RING-SW01",
+               asset_identifier="00:80:63:0B:00:02",
+               identified_by="lldp-system-description",
+               device_type="Switch", role="switch", protocol="lldp",
+               coverage="degraded"),
+
+        # 2. A switch that advertised, and whose description matches no
+        #    pattern this build carries. PRESENT in the estate, with no
+        #    invented version: the device is real, the version would not have
+        #    been, and it is about to be matched against a CVE corpus.
+        _asset("pi-marchwood-01", "ip:10.0.0.3", ip="10.0.0.3",
+               mac="00:80:63:0b:00:03", hostname="MARCHWOOD-RING-SW02",
+               asset_identifier="00:80:63:0B:00:03",
+               identified_by="lldp-advertisement",
+               device_type="Switch", role="switch", protocol="lldp",
+               coverage="degraded"),
+
+        # 3. An FRTU on a ring main unit speaking only IEC 60870-5-104.
+        #    That protocol has NO identification service, so no amount of
+        #    watching will ever produce a model or a firmware version. The
+        #    vendor comes from the OUI and the asset identifier is the common
+        #    address of ASDU -- which is what the device is called on the
+        #    SCADA mimic, and is not its IP.
+        #
+        #    This row is the one worth looking at: its empty cells are a limit
+        #    of what is knowable passively, not a gap in the scan.
+        _asset("pi-marchwood-01", "ip:10.0.4.21", ip="10.0.4.21",
+               mac="00:0f:8f:0b:21:01", vendor="ABB",
+               asset_identifier="CASDU 4021", role="frtu",
+               protocol="iec104", coverage="degraded"),
+
+        # 4. A 61850 IED that answered MMS Identify -- the richest
+        #    identification a passive listener ever gets from a relay.
+        _asset("pi-marchwood-01", "ip:10.0.1.55", ip="10.0.1.55",
+               mac="00:1b:1b:0b:55:01", vendor="SIEMENS", make="SIEMENS",
+               model="SIPROTEC 5 7SJ85", firmware="V08.30",
+               os_version="V08.30", asset_identifier="MARCHWOOD_P1_CTRL",
+               identified_by="mms-identify", device_type="IED", role="ied",
+               protocol="iec61850-mms", coverage="degraded"),
     ]
 
 
