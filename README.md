@@ -342,23 +342,69 @@ Vulnerability-detection-focused scanner for RTUs, FRTUs, and IEDs (9 protocols, 
 
 ## Why Passive Scanning?
 
-Active network scanners are **dangerous in OT environments**: unexpected packets can crash PLCs, trip protection relays, disrupt real-time control loops, and break single-master SCADA sessions. Passive scanning from a PCAP eliminates all of these risks.
+Active network scanners are **dangerous in OT environments**: unexpected packets can crash PLCs, trip protection relays, disrupt real-time control loops, and break single-master SCADA sessions. Passive scanning eliminates all of these risks.
 
 Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sensors, or existing IDS/NDR appliances.
 
 ---
 
+## Deployment: one server, many collectors
+
+OTSec runs as a hub and spoke. Raspberry Pi collectors sit on substation and
+ring-main-unit mirror ports; one server holds the estate and serves the console.
+
+```
+   substation / RMU ring (fibre, ERPS-protected)
+   ┌─────────┬─────────┬─────────┐
+   │ switch  │ switch  │ switch  │   MPLS-TP transport
+   └────┬────┴────┬────┴────┬────┘
+        │ RTU     │ FRTU    │ IED
+     [ SPAN port ]
+        │
+   ┌────▼─────────────────┐   tap NIC — promiscuous, no IP, never transmits
+   │ Raspberry Pi         │   mgmt NIC — mTLS to the server
+   │ OTSec collector      │
+   └────────┬─────────────┘
+            │ observation batches, not pcap
+   ┌────────▼─────────────┐
+   │ OTSec server+console │   PostgreSQL, 13-month retention
+   └──────────────────────┘
+```
+
+**Two NICs.** The Pi's own management traffic is excluded from analysis by MAC
+and IP, and the number of excluded frames is recorded rather than assumed.
+
+**Observations, not packets.** Collectors ship distilled asset, flow and
+detection records. Shipping pcap from a hundred collectors would be tens of
+MB/minute each across a utility WAN, and would centralise 13 months of plant
+process data for information the decoders have already extracted.
+
+**MPLS-TP.** Where a mirror sits on an NNI rather than an access port, the
+substation LAN arrives inside a label stack and a pseudowire control word. The
+collector opens it — and when it cannot, it says so, because a tap on the wrong
+side of a pseudowire produces a perfectly quiet, entirely empty estate.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+[deploy/README.md](deploy/README.md).
+
+---
+
 ## Testing & CI
 
-**663 tests** run without a database; 25 more cover the PostgreSQL store and
-need one. The table below covers the standalone scanner only — the collector,
-server and console suites added by the sensor-fleet re-architecture are
-described in [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md).
+**791 tests.** 762 run with nothing installed but pytest; the remaining 32
+need a PostgreSQL store or Node for the console suite. The table below covers the standalone scanner
+only — the collector, server and console suites added by the sensor-fleet
+re-architecture are described in [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md).
 
 ```bash
 cd ot_scanner
 pip install -r requirements-dev.txt
-python -m pytest tests/ -v
+python -m pytest -q                                   # 762 pass, 32 skip
+
+# Everything. Both variables exist to stop tests SKIPPING silently — a skipped
+# test on a CI summary page looks exactly like a passing one.
+OT_TEST_DSN=postgresql://user:pw@127.0.0.1:5433/otsec \
+OT_CONSOLE_REQUIRED=1 python -m pytest -q             # 791 pass, 3 skip
 ```
 
 | Test File | Tests | Engine Covered |

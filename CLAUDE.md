@@ -1,20 +1,90 @@
-# CLAUDE.md — OT / ICS Passive Network Scanner
+# CLAUDE.md — OTSec
 
 ## Project Overview
 
-A modular, offline-safe OT/ICS passive network scanner that identifies industrial
-devices (PLCs, RTUs, FRTUs, IEDs, HMIs, gateways) and detects security
-vulnerabilities by analysing captured PCAP / PCAPNG traffic. No packets are ever
-sent to the network, making this safe to run in live OT environments where active
-scanning can trigger protection relays or disrupt SCADA control.
+**OTSec** is a passive OT/ICS security product. It identifies industrial devices
+(PLCs, RTUs, FRTUs, IEDs, HMIs, gateways, ring switches) and their
+vulnerabilities without ever sending a packet — safe in live plants where active
+scanning trips protection relays.
 
-The repository contains three scanner variants: a unified v2.0 scanner (primary)
-and two legacy single-purpose scanners (PLC and RTU) that are superseded by v2.0.
+It runs in two modes, and they share one analysis core:
+
+| Mode | Entry point | What it is |
+|---|---|---|
+| **Offline scanner** | `ot_scanner/ot_scanner.py` | One PCAP in, reports out. The original v2.0 tool; still fully supported. |
+| **Sensor fleet** | `ot_scanner/ot_collector.py` → `ot_server/` → `console/` | Raspberry Pi collectors capture continuously, ship distilled observations to a central server, and an operator reads the estate in a browser. |
+
+The fleet is the product; the offline scanner is the same engine with a
+different front door. `ot_scanner/scanner/` is imported by both.
 
 **Repository**: https://github.com/Krishcalin/OT-Security
 **License**: MIT
-**Python**: 3.8+
-**Dependencies**: `scapy >= 2.5.0` | `dpkt >= 1.9.8` (one required), `colorama >= 0.4.6` (optional)
+**Python**: 3.8+ (CI matrix: 3.8, 3.10, 3.12)
+**Scanner dependencies**: `scapy >= 2.5.0` | `dpkt >= 1.9.8` (one required)
+**Collector runtime dependency**: `dpkt` ALONE — `tests/test_collector_manifest.py`
+fails if that changes, which is why `enrol.py` shells out to `openssl` rather
+than importing `cryptography`.
+
+---
+
+## ⚠️ The one thing to read before changing anything
+
+This product's entire claim is that it can tell **"we looked and saw nothing"**
+apart from **"we did not look"**. Everything else is implementation.
+
+That distinction has now been broken FOUR times, each in code that had passing
+tests, and each found by RUNNING something rather than reading it:
+
+| | The silence | Where it was fixed |
+|---|---|---|
+| 1 | A collector that had stopped reporting counted as a healthy one | `ot_server/health.py` |
+| 2 | An asset never assessed against the CVE corpus reported as clean | `ot_server/vulnmatch.py` |
+| 3 | A transport the decoder could not open reported as a quiet network | `ot_scanner/collector/decap.py` |
+| 4 | A query truncated at its row limit reported as the whole estate | `ot_server/store.py` (`Page`) |
+
+Every one was a **confident number over a question nobody asked**. When adding
+anything that produces a count, a state or a clean verdict, the question to ask
+is not "is this correct?" but "what does this look like when the thing that
+produces it is not working?" If the answer is "the same", it is wrong.
+
+The three-state model (`complete` / `degraded` / `unknown`) exists for this, and
+`unknown` is never a synonym for zero.
+
+---
+
+## Deployment architecture (hub and spoke)
+
+The fleet is sized for one central server and **~100 collectors**.
+
+```
+   substation / RMU ring (fibre, ERPS-protected)
+   ┌─────────┬─────────┬─────────┐
+   │ switch  │ switch  │ switch  │   MPLS-TP transport
+   └────┬────┴────┬────┴────┬────┘
+        │ RTU     │ FRTU    │ IED
+        │
+     [ SPAN/mirror port ]
+        │
+   ┌────▼──────────────────┐
+   │ Raspberry Pi          │  tap NIC  — promiscuous, no IP, never transmits
+   │ OTSec collector       │  mgmt NIC — mTLS to the server
+   └────────┬──────────────┘
+            │  observation batches (NOT pcap)
+   ┌────────▼──────────────┐
+   │ OTSec server + console│  PostgreSQL, 13-month retention
+   └───────────────────────┘
+```
+
+**Two NICs per Pi.** The management NIC's own traffic must never be analysed as
+estate traffic; `collector/self_exclusion.py` (OTS-CAP-006) filters it by MAC/IP
+in BPF or userspace and COUNTS what it excluded.
+
+**Observations, not packets.** The Pi ships distilled asset/flow/detection
+records. Shipping pcap from 100 collectors would be tens of MB/minute each
+across a utility WAN, 13 months of plant process data centralised, for
+information the decoders have already extracted. If selective packet retention
+is ever needed, the shape is a rolling local buffer uploaded only when a
+detection fires — not a firehose.
 
 ## Scanner Inventory
 
@@ -54,6 +124,15 @@ ot_scanner/
 │   │   ├── ge_srtp.py              # GE-SRTP (TCP 18245) — GE Series 90 / PACSystems
 │   │   ├── niagara_fox.py          # Niagara Fox (TCP 1911/4911) — Tridium BAS (hello banner)
 │   │   ├── knx_ip.py               # KNXnet/IP (UDP/TCP 3671) — KNX building automation
+│   │   ├── lldp.py                 # LLDP (802.1AB) — the ONLY passive source that
+│   │   │                           #   names ring switches; System Description ->
+│   │   │                           #   make/model/OS version, Management Address -> IP
+│   │   ├── snmp.py                 # SNMP v1/v2c — sysDescr -> OS version for devices
+│   │   │                           #   whose industrial protocol carries no identity
+│   │   ├── ring.py                 # G.8032 R-APS, RSTP/STP BPDUs — ring protection,
+│   │   │                           #   because a protection switch changes what the
+│   │   │                           #   collector can HEAR
+│   │   ├── ber.py                  # Shared BER/ASN.1 reader (SNMP + MMS)
 │   │   ├── it_detect.py            # IT protocol detector (36+ protocols incl. VPN)
 │   │   └── behavior.py             # Protocol DPI behavior tracker
 │   ├── fingerprint/
@@ -101,20 +180,74 @@ ot_scanner/
 │   │   └── engine.py               # Baseline diff analysis
 │   └── report/
 │       └── generator.py            # JSON, CSV, HTML, GraphML reports
-├── tests/                          # 76 unit tests (pytest)
+├── tests/                          # 42 files, 791 tests — one suite covers the
+│                                   #   scanner, collector, server AND console
 │   ├── conftest.py                 # Shared fixtures (mock devices, zones, CVEs)
+│   │
+│   │   # the analysis engines
 │   ├── test_models.py              # Dataclass validation
 │   ├── test_risk_engine.py         # Composite scoring
-│   ├── test_threat_engine.py       # 10 malware signatures
-│   ├── test_cisa_importer.py       # CISA KEV -> CVE importer
+│   ├── test_threat_engine.py       # Malware signatures
 │   ├── test_attack_engine.py       # Attack path analysis
-│   ├── test_access_engine.py       # Secure access audit
-│   ├── test_config_engine.py       # Config snapshots + drift
-│   ├── test_policy_engine.py       # Firewall rule generation
 │   ├── test_cve_matcher.py         # CVE matching pipeline
-│   └── test_exporters.py           # Integration exporters
+│   ├── test_protocols.py           # Per-analyser synthetic packets
+│   │
+│   │   # what a passive listener can and cannot learn
+│   ├── test_lldp.py                # Ring switches; refusing to guess a version
+│   ├── test_snmp.py                # sysDescr; the community string is NEVER stored
+│   ├── test_ring.py                # G.8032 / RSTP — protection as a coverage fact
+│   ├── test_identification.py      # END TO END: a frame becomes an asset record
+│   │
+│   │   # the honesty model — read these before changing coverage
+│   ├── test_decap.py               # MPLS-TP; an unopenable transport is counted
+│   ├── test_collector_coverage.py  # complete / degraded / unknown
+│   ├── test_scale.py               # 100 collectors; truncation cannot hide
+│   ├── test_fleet_health.py        # a dead collector is not a clean one
+│   ├── test_lifecycle.py           # no record is unknown, never "supported"
+│   │
+│   │   # the fleet plane
+│   ├── test_fleet_enrolment.py     # tokens, CSRs, revocation
+│   ├── test_operator_auth.py       # sign-in, TOTP, sessions
+│   ├── test_console.py             # OTS-CON-004 is enforced by the TYPE CHECKER
+│   └── test_branding.py            # the retired product name cannot come back
 ├── pytest.ini                      # Test configuration
-└── requirements-dev.txt            # pytest>=7.0
+└── requirements-dev.txt            # pytest, fastapi, psycopg, httpx, cryptography, Pillow
+```
+
+### The sensor fleet
+
+```
+ot_scanner/collector/               # runs on the Raspberry Pi
+├── capture.py                      # SPAN capture; Frame, DropSnapshot
+├── decap.py                        # MPLS / EoMPLS pseudowire decapsulation.
+│                                   #   Refuses to guess: an encapsulation it
+│                                   #   cannot follow is COUNTED, never dropped
+├── analysis.py                     # IncrementalAnalyzer — drives scanner/core
+├── coverage.py                     # Coverage(complete|degraded|unknown), windows
+├── self_exclusion.py               # OTS-CAP-006 — the Pi's own mgmt traffic
+├── service.py                      # the capture loop; owns windows, not decoding
+├── spool.py / transport.py         # durable queue + mTLS upload
+├── enrol.py / content.py           # certificate enrolment; signed content packs
+└── observations.py                 # device -> asset/flow/detection records
+
+ot_server/                          # the hub
+├── api.py                          # FastAPI. NOTE: no `from __future__ import
+│                                   #   annotations` in route modules — see traps
+├── store.py                        # PostgreSQL; `Page` carries query completeness
+├── estate.py                       # merge across collectors (union-find, site-scoped)
+├── ingest.py / health.py           # batch acceptance; collector liveness
+├── ca.py / enrolment.py            # fleet CA, one-time enrolment tokens
+├── authn.py / authn_api.py / totp.py / qr.py   # operator sign-in + TOTP 2FA
+├── vulnmatch.py / severity.py      # CVE matching; OT-corrected priority
+├── containment.py / lifecycle.py   # segmentation advice; end-of-support
+├── comms.py / zones.py             # conversations; Purdue zone derivation
+└── packs.py                        # signed content packs (rules, corpus, lifecycle)
+
+console/                            # the operator's browser
+├── public/                         # index.html, login.html, otsec-*.png
+└── src/                            # TypeScript; Measured<T> enforces OTS-CON-004
+    └── screens/                    # estate, assets, findings, topology, comms,
+                                    #   change, fleet, account
 ```
 
 ### Data Flow
@@ -339,13 +472,29 @@ are unit-tested offline; only `fetch` touches the network (size-capped).
 
 ## Testing
 
-**76 unit tests** across 11 test files covering all analysis engines and the new protocol analyzers. Tests use mock data / synthetic packets only — no PCAP files required.
+**791 tests.** Synthetic packets and mock data only — no PCAP files required.
 
 ```bash
 cd ot_scanner
 pip install -r requirements-dev.txt
-python -m pytest tests/ -v
+python -m pytest -q                                   # 762 pass, 32 skip
+
+# Everything. The two env vars are what stop tests from skipping SILENTLY —
+# a skipped test on a CI summary page looks exactly like a passing one.
+OT_TEST_DSN=postgresql://user:pw@127.0.0.1:5433/otsec \
+OT_CONSOLE_REQUIRED=1 python -m pytest -q             # 791 pass, 3 skip
 ```
+
+A throwaway database for the 25 store tests (5432 is usually taken):
+
+```bash
+docker run -d --name otsec-scale-db -p 127.0.0.1:5433:5432 \
+  -e POSTGRES_PASSWORD=otsec -e POSTGRES_DB=otsec postgres:16-alpine
+```
+
+`OT_CONSOLE_REQUIRED=1` makes the console tests fail rather than skip when Node
+is absent, and it is what proves `src/con004.expect-errors.ts` still REFUSES to
+compile — the file whose job is to not compile.
 
 | Test File | Tests | Coverage |
 |-----------|------:|----------|
@@ -362,6 +511,36 @@ python -m pytest tests/ -v
 | `test_protocols.py` | 8 | HART-IP / GE-SRTP / Niagara Fox / KNXnet/IP analyzers (synthetic packets) |
 
 **CI Pipeline**: GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR against Python 3.8, 3.10, and 3.12.
+
+## Traps, each of which cost a cycle
+
+**FastAPI + postponed annotations.** A route module with
+`from __future__ import annotations` makes FastAPI see `Request` as a string it
+cannot resolve, treat it as a query parameter, and answer **422 on every
+route**. The note is at the top of `api.py` and was still rediscovered once.
+Modules imported by the route factory (`lifecycle.py`, `decap.py`) omit it too.
+
+**Chassis ID and Port ID have different LLDP subtype registries** (802.1AB 8.5.2
+vs 8.5.3). Subtype 5 is a network address on a chassis and an *interface name*
+on a port. Sharing one table hex-encoded every Cisco port ID.
+
+**MMS PDU tags.** ISO 9506-2 puts confirmed-Request/Response at `[0]`/`[1]`.
+This file had them at `[8]`/`[9]` (cancel-Request, initiate-Response) for its
+whole life, so real confirmed responses were never recognised. The identify
+parser now locates its body by SHAPE, not by the enclosing tag.
+
+**A TCN BPDU is exactly four octets** — protocol id, version, type, no body. A
+length guard of five drops every topology-change notification on the ring.
+
+**`min_packets` vs LLDP cadence.** The estate filter admits a device at
+`packet_count >= 2`; LLDP's default interval is 30s and the window is 60s, so a
+ring switch emits *exactly* two per window. A device that named itself now
+bypasses the threshold — otherwise the estate flickers.
+
+**Seed data is load-bearing.** The CVE corpus matches product patterns, so
+`"M580"` matches nothing where `"Modicon M580"` matches five advisories; and
+putting every Purdue level in one `/24` made every conversation read as
+lateral. Wrong demo data hides real code paths.
 
 ## Legacy Scanners
 

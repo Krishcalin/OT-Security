@@ -92,6 +92,91 @@ data; every figure still comes from `/api/v1/estate/*`.
 
 ---
 
+## Siting a collector
+
+### Which port to mirror
+
+Prefer an **access / UNI port facing the RTUs**. You get the device's own MAC,
+its IP, and no ambiguity.
+
+An **NNI or trunk carrying MPLS-TP pseudowires** also works — the collector
+opens the label stack and the pseudowire control word — but two things change:
+
+* The outer MACs are the provider edge routers'. An Ethernet pseudowire yields
+  the RTU's real MAC; a *routed* pseudowire carries no inner MAC at all, and
+  the collector reports the router's rather than inventing one.
+* A pseudowire that omits the control word is inherently ambiguous. Those
+  frames are counted as unreadable rather than guessed at, and the window is
+  degraded accordingly.
+
+**If the estate comes up empty, read the window before the network.** A tap on
+the wrong side of a pseudowire produces a perfectly quiet, entirely empty
+estate, and the window says so in as many words: *"an empty estate here means
+the tap, not the network."*
+
+### Two NICs, and why the second one matters
+
+| NIC | Role |
+|---|---|
+| **tap** | promiscuous, **no IP address**, never transmits |
+| **mgmt** | reaches the server over mTLS; carries heartbeats and batches |
+
+The management NIC's own traffic must never be analysed as estate traffic, or
+the collector inventories itself and its conversation with the server becomes a
+flow in the plant's topology. Configure the exclusion explicitly:
+
+```
+--mgmt-mac   AA:BB:CC:DD:EE:FF     # the management NIC
+--mgmt-ip    10.20.0.51            # its address
+--server-ip  10.20.0.10            # the server it dials
+```
+
+The number of excluded frames is **recorded**, not assumed. Under a BPF filter
+the kernel does not report it, and the collector says so rather than reporting
+zero.
+
+### What a mirror must carry
+
+Beyond the industrial protocols, three things are worth ensuring reach the
+span port, because each unlocks identification nothing else provides:
+
+* **LLDP** — the only passive source that names the ring switches at all, and
+  the source of their management IP. Note the cadence: the default transmit
+  interval is 30s against a 60s window, so a switch emits *two* advertisements
+  per window.
+* **SNMP** (v1/v2c) — `sysDescr` is the only route to an OS version for a
+  device whose industrial protocol carries no identification service, which
+  includes every IEC 60870-5-104 RTU and FRTU. v3 is encrypted and yields
+  nothing; the device is still recorded as seen.
+* **R-APS / BPDUs** — ring protection. Without them a protection switch is
+  invisible, and a device that moved out of earshot looks like a device that
+  stopped talking.
+
+---
+
+## Sizing the server
+
+The fleet is built and tested for **~100 collectors against one server**.
+
+Measured on PostgreSQL 16 with 100 collectors:
+
+| devices per ring | asset rows | flows | estate query |
+|---:|---:|---:|---|
+| 20 | 2,000 | 6,000 | 0.02s |
+| 50 | 5,000 | 20,000 | 0.05s |
+| 120 | 12,000 | 40,000 | 0.05s |
+
+Query time is not the constraint. **Row limits are**: the estate reads return
+at most 5,000 assets and 20,000 flows, and above that the console is told
+plainly that it is seeing part of the estate rather than the whole of it
+(`read.complete` on every estate route). If your fleet exceeds those, raise the
+limits deliberately — the truncation will be visible either way, which is the
+point.
+
+Retention is 13 months (Q5b), applied by a scheduled prune.
+
+---
+
 ## What is not covered here
 
 **TLS for the server certificate itself.** These configs assume you already have

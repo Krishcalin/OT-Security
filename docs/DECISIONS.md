@@ -30,6 +30,10 @@ answer from *"we haven't done that yet."*
 | **D11** | What do we say about a vulnerability nobody will patch? | **The segmentation that would contain it** — offered only where the boundary was derived, always with what it cannot see | `tests/test_containment.py` |
 | **D12** | May we lower a severity? | **Only on a complete window** — raising needs less evidence than lowering, and a withheld lowering is shown | `tests/test_severity.py` |
 | **D13** | Do we ship vendor end-of-support dates? | **No** — the mechanism ships, the data arrives as an operator's pack, and no record means unknown | `tests/test_lifecycle.py` |
+| **D14** | A frame whose transport we cannot open | **Counted, and it degrades the window** — never a silent drop | `tests/test_decap.py` |
+| **D15** | A query that hit its row limit | **Returns a `Page` carrying `total`** — a truncated estate cannot render as an estate | `tests/test_scale.py` |
+| **D16** | An identification string we do not recognise | **Recorded verbatim, with make/model/version left EMPTY** — never approximated | `tests/test_lldp.py` |
+| **D17** | Ring protection switches | **Carried on the window** — a device out of earshot is not a device gone quiet | `tests/test_ring.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -666,6 +670,129 @@ refused by construction, and `unknown` wears the loudest badge on the row.
 `fixes_are_coming` is three-valued for the same reason: "we do not know whether
 a fix is coming" is not "no fix is coming", and a bare boolean cannot hold the
 difference.
+
+---
+
+## D14 — A transport we cannot open is counted, and degrades the window
+
+**Asked because** the collector was measured against the frame shapes an
+MPLS-TP backbone actually carries. Plain MPLS label stacks already decoded;
+**Ethernet pseudowires did not**. 50,000 pseudowire frames produced 0 decodes,
+0 devices and — because the dispatcher returned silently on anything that was
+not IP — **0 recorded failures**. The window reported COMPLETE and trustworthy
+over an empty estate.
+
+**Answer.** Open what we can, and count what we cannot.
+
+`frames_unreadable` is narrow by construction: frames that decoded perfectly
+well and simply were not interesting (ARP, STP) are counted separately and say
+nothing about coverage. That is what lets **any** non-zero value degrade the
+window without every window on a real network being degraded.
+
+The asymmetry is the point. A tap on the wrong side of a pseudowire produces a
+perfectly quiet, entirely empty estate, and this number is the only thing that
+distinguishes it from a healthy network. The window says so in words: *"an
+empty estate here means the tap, not the network."*
+
+### And it refuses to guess
+
+Under the bottom label there is no type field; RFC 4385 makes the first nibble
+the discriminator. Two versions of that guess were wrong and the tests caught
+both: "any EtherType ≥ 0x0600 is an Ethernet frame" accepts **97.7% of random
+bytes**, and testing Ethernet before IP misreads inner IPv4, because bytes 12–13
+of an IP header are the first half of the source address — a packet from
+`8.0.0.0/16` presents EtherType `0x0800` exactly.
+
+Inventing devices out of transport headers would be worse than seeing nothing,
+because nobody would ever notice.
+
+---
+
+## D15 — A query reports whether it read everything
+
+**Asked because** the fleet is sized for 100 collectors. Measured on a real
+PostgreSQL at 120 devices per ring: **12,000 asset rows stored, 5,000
+returned**, 40,000 flows and 20,000 returned — with nothing in the response to
+say so. At 50 devices a ring the same fleet lands on exactly 5,000 rows: the
+limit, to the row. A deployment can sit on that edge for months and cross it the
+day a substation gains one device.
+
+**Answer.** The three estate reads return a `Page` — a list, so every caller is
+unchanged — carrying `total`, `complete`, `missing` and an `explain()`. Every
+estate route returns `read` beside `coverage`.
+
+`coverage` says what the collectors saw of the network. `read` says what the
+query saw of the database. Both, or the count is a lie, and **`coverage` could
+not have caught this**: every collector was healthy.
+
+A `None` total is NOT complete — the same asymmetry as `Coverage.UNKNOWN`.
+
+### The ordering made it worse
+
+Rows come back `last_seen DESC`, so truncation discards what was seen longest
+ago. On a distribution network the quietest device is an FRTU on a ring main
+unit that only transmits on a fault. **The rows dropped first are the ones most
+worth having.** Someone had already reasoned about *which* rows a limit drops —
+the comment refusing `ORDER BY severity` on a TEXT column is right there —
+without noticing that the dropping itself was invisible.
+
+---
+
+## D16 — An unrecognised device is recorded, never approximated
+
+**Asked because** identification now comes from free text. LLDP's System
+Description and SNMP's `sysDescr` are the same MIB object, written differently
+by every vendor, and none of them promise a format.
+
+**Answer.** Patterns ship for the switch families that appear on distribution
+rings — Cisco IOS/XE, Hirschmann HiOS, Siemens SCALANCE, RuggedCom ROS, Moxa,
+Westermo. Anything else is recorded **verbatim** with make, model and firmware
+left empty.
+
+A regex loose enough to pull a version out of any string pulls the wrong version
+out of most of them, and that version is matched against a CVE corpus: it
+produces either a vulnerability the device does not have or — worse — silence
+about one it does.
+
+The device is still inventoried. It advertised itself, so it is real; only its
+version is unknown, and the console says which of those two it is.
+
+### What cannot be known at all
+
+IEC 60870-5-104 has **no device-identification service**. A 104-only FRTU will
+never report a model or firmware to a passive listener, however long it is
+watched. That is the protocol, not the tool, and the assets screen says so in
+the cell rather than leaving an operator to guess whether nobody looked.
+
+The corollary: SNMP and LLDP are what make an OS version obtainable for such a
+device at all, which is why both were built.
+
+---
+
+## D17 — Ring protection is a coverage fact
+
+**Asked because** the deployment is fibre rings with ERPS protection. A ring
+decides, second by second, which traffic reaches the collector.
+
+**Answer.** The window carries ring state.
+
+When a ring protects, a conversation that went one way round now goes the other
+— possibly past a different switch, possibly past no mirror at all. **Nothing is
+lost at the NIC, no counter moves**, and a device reporting every 30 seconds
+goes quiet. Downstream that is indistinguishable from a device that stopped
+talking. It is not: it is a device the collector stopped being able to hear.
+
+So beside *"this RTU went silent at 14:07"* an operator gets *"the ring
+protected at 14:06."*
+
+R-APS is sent continuously, so `no-request` is the ring **idling** and is not an
+event — treating every message as one would make every window on a healthy ring
+look like an incident. Ring protection and spanning-tree changes are counted
+apart, because they are different mechanisms with different fixes.
+
+`take_ring_state()` returns `None` rather than a stable ring when no analyser is
+present: a collector that cannot see R-APS has not established that the ring did
+not protect.
 
 ---
 

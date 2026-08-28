@@ -104,12 +104,28 @@ collector/
   health.py          sustained-loss and blind alarms           (OTS-CAP-005)
   self_exclusion.py  the collector's own traffic               (OTS-CAP-006)
   rotation.py        bounded rolling pcap                      (OTS-CAP-002)
+  decap.py           MPLS / pseudowire decapsulation          (D14)
   analysis.py        drives the existing analysers             (OTS-ANL-001/003)
   observations.py    the wire record                           (OTS-ANL-002/004)
   rulepack.py        content-hashed rule version               (OTS-ANL-005)
   service.py         the loop
   manifest.py        what ships                                (§5)
 ```
+
+### Three things reach the window, not one
+
+Coverage began as packet loss and is now three independent blindnesses, because
+they fail differently and an operator fixes them differently:
+
+| What | Means | Fix |
+|---|---|---|
+| **frames lost** | the NIC or capture buffer dropped them | a faster Pi, a smaller BPF |
+| **frames unreadable** | they arrived intact on a transport we could not open | tap elsewhere, or teach `decap.py` |
+| **ring protected** | traffic moved; some of it may have left earshot | nothing — but a silent device is now explained |
+
+Collapsing them into one number would send somebody to the wrong place. A
+window that lost nothing, read nothing and protected once is three different
+sentences, and the estate needs all three.
 
 ### Coverage is the spine
 
@@ -118,6 +134,31 @@ that dropped frames is a different claim from one taken on a complete window,
 and a window whose counters could not be read supports neither. The three states
 — `COMPLETE`, `DEGRADED`, `UNKNOWN` — are described in
 [DECISIONS.md](DECISIONS.md#d2--dropped-frames-are-reported-never-absorbed).
+
+### Identification, and what cannot be identified
+
+The estate is only as good as what it can name. Four passive sources answer
+that, in descending order of how much they give:
+
+| Source | Gives | For |
+|---|---|---|
+| **IEC 61850 MMS Identify** | vendorName, modelName, revision | relays and IEDs |
+| **LLDP** (802.1AB) | make, model, OS version, **management IP**, hostname | ring switches — the ONLY thing that sees them |
+| **SNMP `sysDescr`** | the same string by a different road | anything the NMS polls |
+| **Modbus FC43/MEI** | vendor, product code, revision | Modbus devices |
+
+LLDP earns its place for a reason the others do not need: a ring switch speaks
+no industrial protocol and its management traffic may never cross the mirror.
+Its Management Address TLV is why a switch can be inventoried **by IP** at all.
+
+`lldp.identify()` is shared with SNMP because LLDP's System Description TLV *is*
+the `sysDescr` MIB object — two tables would drift, and one switch would be two
+models depending on which road its identity arrived by. The BER reader is shared
+with MMS for the same reason.
+
+**What no source can supply**: IEC 60870-5-104 has no identification service, so
+a 104-only FRTU can never report a model or firmware passively. The console
+renders that as a stated limit, not as an empty cell (D16).
 
 ### The analysers are the same analysers
 

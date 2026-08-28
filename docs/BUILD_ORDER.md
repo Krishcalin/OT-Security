@@ -9,8 +9,8 @@ says what exists.
 
 > **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
 > in with a second factor (D9), the fleet takes signed content (D10), and
-> coverage no longer counts a collector that has stopped reporting. 663 tests
-> passing without a database; 25 more require one and are skipped without it
+> coverage no longer counts a collector that has stopped reporting. 791 tests
+> passing with a database; 25 more require one and are skipped without it
 > (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
 
@@ -688,6 +688,10 @@ the protocol parsers already decode the point values it needs).
 | **D11** | containment where patching is not an option | offered only where the zone was derived, never as a bare deny, always with what the allow-list cannot see |
 | **D12** | lowering urgency needs a complete window | raising does not; a lowering the coverage will not carry is withheld and shown |
 | **D13** | no lifecycle dates ship | the mechanism does; an absent record is unknown, never supported |
+| **D14** | an unopenable transport is counted | and it degrades the window; a silent drop made an empty estate look quiet |
+| **D15** | a query says whether it read everything | a truncated estate must not render as an estate |
+| **D16** | an unrecognised device is recorded, not guessed | the version would be matched against a CVE corpus |
+| **D17** | ring protection rides on the window | out of earshot is not gone quiet |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |
