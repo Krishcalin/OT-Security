@@ -24,7 +24,8 @@ from .counters import (CombinedCounters, NullCounters, PacketSocketCounters,
                        PcapStatsCounters, SysfsInterfaceCounters, build_counters)
 from .health import AlarmState, CaptureHealth, HealthAlarm
 from .preflight import Check, CheckResult, Preflight, check_capture_interface
-from .rotation import Eviction, RollingPcapStore, warn_if_on_boot_media
+from .rotation import (DEFAULT_MAX_BYTES, Eviction, RetentionState,
+                       RollingPcapStore, warn_if_on_boot_media)
 
 __all__ = [
     "Coverage", "CaptureWindow", "DropDelta", "DropSnapshot", "WindowAccountant",
@@ -32,7 +33,8 @@ __all__ = [
     "PcapStatsCounters", "SysfsInterfaceCounters", "build_counters",
     "AlarmState", "CaptureHealth", "HealthAlarm",
     "Check", "CheckResult", "Preflight", "check_capture_interface",
-    "Eviction", "RollingPcapStore", "warn_if_on_boot_media",
+    "DEFAULT_MAX_BYTES", "Eviction", "RetentionState", "RollingPcapStore",
+    "warn_if_on_boot_media",
     "rulepack", "AnalysisStats", "IncrementalAnalyzer",
     "CaptureSource", "Frame", "ReplaySource", "SyntheticSource",
     "Observation", "ObservationBatch", "ObservationBuilder", "Provenance",

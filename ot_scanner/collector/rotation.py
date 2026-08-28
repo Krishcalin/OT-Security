@@ -39,6 +39,10 @@ class Eviction:
     started_at: Optional[int] = None
 
 
+#: Q5a. Fits a 1TB USB SSD alongside the OS and the observation spool.
+DEFAULT_MAX_BYTES = 512 * 1024 ** 3
+
+
 @dataclass
 class RetentionState:
     files: List[str] = field(default_factory=list)
@@ -46,6 +50,34 @@ class RetentionState:
     evictions: int = 0
     bytes_evicted: int = 0
     oldest_start: Optional[int] = None
+
+    def achieved_days(self, now: Optional[float] = None) -> Optional[float]:
+        """How much history the budget is CURRENTLY buying.
+
+        Returns None when it cannot be known -- no files yet, or a clock that
+        disagrees with the filenames. A retention figure is only useful if it is
+        measured: the same 512 GB holds nine days at 5 Mbps and under one during
+        a sustained burst, so a configured day-count would be a promise broken
+        silently by a busy afternoon.
+        """
+        if self.oldest_start is None:
+            return None
+        import time as _time
+
+        stamp = _time.time() if now is None else now
+        span = stamp - self.oldest_start
+        if span <= 0:
+            return None
+        return span / 86400.0
+
+    def describe(self, now: Optional[float] = None) -> str:
+        gib = self.total_bytes / 1024 ** 3
+        days = self.achieved_days(now)
+        if days is None:
+            return "%.1f GiB across %d file(s); window not yet measurable" % (
+                gib, len(self.files))
+        return "%.1f GiB across %d file(s); holding %.1f days" % (
+            gib, len(self.files), days)
 
 
 class RollingPcapStore:
@@ -58,7 +90,7 @@ class RollingPcapStore:
     """
 
     def __init__(self, directory: str, prefix: str = "capture",
-                 max_bytes: int = 8 * 1024 ** 3,
+                 max_bytes: int = DEFAULT_MAX_BYTES,
                  max_file_bytes: int = 256 * 1024 ** 2,
                  max_file_seconds: float = 900.0,
                  lister: Optional[Callable[[str], List[str]]] = None,

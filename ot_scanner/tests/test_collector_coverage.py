@@ -335,3 +335,40 @@ def test_health_summary_counts_each_state():
     s = h.summary()
     assert s["windows_accounted"] == 3
     assert s["windows_degraded"] == 1 and s["windows_unknown"] == 1
+
+
+# ── retention window: configured in bytes, MEASURED in days (Q5a) ──────────
+
+def test_the_default_ceiling_is_the_agreed_budget():
+    """Q5a: 512 GiB, sized to fit a 1TB USB SSD alongside the OS and spool."""
+    from collector.rotation import DEFAULT_MAX_BYTES
+
+    assert DEFAULT_MAX_BYTES == 512 * 1024 ** 3
+
+
+def test_the_retention_window_is_measured_not_promised():
+    """A day-count is a promise a busy day breaks silently: the same 512 GB
+    holds ~9 days at 5 Mbps and under one during a sustained 50 Mbps burst. The
+    budget is configured; the window it buys is reported."""
+    from collector.rotation import RetentionState
+
+    state = RetentionState(files=["a"], total_bytes=300 * 1024 ** 3,
+                           oldest_start=1_700_000_000)
+    assert round(state.achieved_days(now=1_700_000_000 + 9.3 * 86400), 1) == 9.3
+    assert "holding 9.3 days" in state.describe(now=1_700_000_000 + 9.3 * 86400)
+
+
+def test_an_unmeasurable_window_says_so_rather_than_reporting_zero():
+    """Zero days and "we cannot tell yet" are different, and only one of them
+    should make an operator go looking for the capture."""
+    from collector.rotation import RetentionState
+
+    assert RetentionState().achieved_days() is None
+    assert "not yet measurable" in RetentionState().describe()
+
+
+def test_a_clock_behind_the_filenames_does_not_report_negative_history():
+    from collector.rotation import RetentionState
+
+    state = RetentionState(oldest_start=1_700_000_000)
+    assert state.achieved_days(now=1_699_000_000) is None
