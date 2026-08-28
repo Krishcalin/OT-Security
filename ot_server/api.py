@@ -60,6 +60,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
+from . import containment as contain_module
 from . import enrolment, health as fleet_health, ingest
 from . import packs as pack_module
 from . import vulnmatch
@@ -234,6 +235,18 @@ def authenticate_collector(store, headers,
             "the presented certificate was issued to %r but the subject header "
             "says %r" % (record["collector_id"], subject_id))
     return record["collector_id"]
+
+
+def _flow_endpoints(flow) -> dict:
+    """A CommFlow as the plain endpoints containment reasons over.
+
+    Containment does not need the whole flow model and should not depend on it;
+    it needs who talked to whom, over what.
+    """
+    return {"src_ip": getattr(flow, "src_ip", ""),
+            "dst_ip": getattr(flow, "dst_ip", ""),
+            "protocol": getattr(flow, "protocol", ""),
+            "port": getattr(flow, "port", 0)}
 
 
 def _isoformat(value) -> str:
@@ -531,8 +544,36 @@ def create_app(store, require_operator: Optional[Callable] = None,
         """
         _operator(request)
         corpus = vulnmatch.load_corpus()
-        assets = estate_merge.merge(store.all_assets(), store.collector_sites())
-        matches = vulnmatch.match_estate([a.to_dict() for a in assets], corpus)
+        sites = store.collector_sites()
+        assets = estate_merge.merge(store.all_assets(), sites)
+        asset_dicts = [a.to_dict() for a in assets]
+        matches = vulnmatch.match_estate(asset_dicts, corpus,
+                                         vulnmatch.load_matcher())
+
+        # The join. "Patch it" is advice an operator has already discounted
+        # before they finish reading it — the device is a relay and the fix
+        # needs an outage. So each finding carries the segmentation change that
+        # would contain it instead, built from that site's derived zones and
+        # the traffic actually observed reaching the device.
+        #
+        # Both halves already existed and had never been introduced.
+        from . import zones as zone_derivation
+
+        flows = store.all_flows()
+        topologies = zone_derivation.derive(asset_dicts, flows, sites)
+        flows_by_site = {}
+        for flow in flows:
+            site = sites.get(str(flow.get("collector_id") or ""), "") or ""
+            flows_by_site.setdefault(site, []).append(
+                _flow_endpoints(zone_derivation.rehydrate_flow(flow)))
+
+        match_dicts = [m.to_dict() for m in matches]
+        containments = contain_module.contain_estate(
+            match_dicts, asset_dicts, topologies, flows_by_site)
+        for match in match_dicts:
+            found = containments.get(str(match.get("estate_id") or ""))
+            match["containment"] = found.to_dict() if found else None
+
         return {
             "corpus_version": corpus.version,
             "corpus_loaded": corpus.available,
@@ -540,7 +581,8 @@ def create_app(store, require_operator: Optional[Callable] = None,
             # that has not looked has not established anything.
             "assessed": len(matches),
             "actionable": sum(1 for m in matches if m.actionable),
-            "matches": [m.to_dict() for m in matches],
+            "matches": match_dicts,
+            "containment": contain_module.summarise(containments),
         }
 
     @app.get("/api/v1/estate/analysis")

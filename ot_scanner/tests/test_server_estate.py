@@ -197,19 +197,128 @@ def test_no_corpus_means_unknown_never_clean():
     assert "not the same as unaffected" in match.note
 
 
+class _FoundNothing:
+    """A matcher that ran and found nothing.
+
+    These two tests used to express "assessed and clean" by passing an asset
+    with no CVE list and no matcher — which is now, correctly, UNKNOWN. That
+    was not a wrong assertion so much as an inexpressible one: under the old
+    code the only reachable clean state was the never-assessed one, because
+    nothing populated `cve_ids`. Saying it explicitly is the point.
+    """
+
+    def match_device(self, device):
+        return []
+
+
 def test_a_clean_result_from_a_degraded_window_is_qualified():
     """Absence of a finding is not evidence of absence."""
     match = vulnmatch.match_asset(
         {"estate_id": "e1", "coverage": "degraded", "attributes": {}},
-        _corpus())
+        _corpus(), _FoundNothing())
     assert match.state is MatchState.CLEAN
     assert "not evidence of absence" in match.note
 
 
 def test_a_clean_result_from_a_complete_window_needs_no_caveat():
     match = vulnmatch.match_asset(
-        {"estate_id": "e1", "coverage": "complete", "attributes": {}}, _corpus())
+        {"estate_id": "e1", "coverage": "complete", "attributes": {}},
+        _corpus(), _FoundNothing())
     assert match.state is MatchState.CLEAN and match.note == ""
+
+
+def test_no_way_to_assess_a_device_is_unknown_and_never_clean():
+    """The defect this replaced. `match_asset` read a `cve_ids` attribute that
+    no collector, ingest path or merge has ever populated, so EVERY asset took
+    the empty-list branch and came back CLEAN — a confident statement about a
+    device nothing had looked at."""
+    match = vulnmatch.match_asset(
+        {"estate_id": "e1", "coverage": "complete", "attributes": {}},
+        _corpus(), None)
+    assert match.state is MatchState.UNKNOWN
+    assert "unassessed, not clean" in match.note
+
+
+# ── the corpus, as it actually ships ───────────────────────────────────────
+
+def test_the_shipped_corpus_loads():
+    """It never had. `load_corpus` read `ics_cves.ICS_CVES`; the module exports
+    `ICS_CVE_DATABASE`. The name has never matched, so `corpus_loaded` was
+    false in every deployment and every asset reported unknown."""
+    corpus = vulnmatch.load_corpus()
+    assert corpus.available, "the shipped ICS CVE database is not loading"
+    assert len(corpus.entries) > 50
+    assert "CVE-2019-13945" in corpus.entries
+
+
+def test_the_shipped_corpus_carries_the_fields_prioritise_reads():
+    """The second near-miss: the database spells these cvss_score, epss_score
+    and is_cisa_kev, and `prioritise` reads cvss, epss and kev. A missing key
+    reads as a missing value, so a KEV flag nobody could see is a CVE that
+    never reaches NOW."""
+    corpus = vulnmatch.load_corpus()
+    entry = corpus.get("CVE-2019-13945")
+    assert entry is not None
+    assert entry["kev"] is True
+    assert entry["cvss"] and entry["epss"] is not None
+
+
+def test_the_corpus_version_is_derived_from_its_content():
+    """A version somebody must remember to bump is wrong exactly when it
+    matters. The shipped database carried none, which read as the literal
+    string "shipped" for every revision it would ever have."""
+    corpus = vulnmatch.load_corpus()
+    assert corpus.version.startswith("ics-")
+    assert vulnmatch.fingerprint({"CVE-1": {}}) != \
+        vulnmatch.fingerprint({"CVE-2": {}})
+
+
+def test_a_real_device_matches_the_cves_it_actually_has():
+    """End to end, over the shipped data: a Siemens S7-1500 on firmware V4.2,
+    against a corpus that holds CVE-2019-13945 (S7-1500, below 4.5).
+
+    Before the wiring this returned CLEAN.
+    """
+    matcher = vulnmatch.load_matcher()
+    if matcher is None:
+        pytest.skip("the scanner matcher is not importable here")
+
+    match = vulnmatch.match_asset(
+        {"estate_id": "e1", "ip": "10.0.0.11", "coverage": "complete",
+         "attributes": {"ip": "10.0.0.11", "vendor": "Siemens",
+                        "model": "S7-1500", "role": "plc",
+                        "firmware": "V4.2"}},
+        vulnmatch.load_corpus(), matcher)
+
+    assert match.state is MatchState.MATCHED
+    found = {h.cve for h in match.hits}
+    assert "CVE-2019-13945" in found
+    assert match.worst.value == "now", "a KEV-listed CVE did not reach NOW"
+
+
+def test_a_hit_says_why_it_was_attached_to_this_device():
+    """An operator asking "why is this on my relay" should not have to go and
+    read the matcher."""
+    matcher = vulnmatch.load_matcher()
+    if matcher is None:
+        pytest.skip("the scanner matcher is not importable here")
+    match = vulnmatch.match_asset(
+        {"estate_id": "e1", "coverage": "complete",
+         "attributes": {"ip": "10.0.0.11", "vendor": "Siemens",
+                        "model": "S7-1500", "firmware": "V4.2"}},
+        vulnmatch.load_corpus(), matcher)
+    assert any("matched on" in h.why for h in match.hits)
+
+
+def test_the_priority_authority_is_ours_not_the_scanners():
+    """The scanner classifies now/next/never too, and more loosely — NOW there
+    means "has a public exploit". Two prioritisation opinions in one product is
+    one too many, so only the SET of CVEs comes from the matcher."""
+    import inspect
+
+    source = inspect.getsource(vulnmatch.device_candidates)
+    assert "prioritise" in source or "priority does not" in source.lower()
+    assert "match_device" in source
 
 
 def test_every_match_names_the_corpus_it_was_computed_against():

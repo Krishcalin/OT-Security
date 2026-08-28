@@ -66,6 +66,53 @@ export interface VulnMatch {
   observation_coverage: Coverage;
   note: string;
   hits: { cve: string; kev: boolean; priority: string; why: string }[];
+  /** Null when nothing matched — there is nothing to contain. */
+  containment: ContainmentPlan | null;
+}
+
+/** One rule in a proposed containment. */
+export interface ContainmentRule {
+  order: number;
+  action: "allow" | "deny";
+  src_ip: string;
+  dst_ip: string;
+  protocol: string;
+  port: number;
+  rationale: string;
+}
+
+/**
+ * The segmentation change that would contain a finding nobody can patch.
+ *
+ * `state` is the field to read first. `refused` and `unknown` both mean no
+ * rule, and they are not the same: one is a boundary we derived and do not
+ * trust, the other is a device nothing has been observed talking to.
+ */
+export interface ContainmentPlan {
+  estate_id: string;
+  site: string;
+  zone_id: string;
+  purdue_level: number;
+  zone_basis: string;
+  state: "proposed" | "refused" | "unknown";
+  reason: string;
+  allow: {
+    src_ip: string;
+    src_zone: string;
+    protocol: string;
+    port: number;
+    crosses_zone: boolean;
+  }[];
+  rules: ContainmentRule[];
+  /** What the allow-list rests on, and what it cannot see. Always present. */
+  caveat: string;
+}
+
+export interface ContainmentSummary {
+  proposed: number;
+  refused: number;
+  unknown: number;
+  explain: string;
 }
 
 export interface VulnerabilitiesResponse {
@@ -74,6 +121,7 @@ export interface VulnerabilitiesResponse {
   assessed: number;
   actionable: number;
   matches: VulnMatch[];
+  containment: ContainmentSummary;
 }
 
 /** One collector's own view of an asset, before the estate merge (OTS-SRV-005). */

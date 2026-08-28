@@ -27,6 +27,7 @@ answer from *"we haven't done that yet."*
 | **D8** | What decides a collector's identity? | **The server** — the CSR's own subject is discarded, and every request is checked against the issuance record | `tests/test_fleet_enrolment.py` |
 | **D9** | How does an operator sign in? | **Password + TOTP**, with no session issued until both are satisfied | `tests/test_operator_auth.py` |
 | **D10** | What may a content pack carry? | **Data, never code** — and a correctly signed older pack is refused as a rollback | `tests/test_content_packs.py` |
+| **D11** | What do we say about a vulnerability nobody will patch? | **The segmentation that would contain it** — offered only where the boundary was derived, always with what it cannot see | `tests/test_containment.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -527,6 +528,53 @@ makes "safe and stale" a reachable state, so the fleet view reports which
 collectors are behind and which have never announced a version at all. Those two
 are separate: *has not told us* and *is running an old version* are different
 problems, and only one of them is a collector to go and look at.
+
+---
+
+## D11 — Containment, and three refusals
+
+**Asked because** most OT vulnerabilities are not going to be patched this
+quarter and often not this year. The device is a relay, the vendor's fix needs
+an outage, and the outage needs a season. "Patch it" is advice an operator has
+already discounted before they finish reading it, and a findings screen that
+offers nothing else is a list of things they cannot act on.
+
+**Answer.** Each finding carries the segmentation change that would contain it,
+built from that site's derived zones and the traffic actually observed reaching
+the device — an allow-list of what is happening today, then a deny.
+
+Never a bare deny. A bare deny on a controller is an outage, and a tool that
+proposes one has not understood what it is looking at.
+
+### A guessed boundary produces a guessed rule
+
+Zones carry the basis of their Purdue level (D6). A level that came from the
+topology engine's fallback describes the network no better than the subnet does,
+and a firewall rule built on it may be applied to a live plant by somebody who
+trusts it. So containment is **refused** there rather than qualified — the same
+line the policy engine draws, applied per zone, because one guessed zone should
+not suppress advice about a well-derived neighbour.
+
+### No observed traffic means no safe rule
+
+An allow-list for a device nothing has been seen talking to is a list somebody
+invented, and applying it is as likely to cut control communication as to
+contain anything. The answer is that this device's communication profile is
+unknown — which is a finding about the monitoring, not a gap in the advice.
+
+### An allow-list is only as complete as the window behind it
+
+The one that matters most and is easiest to miss. Passive observation sees what
+spoke. A maintenance laptop that connects quarterly, a backup master that runs
+during failover, an engineering workstation used twice a year — none of them
+appear, and a deny-everything-else rule will deny them.
+
+So every containment carries that sentence, **including when coverage was
+complete**, because a perfect window is still only as complete as it is long.
+When coverage was degraded or unmeasurable it says so louder, and at unknown
+coverage it says outright that this is a starting point for a conversation with
+operations rather than a change to apply. Handing somebody a firewall change
+without that is handing them an outage with a delay fuse.
 
 ---
 

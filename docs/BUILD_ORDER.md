@@ -9,7 +9,7 @@ says what exists.
 
 > **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
 > in with a second factor (D9), the fleet takes signed content (D10), and
-> coverage no longer counts a collector that has stopped reporting. 581 tests
+> coverage no longer counts a collector that has stopped reporting. 606 tests
 > passing without a database; 25 more require one and are skipped without it
 > (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -523,7 +523,51 @@ A **silent** collector raises only the silence: its last-known capture state
 describes last Tuesday, and sending somebody to fix a ring buffer on a device
 that is not running is worse than saying nothing.
 
-**Phase 6 is complete.** Once the fleet is stable, two borrowed capabilities
+**Phase 6 is complete.**
+
+---
+
+### After the phases: containment, and the pipeline under it
+
+Building the containment join (D11) surfaced that the thing it joins to had
+never worked.
+
+**The corpus had never loaded.** `vulnmatch.load_corpus` read
+`ics_cves.ICS_CVES`; the module exports `ICS_CVE_DATABASE` — 92 curated ICS CVEs
+across Siemens, Rockwell, Schneider, ABB and SEL. The names have never matched,
+so `corpus_loaded` was false in every deployment and every asset reported
+`unknown`.
+
+**And nothing would have matched even so.** `match_asset` read a `cve_ids`
+attribute off the asset that no collector, ingest path or merge has ever
+populated. The scanner has carried a working matcher the whole time —
+`scanner/cvedb/matcher.py`, vendor and product pattern and firmware range — and
+the server never called it.
+
+**Fixing only the first would have been worse than leaving it.** With the corpus
+loaded and no way to apply it, every asset takes the empty-list branch and comes
+back CLEAN. A Siemens S7-1500 on firmware V4.2, against a corpus holding
+CVE-2019-13945 (S7-1500, below 4.5), reported **clean with no caveat** — the
+confidently-wrong answer this entire system exists to refuse, sitting inside it.
+
+So both were fixed together, and a third state was added: a corpus with no means
+of applying it is `unknown`, never clean. The same device now matches nine CVEs,
+two of them NOW because they are on the CISA KEV list.
+
+Two smaller near-misses came out with them. The database spells its fields
+`cvss_score`, `epss_score` and `is_cisa_kev`; `prioritise` reads `cvss`, `epss`
+and `kev` — a missing key reads as a missing value, so a KEV flag nobody could
+see is a CVE that never reaches NOW. And the corpus carried no version at all,
+which was read as the literal string `"shipped"` for every revision it would
+ever have; it is a content fingerprint now, for the reason `rulepack.py` gives.
+
+**What this says about the test suite.** 599 tests passed over a pipeline that
+had never matched a CVE. They were not wrong — they exercised prioritisation
+thoroughly, over an input shape nothing in the product produces. Every test
+constructed a `Corpus` by hand and handed the asset a `cve_ids` list. The seam
+between two parts is where nobody was looking, which is where the detections
+that never attached (Phase 6) and the coverage that counted a dead collector
+were both hiding too. Once the fleet is stable, two borrowed capabilities
 become candidates: learned communication zones (Claroty's virtual zones,
 extending the existing `topology/`) and process-variable baselining (Nozomi —
 the protocol parsers already decode the point values it needs).
@@ -541,6 +585,7 @@ the protocol parsers already decode the point values it needs).
 | **D7** | the console is served by the server | one origin, so no CORS relaxation of the fail-closed estate plane; only `public/` and `dist/` are mounted |
 | **D8** | an identity is issued, not requested | the CSR's subject is discarded; every request is checked against the issuance record, so revocation denies |
 | **D10** | a content pack carries data, never code | no remote code execution path into the plant; a signed older pack is refused as a rollback |
+| **D11** | containment where patching is not an option | offered only where the zone was derived, never as a bare deny, always with what the allow-list cannot see |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |
