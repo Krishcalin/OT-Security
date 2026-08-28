@@ -25,6 +25,7 @@ answer from *"we haven't done that yet."*
 | **D6** | Are Purdue zones derived across the estate? | **No** — per site, and a mostly-guessed derivation is refused | `tests/test_server_zones.py` |
 | **D7** | Where does the operator console live? | **In the server** — one origin, one deployable | `tests/test_console.py` |
 | **D8** | What decides a collector's identity? | **The server** — the CSR's own subject is discarded, and every request is checked against the issuance record | `tests/test_fleet_enrolment.py` |
+| **D9** | How does an operator sign in? | **Password + TOTP**, with no session issued until both are satisfied | `tests/test_operator_auth.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -353,6 +354,103 @@ the Pi and never leaves it: a server that generated the pair and sent it back
 would be simpler and would put every collector's private key on the network,
 which is what "the CA private key never leaves the server" was written to
 prevent, applied to the wrong key.
+
+---
+
+## D9 — An operator signs in with two factors, and gets no session for one
+
+**Asked because** `OTS-SRV-006` left every estate route answering 503 with the
+instruction that a real deployment must inject a hook mapping the authenticated
+caller to an operator. Nothing in the product was that hook, so the console
+could not be used at all.
+
+**Answer.** A built-in provider: a local operator table, a password, and a TOTP
+second factor. It is an **opt-in** — `create_app(..., local_auth=True)` — so a
+plant fronted by its own identity provider injects theirs instead and never
+creates a local account. The fail-closed default is unchanged; this fills it
+rather than relaxing it.
+
+### No session exists until the second factor is satisfied
+
+The obvious implementation issues a session on a correct password and asks the
+browser to collect the code afterwards. That is a complete login that merely
+looks unfinished: a client that ignores the prompt is already signed in, and the
+second factor has become a dialog.
+
+So `/auth/login` answers 401 with `second_factor_required` and **no cookie**.
+There is nothing for a careless client to proceed with.
+
+### Every failure looks the same
+
+Wrong password, unknown account, disabled account and wrong code all return
+`invalid username or password`. A distinct "no such operator" is a directory of
+who works at this utility, enumerable before any password is guessed; a distinct
+"password right, code wrong" confirms a guessed password to somebody holding
+only half the credential. An unknown account also burns the same PBKDF2 work a
+real one would, because returning early makes the difference measurable on a
+stopwatch even when the response is identical.
+
+`second_factor_required` is the one exception, and it is safe: by the time it is
+returned the password is already proven.
+
+### The TOTP is implemented, not depended on
+
+`ot_server/totp.py` is RFC 6238 in about eighty lines of stdlib, and
+`ot_server/qr.py` is a QR encoder in the same spirit. Both were written rather
+than pulled in because a dependency in the authentication path of a console that
+fronts a plant is a dependency with a blast radius — and both come with external
+oracles, which is what makes that defensible:
+
+* RFC 6238 Appendix B publishes (time, expected code) for a known seed. A TOTP
+  that agrees with itself proves nothing; a round trip passes just as happily
+  when the algorithm is subtly wrong, and an operator experiences that as "the
+  authenticator app is broken".
+* ISO/IEC 18004 publishes the data and error-correction codewords for its own
+  worked example. A subtly wrong QR encoder produces a symbol that looks
+  perfectly QR-ish and scans as nonsense.
+
+SHA-1, deliberately. Microsoft and Google Authenticator ignore the `algorithm`
+parameter and assume it; advertising SHA-256 produces codes that never match.
+The break in SHA-1 is collision resistance, which HMAC does not rely on.
+
+### A code is single use, and so is a recovery code
+
+A code stays valid for its whole 30-second step, so without a stored counter the
+same six digits replay for up to 90 seconds with the drift window. The counter
+accepted is recorded per operator and never goes backwards.
+
+Ten recovery codes are minted at enrolment, shown **once**, and stored only as
+SHA-256. Without them a lost or wiped phone is a locked account, and for the
+first administrator there is nobody to ask for a reset. A list that could be
+re-opened would be a standing credential rather than a break-glass one.
+
+### Enrolment is two steps, and removal needs more than a session
+
+The secret is staged and is not in force until a code it generated has been
+typed back. A one-step enable locks out anyone whose transcription was wrong or
+whose phone clock is skewed — again, most likely the first administrator.
+
+Removing the factor requires the password **and** a current code. A session
+alone is not enough: the whole point of the factor is that a stolen session is
+not a complete credential, and letting one turn it off would make it exactly
+that.
+
+### What is in the cookie
+
+A random token and nothing else — no username, no role, no expiry the browser
+could edit. Everything is looked up server-side from its SHA-256, so a session
+is revoked by deleting one row, which is what a password change does. A signed
+token carrying claims would save the lookup and would mean a revoked operator
+keeps working until it expires; in a console that fronts a substation, that is
+not a trade worth a round trip.
+
+### There is no default password
+
+`POWERNETVIEW_BOOTSTRAP_USER` and `POWERNETVIEW_BOOTSTRAP_PASSWORD`, applied
+once against an empty operator table and ignored thereafter. A well-known
+default is a published credential on every install that forgets to change it,
+and auto-generating one to stdout puts a live credential in container logs that
+are aggregated, shipped and retained.
 
 ---
 

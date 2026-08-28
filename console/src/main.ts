@@ -15,6 +15,7 @@
 import { EstateApi } from "./api.js";
 import { estateBanner } from "./render.js";
 import { Screen, RouterHost, start } from "./router.js";
+import * as account from "./screens/account.js";
 import * as assets from "./screens/assets.js";
 import * as change from "./screens/change.js";
 import * as estate from "./screens/estate.js";
@@ -75,6 +76,13 @@ class PerDrawApi extends EstateApi {
   override certificates() {
     return this.once("certificates", () => super.certificates());
   }
+
+  // Deliberately NOT cached: the account screen re-reads it after enrolling or
+  // removing a factor, and a cached answer would show the state before the
+  // change the operator just made.
+  override totpStatus() {
+    return super.totpStatus();
+  }
 }
 
 const api = new PerDrawApi();
@@ -115,6 +123,13 @@ const SCREENS: readonly Screen[] = [
     label: "Fleet",
     question: "Which collectors hold which identities, and which were revoked.",
     render: () => fleet.render(api),
+  },
+  {
+    id: "account",
+    label: "Account",
+    question: "Your session, your second factor, and how to end both.",
+    render: () => account.render(api),
+    attach: (redraw) => account.attach(api, redraw),
   },
 ];
 

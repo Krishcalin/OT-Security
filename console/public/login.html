@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in — Power NetView</title>
+    <link rel="icon" href="/logo.svg" />
+    <link rel="stylesheet" href="/console.css" />
+  </head>
+  <body class="login-body">
+    <!--
+      Brand FIRST in the document, and first on a narrow viewport, because a
+      bare username box with no branding above it is exactly what a phishing
+      page looks like. On a wide screen the form sits left, where the eye lands
+      and the cursor already is.
+    -->
+    <main class="login-page">
+      <section class="login-form-side">
+        <div class="login-form-wrap">
+          <!--
+            The starting content is an error, not a spinner. If the bundle never
+            loads, this page must not present an inert username box that looks
+            like it is working — the same rule the console shell follows.
+          -->
+          <div id="login-root">
+            <div class="panel panel-alarm">
+              <h2>The sign-in page did not start</h2>
+              <p>
+                No form is shown because the script that builds it did not load.
+                Do not enter credentials anywhere on this page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="login-brand-side">
+        <img class="login-logo" src="/logo.svg"
+             alt="Power NetView — OT security, total visibility" />
+        <p class="login-tagline">OT Security. Total Visibility.</p>
+        <p class="login-blurb">
+          Passive asset discovery, Purdue segmentation and coverage you can
+          weigh — across every collector in the estate.
+        </p>
+      </aside>
+    </main>
+
+    <noscript>
+      <div class="panel panel-alarm">
+        <h2>This sign-in page needs JavaScript</h2>
+        <p>It cannot show a form without it, and shows none rather than one
+           that would not work.</p>
+      </div>
+    </noscript>
+
+    <script type="module" src="/dist/login.js"></script>
+  </body>
+</html>

@@ -53,8 +53,20 @@ code {
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* Cropped to the shield: the wordmark is already beside it in the header, and
+   showing it twice reads as a mistake. */
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .nav {
@@ -327,4 +339,228 @@ th.num {
  */
 .limits {
   margin-top: 8px;
+}
+
+/* ── sign-in (OTS-SRV-006) ─────────────────────────────────────────────────
+ *
+ * Split layout: form left, where the eye lands and the cursor already is;
+ * brand right. On a narrow viewport the brand comes FIRST, because a bare
+ * username box with no branding above it is exactly what a phishing page looks
+ * like — the product should be identified before a password is asked for.
+ */
+
+.login-body { margin: 0; }
+
+.login-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--panel);
+}
+
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.login-form-wrap { width: 100%; max-width: 23rem; }
+
+.login-title { font-size: 24px; margin: 0 0 6px; }
+
+.login-sub {
+  margin: 0 0 22px;
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  background: var(--panel);
+}
+
+.login-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  margin-top: 10px;
+}
+
+.login-label:first-of-type { margin-top: 0; }
+
+.login-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #3f7fd6;
+  box-shadow: 0 0 0 3px rgba(63, 127, 214, 0.25);
+}
+
+.login-btn {
+  margin-top: 18px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: #2f6fd0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.login-btn:hover:not(:disabled) { background: #3f83e8; }
+.login-btn:disabled { opacity: 0.6; cursor: default; }
+
+.login-link {
+  margin-top: 10px;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.login-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #f0b3b0;
+  background: #2c1518;
+  border: 1px solid #5a2a2c;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.login-notice {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #e0b98a;
+  background: #2a2114;
+  border: 1px solid #4a3a1f;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.login-help {
+  margin: 20px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.login-brand-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2rem;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+}
+
+.login-logo { width: 100%; max-width: 22rem; height: auto; }
+
+.login-tagline {
+  margin: 4px 0 0;
+  color: var(--ink-dim);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.login-blurb {
+  margin: 14px 0 0;
+  max-width: 30ch;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 860px) {
+  .login-page { grid-template-columns: 1fr; }
+  .login-brand-side {
+    order: -1;
+    border-left: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 1.5rem;
+  }
+  .login-logo { max-width: 15rem; }
+}
+
+/* ── the account screen ────────────────────────────────────────────────── */
+
+.enrol-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.enrol-qr {
+  background: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  line-height: 0;
+}
+
+.enrol-qr svg { width: 190px; height: 190px; }
+
+.secret-box {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+  word-break: break-all;
+}
+
+.recovery-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recovery-list li {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.who {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-dim);
 }

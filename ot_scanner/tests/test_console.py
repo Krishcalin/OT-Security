@@ -186,7 +186,8 @@ def test_engine_limitations_are_rendered_not_hidden():
 
 # ── the shell and the screens (OTS-CON-001..006) ───────────────────────────
 
-SCREENS = ("estate", "assets", "findings", "topology", "change", "fleet")
+SCREENS = ("estate", "assets", "findings", "topology", "change",
+           "fleet", "account")
 PUBLIC = os.path.join(CONSOLE, "public")
 
 
@@ -390,7 +391,7 @@ def test_the_shell_is_served_from_the_same_origin_as_the_api():
     just to make it reachable."""
     response = _app().get("/")
     assert response.status_code == 200
-    assert "OT Sensor Fleet" in response.text
+    assert "Power NetView" in response.text
 
 
 def test_serving_the_console_does_not_open_the_estate_plane():
@@ -614,3 +615,52 @@ def test_the_render_check_would_notice_a_screen_that_drew_nothing():
     assert "rendered nothing" in src
     assert "rendered no coverage chip and no explanation" in src
     assert "[object Object]" in src
+
+
+# ── the sign-in page (OTS-SRV-006) ─────────────────────────────────────────
+
+def test_the_sign_in_page_is_served():
+    response = _app().get("/login.html")
+    assert response.status_code == 200
+    assert "Power NetView" in response.text
+
+
+def test_the_sign_in_page_starts_as_a_refusal_not_an_inert_form():
+    """If the bundle never loads, whatever this holds is what an operator
+    reads. A username box that looks like it works, and does not, is the shape
+    a phishing page has."""
+    with open(os.path.join(PUBLIC, "login.html"), encoding="utf-8") as fh:
+        page = fh.read()
+    assert "The sign-in page did not start" in page
+    assert "Do not enter credentials" in page
+
+
+def test_the_product_is_identified_before_a_password_is_asked_for():
+    """On a narrow viewport the brand comes first. A bare username box with no
+    branding above it is exactly what a phishing page looks like."""
+    with open(os.path.join(PUBLIC, "login.html"), encoding="utf-8") as fh:
+        page = fh.read()
+    assert "login-brand-side" in page and "logo.svg" in page
+    with open(os.path.join(PUBLIC, "console.css"), encoding="utf-8") as fh:
+        css = fh.read()
+    assert "order: -1" in css, "the brand does not come first on a small screen"
+
+
+def test_the_logo_is_served():
+    response = _app().get("/logo.svg")
+    assert response.status_code == 200
+    assert "svg" in response.headers.get("content-type", "")
+
+
+def test_the_sign_in_page_does_not_split_its_error_messages():
+    """A friendlier "no such operator" is a directory of who works at this
+    utility; a friendlier "code wrong" confirms a guessed password."""
+    src = _read("login.ts")
+    assert "oracle" in src
+    assert "no self-service reset" in src or "no \"forgot password\"" in src
+
+
+def test_the_console_sends_an_expired_session_to_the_form():
+    """Not a panel explaining that the operator should go and find it."""
+    src = _read("router.ts")
+    assert "/login.html" in src and "401" in src

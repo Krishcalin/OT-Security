@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 DDL: Tuple[str, ...] = (
     """
@@ -187,6 +187,65 @@ DDL: Tuple[str, ...] = (
         revocation_reason TEXT NOT NULL DEFAULT ''
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS operator (
+        username       TEXT PRIMARY KEY,
+        display_name   TEXT NOT NULL DEFAULT '',
+        -- pbkdf2_sha256$<iterations>$<salt>$<derived>. Self-describing, so
+        -- raising the cost later is not a migration.
+        password_hash  TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'active',
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_login_at  TIMESTAMPTZ
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS operator_session (
+        -- The SHA-256 of the cookie, never the cookie. A copy of this database
+        -- must not yield a working session.
+        token_hash        TEXT PRIMARY KEY,
+        username          TEXT NOT NULL REFERENCES operator(username)
+                          ON DELETE CASCADE,
+        issued_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+        -- Slides forward on use...
+        expires_at        TIMESTAMPTZ NOT NULL,
+        -- ...but never past this, so a continuously-active session still
+        -- forces a fresh sign-in eventually.
+        absolute_deadline TIMESTAMPTZ NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS operator_totp (
+        username     TEXT PRIMARY KEY REFERENCES operator(username)
+                     ON DELETE CASCADE,
+        secret       TEXT NOT NULL,
+        -- Enrolment is two-step: a secret exists here before it is enabled,
+        -- and is only switched on once a code it generated has been typed
+        -- back. A one-step enable locks out anyone whose transcription was
+        -- wrong -- and the person most likely to be hit is the first
+        -- administrator, who has nobody to ask for a reset.
+        enabled      BOOLEAN NOT NULL DEFAULT FALSE,
+        -- The last counter accepted. A code stays valid for its whole step, so
+        -- without this the same six digits replay for up to 90 seconds.
+        last_counter BIGINT NOT NULL DEFAULT -1,
+        enrolled_at  TIMESTAMPTZ,
+        updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS operator_recovery (
+        username    TEXT NOT NULL REFERENCES operator(username)
+                    ON DELETE CASCADE,
+        -- SHA-256 of the code. 50 bits of uniform randomness with no structure
+        -- to guess at, so stretching buys nothing and would delay a login.
+        fingerprint TEXT NOT NULL,
+        used_at     TIMESTAMPTZ,
+        PRIMARY KEY (username, fingerprint)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_session_username ON operator_session (username)",
+    "CREATE INDEX IF NOT EXISTS ix_session_expiry ON operator_session (expires_at)",
     "CREATE INDEX IF NOT EXISTS ix_certificate_collector ON certificate (collector_id)",
     "CREATE INDEX IF NOT EXISTS ix_certificate_expiry ON certificate (not_after)",
     "CREATE INDEX IF NOT EXISTS ix_window_collector ON observation_window (collector_id, received_at DESC)",
@@ -214,6 +273,9 @@ PRUNE: Tuple[str, ...] = (
     # the record of which token produced which certificate.
     "DELETE FROM enrolment_token WHERE used_at IS NULL "
     "AND expires_at < now() - INTERVAL '30 days'",
+    # A session past its absolute deadline can never be honoured again, so the
+    # row is a hash of a dead cookie and nothing more.
+    "DELETE FROM operator_session WHERE absolute_deadline < now()",
 )
 
 #: Deliberately absent from PRUNE: `certificate`. What was issued, to whom, and

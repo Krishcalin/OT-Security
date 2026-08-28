@@ -8,7 +8,8 @@ record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
 > **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
-> (enrolment and certificate lifecycle done). 436 tests passing without a
+> (enrolment and certificate lifecycle done); the console signs operators
+> in with a second factor (D9). 516 tests passing without a
 > database; 22 more require one and are skipped without it (CI refuses that
 > skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -424,6 +425,33 @@ Deleting the CERTIFICATE directive fails four tests, and makes the forged
 fingerprint succeed. So the clearing directive is redundant under the shipped
 nginx config and load-bearing under the fingerprint-only shape HAProxy runs in;
 the test now says that, and a separate check asserts both configs carry it.
+
+### `OTS-SRV-006` — the console has a front door · **DONE**
+
+Every estate route answered 503 with the instruction that a deployment must
+inject an operator hook, and nothing in the product was one — so the console
+could not be used at all. `ot_server/authn.py`, `authn_api.py`, `totp.py` and
+`qr.py` are that hook, and `console/public/login.html` is its front door.
+
+Password plus TOTP, with **no session issued until both are satisfied**, and no
+default password anywhere. The reasoning is decision **D9**; the two things
+worth repeating here are that the TOTP and the QR encoder are both checked
+against external oracles (RFC 6238 Appendix B, ISO/IEC 18004's worked example)
+rather than against themselves, and that wiring this is an opt-in that leaves
+the fail-closed posture exactly as it was.
+
+The product is branded **Power NetView** on the console and the sign-in page.
+
+**Two things this cost, both worth recording.** `authn_api.py` was written with
+`from __future__ import annotations`, which is the trap the top of `api.py`
+documents: FastAPI then sees the route annotations as strings, cannot resolve
+`Request`, treats it as a query parameter, and every route answers 422. The note
+was there and had to be rediscovered.
+
+And the in-memory store double answered exactly one estate route, so "signed in,
+now read the estate" passed in the unit tests and returned 500 the first time it
+ran against a real server. The double is complete now — the same lesson as the
+one in Phase 6, arriving from the other direction.
 
 **Still to do in this phase.** Signed updates, rule-pack distribution and
 server-side health alarms. Once the fleet is stable, two borrowed capabilities

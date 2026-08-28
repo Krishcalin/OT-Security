@@ -241,7 +241,8 @@ def _utcnow():
 
 
 def create_app(store, require_operator: Optional[Callable] = None,
-               console_dir: Optional[str] = None, ca=None):
+               console_dir: Optional[str] = None, ca=None,
+               local_auth: bool = False):
     """Build the ASGI app. `store` is injected so the routes can be tested
     against a double without Postgres running.
 
@@ -252,7 +253,14 @@ def create_app(store, require_operator: Optional[Callable] = None,
     `ca` is the fleet certificate authority. Passing one turns on certificate
     enforcement for the ingest plane and opens the enrolment endpoints; passing
     None leaves both off, and the enrolment routes answer 503 rather than
-    accepting requests they cannot complete."""
+    accepting requests they cannot complete.
+
+    `local_auth` mounts the built-in operator sign-in (OTS-SRV-006) and, unless
+    `require_operator` was supplied, makes it the hook the estate plane
+    authenticates against. It is an OPT-IN: a deployment fronted by its own
+    identity provider injects `require_operator` and never creates a local
+    operator, and a deployment that asks for neither still answers 503 on every
+    estate route. Nothing here relaxes the fail-closed default; it fills it."""
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.responses import JSONResponse
 
@@ -309,13 +317,22 @@ def create_app(store, require_operator: Optional[Callable] = None,
                        "unavailable rather than approximated.")
         return ca
 
+    operator_hook = require_operator
+    if local_auth:
+        from . import authn_api
+
+        authn_api.add_auth_routes(app, store)
+        authn_api.bootstrap(store)
+        if operator_hook is None:
+            operator_hook = authn_api.local_operator(store)
+
     def _operator(request: Request) -> str:
-        if require_operator is None:
+        if operator_hook is None:
             raise HTTPException(
                 status_code=503,
                 detail="no operator authentication is configured; the estate "
                        "API is fail-closed until one is wired (OTS-SRV-006)")
-        return require_operator(request)
+        return operator_hook(request)
 
     # ── ingest plane ──────────────────────────────────────────────────────
     @app.post("/api/v1/ingest")
@@ -807,6 +824,12 @@ def _mount_console(app, console_dir: Optional[str]) -> None:
         console_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "console")
+    elif not console_dir:
+        # An explicit empty string is "serve no console". Without this, None
+        # meant the repository default and there was no way to ask for a
+        # server-only deployment — and the catch-all static mount answered 405
+        # to any POST that did not match a route, which reads as a routing bug.
+        return
     public = os.path.join(console_dir, "public")
     dist = os.path.join(console_dir, "dist")
     if not os.path.isdir(public):

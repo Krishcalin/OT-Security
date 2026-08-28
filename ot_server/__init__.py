@@ -12,10 +12,12 @@ first-class records and computes coverage from what actually arrived. Accepting
 that honesty and then rendering a continuous timeline would discard it at the
 last step.
 """
-from . import (analysis, api, ca, enrolment, estate, ingest, schema, store,
-               vulnmatch, zones)
+from . import (analysis, api, authn, authn_api, ca, enrolment, estate,
+               ingest, qr, schema, store, totp, vulnmatch, zones)
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
                      asset_state, decide, summarise_coverage, validate)
+from .authn import (AuthError, PasswordPolicyError, decide_login,
+                    hash_password, verify_password)
 from .ca import CaError, CertificateAuthority, IssuedCertificate
 from .enrolment import (EnrolmentError, MintedToken, decide_issue,
                         decide_renewal, hash_token, mint)
@@ -29,7 +31,10 @@ from .zones import (SiteTopology, ZoneBasis, ZoneConfidence,
                     derive as derive_zones, overall_confidence)
 
 __all__ = [
-    "api", "ca", "enrolment", "ingest", "schema", "store",
+    "api", "authn", "authn_api", "ca", "enrolment", "ingest", "qr",
+    "schema", "store", "totp",
+    "AuthError", "PasswordPolicyError", "decide_login", "hash_password",
+    "verify_password",
     "CaError", "CertificateAuthority", "IssuedCertificate",
     "EnrolmentError", "MintedToken", "decide_issue", "decide_renewal",
     "hash_token", "mint",

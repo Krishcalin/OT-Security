@@ -298,6 +298,190 @@ class Store:
                      "last_seen": r[3], "observation_count": r[4],
                      "attributes": r[5]} for r in cur.fetchall()]
 
+    # ── operators, sessions and second factors (OTS-SRV-006) ──────────────
+
+    def operator_count(self) -> int:
+        """How many operators exist. The bootstrap asks, and asks only once."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM operator")
+            return int(cur.fetchone()[0])
+
+    def create_operator(self, username: str, password_hash: str,
+                        display_name: str = "") -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO operator (username, display_name, password_hash) "
+                "VALUES (%s, %s, %s)",
+                (username.strip().lower(), display_name, password_hash))
+        self.conn.commit()
+
+    def operator(self, username: str) -> Optional[Dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT username, display_name, password_hash, status, "
+                "last_login_at FROM operator WHERE username = %s",
+                ((username or "").strip().lower(),))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"username": row[0], "display_name": row[1],
+                "password_hash": row[2], "status": row[3],
+                "last_login_at": row[4]}
+
+    def set_operator_password(self, username: str, password_hash: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE operator SET password_hash = %s, updated_at = now() "
+                "WHERE username = %s", (password_hash, username))
+        self.conn.commit()
+
+    def note_operator_login(self, username: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("UPDATE operator SET last_login_at = now() "
+                        "WHERE username = %s", (username,))
+        self.conn.commit()
+
+    # sessions
+    def open_session(self, token_hash: str, username: str, window) -> None:
+        import datetime
+
+        def stamp(value):
+            return datetime.datetime.fromtimestamp(
+                value, datetime.timezone.utc)
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO operator_session (token_hash, username, "
+                "issued_at, expires_at, absolute_deadline) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (token_hash, username, stamp(window.issued_at),
+                 stamp(window.expires_at), stamp(window.absolute_deadline)))
+        self.conn.commit()
+
+    def session(self, token_hash: str) -> Optional[Dict]:
+        """A live session, or None.
+
+        Expiry is evaluated in the STATEMENT rather than in Python: a row that
+        has aged out must never come back, whatever the caller then does with
+        it.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT s.token_hash, s.username, s.issued_at, s.expires_at, "
+                "s.absolute_deadline, o.status, o.display_name "
+                "FROM operator_session s JOIN operator o "
+                "ON o.username = s.username "
+                "WHERE s.token_hash = %s AND s.expires_at > now() "
+                "AND s.absolute_deadline > now()", (token_hash,))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"token_hash": row[0], "username": row[1], "issued_at": row[2],
+                "expires_at": row[3], "absolute_deadline": row[4],
+                "status": row[5], "display_name": row[6]}
+
+    def touch_session(self, token_hash: str, expires_at) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE operator_session SET expires_at = LEAST(%s, "
+                "absolute_deadline) WHERE token_hash = %s",
+                (expires_at, token_hash))
+        self.conn.commit()
+
+    def close_session(self, token_hash: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM operator_session WHERE token_hash = %s",
+                        (token_hash,))
+        self.conn.commit()
+
+    def close_all_sessions(self, username: str) -> int:
+        """Every session for one operator. A password change that leaves the
+        old sessions alive has changed nothing for whoever already had one."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM operator_session WHERE username = %s",
+                        (username,))
+            closed = cur.rowcount
+        self.conn.commit()
+        return closed
+
+    # second factor
+    def totp_state(self, username: str) -> Optional[Dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT username, secret, enabled, last_counter, enrolled_at "
+                "FROM operator_totp WHERE username = %s", (username,))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"username": row[0], "secret": row[1], "enabled": row[2],
+                "last_counter": row[3], "enrolled_at": row[4]}
+
+    def stage_totp_secret(self, username: str, secret: str) -> None:
+        """A secret that is NOT yet in force. See operator_totp's comment."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO operator_totp (username, secret, enabled, "
+                "last_counter, updated_at) VALUES (%s, %s, FALSE, -1, now()) "
+                "ON CONFLICT (username) DO UPDATE SET secret = EXCLUDED.secret, "
+                "enabled = FALSE, last_counter = -1, enrolled_at = NULL, "
+                "updated_at = now()", (username, secret))
+        self.conn.commit()
+
+    def enable_totp(self, username: str, counter: int) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE operator_totp SET enabled = TRUE, last_counter = %s, "
+                "enrolled_at = now(), updated_at = now() WHERE username = %s",
+                (counter, username))
+        self.conn.commit()
+
+    def disable_totp(self, username: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM operator_totp WHERE username = %s",
+                        (username,))
+            cur.execute("DELETE FROM operator_recovery WHERE username = %s",
+                        (username,))
+        self.conn.commit()
+
+    def record_totp_counter(self, username: str, counter: int) -> None:
+        """The replay guard. Only ever moves forward."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE operator_totp SET last_counter = GREATEST(last_counter, "
+                "%s), updated_at = now() WHERE username = %s",
+                (counter, username))
+        self.conn.commit()
+
+    def store_recovery_codes(self, username: str,
+                             fingerprints: List[str]) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM operator_recovery WHERE username = %s",
+                        (username,))
+            for fingerprint in fingerprints:
+                cur.execute(
+                    "INSERT INTO operator_recovery (username, fingerprint) "
+                    "VALUES (%s, %s)", (username, fingerprint))
+        self.conn.commit()
+
+    def unused_recovery_fingerprints(self, username: str) -> List[str]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT fingerprint FROM operator_recovery "
+                "WHERE username = %s AND used_at IS NULL", (username,))
+            return [row[0] for row in cur.fetchall()]
+
+    def spend_recovery_code(self, username: str, fingerprint: str) -> bool:
+        """Single use, claimed in one statement for the same reason an enrolment
+        token is: check-then-use lets the same code be spent twice."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE operator_recovery SET used_at = now() "
+                "WHERE username = %s AND fingerprint = %s AND used_at IS NULL",
+                (username, fingerprint))
+            claimed = cur.rowcount
+        self.conn.commit()
+        return bool(claimed)
+
     # ── enrolment and certificates (Phase 6) ──────────────────────────────
 
     def create_enrolment_token(self, minted) -> None:

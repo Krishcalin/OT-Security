@@ -71,6 +71,27 @@ that value intact.
 
 ---
 
+## The operator session (D9)
+
+The console signs operators in with a password and a TOTP code, and carries the
+session in an `HttpOnly`, `SameSite=strict` cookie. Two things the terminator
+must get right:
+
+**Pass `X-Forwarded-Proto`.** The cookie is marked `Secure` when the request
+arrived over https, and the server reads that header to find out. Without it, a
+terminator doing TLS in front of a plain-http upstream produces a cookie the
+browser then refuses to send back — the sign-in appears to succeed and the next
+request is anonymous. Both configs here set it.
+
+**Do not strip or rewrite `Cookie` / `Set-Cookie`.** Nothing in these configs
+touches them, and nothing should: the session is the cookie.
+
+`/login.html`, `/logo.svg` and the bundle are static and unauthenticated, which
+they must be — the sign-in page cannot require a session. They carry no estate
+data; every figure still comes from `/api/v1/estate/*`.
+
+---
+
 ## What is not covered here
 
 **TLS for the server certificate itself.** These configs assume you already have

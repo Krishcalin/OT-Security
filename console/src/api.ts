@@ -175,6 +175,39 @@ export interface CertificatesResponse {
   ca_configured: boolean;
 }
 
+/** Who is signed in, from `/api/v1/auth/me`. */
+export interface MeResponse {
+  authenticated: boolean;
+  username?: string;
+  display_name?: string;
+  totp_enabled?: boolean;
+  expires_at?: string;
+}
+
+export interface TotpStatus {
+  enabled: boolean;
+  pending: boolean;
+  issuer: string;
+}
+
+export interface TotpEnrolment {
+  secret: string;
+  formatted_secret: string;
+  provisioning_uri: string;
+  /** An SVG produced by this server's own encoder from the URI above. */
+  qr_svg: string;
+  issuer: string;
+  digits: number;
+  period: number;
+}
+
+export interface TotpConfirmed {
+  enabled: boolean;
+  /** Shown once. Stored only as hashes, so there is no second chance. */
+  recovery_codes: string[];
+  detail: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -234,6 +267,61 @@ export class EstateApi {
 
   certificates(): Promise<CertificatesResponse> {
     return this.get("/api/v1/estate/certificates");
+  }
+
+  // ── operator session (OTS-SRV-006) ──────────────────────────────────────
+  //
+  // `me` is deliberately not routed through `get`: it answers 200 with
+  // `authenticated: false` for the ordinary not-signed-in case, and turning
+  // that into an ApiError would make "nobody is signed in" look like a fault.
+
+  async me(): Promise<MeResponse> {
+    const response = await fetch(`${this.base}/api/v1/auth/me`, {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    if (!response.ok) return { authenticated: false };
+    return (await response.json()) as MeResponse;
+  }
+
+  private async send<T>(path: string, body: unknown): Promise<T> {
+    const response = await fetch(`${this.base}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!response.ok) {
+      let detail = `request failed (${response.status})`;
+      try {
+        const parsed = (await response.json()) as { detail?: string };
+        if (parsed.detail) detail = parsed.detail;
+      } catch {
+        // Keep the status-only message.
+      }
+      throw new ApiError(detail, response.status);
+    }
+    return (await response.json()) as T;
+  }
+
+  signOut(): Promise<{ signed_out: boolean }> {
+    return this.send("/api/v1/auth/logout", {});
+  }
+
+  totpStatus(): Promise<TotpStatus> {
+    return this.get("/api/v1/auth/totp");
+  }
+
+  totpBegin(): Promise<TotpEnrolment> {
+    return this.send("/api/v1/auth/totp/begin", {});
+  }
+
+  totpConfirm(code: string): Promise<TotpConfirmed> {
+    return this.send("/api/v1/auth/totp/confirm", { code });
+  }
+
+  totpDisable(password: string, code: string): Promise<{ enabled: boolean }> {
+    return this.send("/api/v1/auth/totp/disable", { password, code });
   }
 }
 

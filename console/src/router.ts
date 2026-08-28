@@ -19,6 +19,14 @@ export interface Screen {
   /** What this screen answers, shown in the nav title attribute. */
   readonly question: string;
   readonly render: () => Promise<string>;
+  /**
+   * Called after the markup is mounted, for a screen with controls.
+   *
+   * The router replaces `innerHTML`, so a screen cannot attach listeners while
+   * rendering — the elements do not exist yet. `redraw` re-runs the current
+   * screen, which is how a form reflects what it just did.
+   */
+  readonly attach?: (redraw: () => void) => void;
 }
 
 /**
@@ -108,6 +116,14 @@ export function start(
       banner = await chrome();
       body = await screen.render();
     } catch (error) {
+      // A session that has expired or been revoked is not a screen that failed
+      // to draw; it is a console that is no longer signed in. Sending the
+      // operator to the form beats a panel explaining that they should find
+      // it themselves.
+      if (error instanceof ApiError && error.status === 401) {
+        window.location.assign("/login.html");
+        return;
+      }
       body = failurePanel(error);
     }
     // A slower earlier navigation must not overwrite a later one, or the
@@ -115,6 +131,7 @@ export function start(
     if (mine !== generation) return;
     host.banner.innerHTML = banner;
     host.main.innerHTML = body;
+    if (screen.attach) screen.attach(() => void draw());
   };
 
   window.addEventListener("hashchange", () => void draw());
