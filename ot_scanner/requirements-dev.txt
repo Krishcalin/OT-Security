@@ -37,3 +37,21 @@ httpx>=0.27
 # resolves to 47.0.0 and stays there. That release ships a cp38-abi3 wheel (no
 # Rust toolchain on the runner) and still carries both accessors.
 cryptography>=42.0
+
+# Brand assets. tools/build_brand_assets.py derives console/public/otsec-*.png
+# from docs/brand/otsec-master.png, and tests/test_branding.py rebuilds them to
+# check the committed files still match the master.
+#
+# This is declared here and NOT in requirements.txt on purpose: the container
+# never builds assets, the derived PNGs are committed, and a deployment needs
+# nothing but the repository. It is declared at all — rather than left to
+# importorskip — because a test that silently skips reads exactly like a test
+# that passed, which is the same reasoning as OT_CONSOLE_REQUIRED above.
+#
+# No ceiling, and the 3.8 leg was checked rather than assumed: Pillow 11 raised
+# requires-python to >=3.9, so pip on 3.8 resolves to 10.4.0, which ships a
+# cp38 wheel and carries every call this tool makes (quantize with MEDIANCUT
+# and dither=NONE, LANCZOS resampling). The drift check compares PIXELS rather
+# than encoded bytes precisely so this version spread cannot turn a runner
+# upgrade into a red build.
+Pillow>=10.0

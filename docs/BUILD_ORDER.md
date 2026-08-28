@@ -453,11 +453,31 @@ why a hand-done rename skips them and an operator ends up reading two product
 names for one product.
 
 `tests/test_branding.py` now scans every shipping surface for the retired name,
-and asserts that every asset a page references exists — because the committed
-artwork is a drawn stand-in, and the swap that brings the supplied logo in must
-fail in CI rather than on the sign-in page, where a missing brand reads as a
-phishing site. See `docs/brand/README.md`, which also records why that artwork
-keeps its own field instead of being keyed transparent.
+so the next rename is not done by hand.
+
+**The artwork is derived, not drawn.** `docs/brand/otsec-master.png` is the
+supplied image; `console/public/otsec-*.png` are generated from it by
+`tools/build_brand_assets.py` and committed, so a deployment needs nothing but
+the repository. Two assets rather than one, because the 26px header slot and the
+22rem sign-in panel cannot share a drawing: the mark is the shield alone, found
+by column profile, since cropping the lockup square drags in peripheral glyphs
+that are indistinguishable from dirt at 16px.
+
+The lockup **keeps its own blue field** instead of being keyed transparent. That
+field is not incidental packaging: un-mixing projects each pixel against the
+target ink, so the silver bevel, the pale traces and the device glyphs — all
+lighter than the field — clamp to zero and vanish. MonitorRisk shipped exactly
+that and rendered its own name as half a word, with a valid RGBA PNG and a green
+suite. So the panel behind the lockup is painted the same value, and a test
+asserts the CSS hex still equals the asset's own background pixel.
+
+That test is the one worth having. The console's `--ink-dim` measures **1.31:1**
+against the brand field — reusing it would have put invisible text on the sign-in
+page. `--brand-ink`, read out of the wordmark, is 7.47:1.
+
+Drift is compared as pixels rather than encoded bytes, because the CI matrix
+spans four Python legs that do not resolve to the same Pillow, and a check that
+goes red on a runner upgrade is a check people learn to ignore.
 
 **Two things this cost, both worth recording.** `authn_api.py` was written with
 `from __future__ import annotations`, which is the trap the top of `api.py`

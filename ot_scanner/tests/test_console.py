@@ -711,20 +711,20 @@ def test_the_product_is_identified_before_a_password_is_asked_for():
     branding above it is exactly what a phishing page looks like."""
     with open(os.path.join(PUBLIC, "login.html"), encoding="utf-8") as fh:
         page = fh.read()
-    assert "login-brand-side" in page and "otsec-logo.svg" in page
+    assert "login-brand-side" in page and "otsec-logo.png" in page
     with open(os.path.join(PUBLIC, "console.css"), encoding="utf-8") as fh:
         css = fh.read()
     assert "order: -1" in css, "the brand does not come first on a small screen"
 
 
-@pytest.mark.parametrize("asset", ["/otsec-logo.svg", "/otsec-mark.svg"])
+@pytest.mark.parametrize("asset", ["/otsec-logo.png", "/otsec-mark.png"])
 def test_the_brand_artwork_is_served(asset):
     """Two files, because the 26px header slot and the 22rem sign-in panel want
     different drawings. `tests/test_branding.py` checks the pages reference the
     right one of the two; this checks the server hands them over."""
     response = _app().get(asset)
     assert response.status_code == 200
-    assert "svg" in response.headers.get("content-type", "")
+    assert "png" in response.headers.get("content-type", "")
 
 
 def test_the_sign_in_page_does_not_split_its_error_messages():

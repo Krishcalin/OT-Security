@@ -22,6 +22,21 @@
   --warn: #c98a2b;
   --alarm: #c4453f;
   --link: #6aa0d8;
+
+  /*
+   * The brand lockup is ink on a flat field and KEEPS that field — see
+   * tools/build_brand_assets.py for why keying it out destroys the silver
+   * bevel and the pale PLC/SCADA glyphs. So the panel behind it is painted the
+   * same value the asset carries, and the two must not drift; a test asserts
+   * this hex equals the asset's own background pixel.
+   *
+   * Text on that panel takes --brand-ink, which is the wordmark's navy read
+   * out of the artwork. Measured on #82c2e5: --brand-ink 7.47:1 (AA), while
+   * the console's own --ink is 1.60:1 and --ink-dim 1.31:1. Reusing either
+   * would have put invisible text on the one page that must inspire trust.
+   */
+  --brand-field: #82c2e5;
+  --brand-ink: #23254e;
 }
 
 * {
@@ -476,25 +491,20 @@ th.num {
   justify-content: center;
   gap: 4px;
   padding: 2rem;
-  background: var(--bg);
+  background: var(--brand-field);
+  color: var(--brand-ink);
   border-left: 1px solid var(--line);
 }
 
 .login-logo { width: 100%; max-width: 22rem; height: auto; }
 
-.login-tagline {
-  margin: 4px 0 0;
-  color: var(--ink-dim);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
 .login-blurb {
   margin: 14px 0 0;
   max-width: 30ch;
   text-align: center;
-  color: var(--ink-dim);
+  /* Inherits --brand-ink from the panel. --ink-dim would be 1.31:1 here. */
+  color: inherit;
+  opacity: 0.82;
   font-size: 13px;
   line-height: 1.6;
 }
