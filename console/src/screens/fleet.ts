@@ -11,9 +11,108 @@
  * a confident statement about a fleet whose identities are not being tracked.
  */
 
-import { CertificateRow, CertificatesResponse, EstateApi } from "../api.js";
+import {
+  CertificateRow,
+  CertificatesResponse,
+  EstateApi,
+  PackDrift,
+  PackRow,
+  PacksResponse,
+} from "../api.js";
 import { Coverage, measured } from "../coverage.js";
 import { cls, esc, metric, table } from "../render.js";
+
+/**
+ * What a fleet running mixed content is worth.
+ *
+ * `complete` only when every collector is on the newest pack. A collector
+ * left behind is not a smaller number — it is a sensor that will not report
+ * what the new pack would have found, and nothing in its own output says so.
+ * A collector that has never announced a version is `unknown` rather than
+ * `degraded`, because we do not know what it is running at all.
+ */
+function driftCoverage(drift: PackDrift): { coverage: Coverage; basis: string } {
+  if (drift.latest === 0) {
+    return {
+      coverage: "unknown",
+      basis: "no rules pack has been published, so no collector has been "
+        + "told anything and none of them are behind",
+    };
+  }
+  if (drift.unknown.length) {
+    return { coverage: "unknown", basis: drift.explain };
+  }
+  if (drift.behind.length) {
+    return { coverage: "degraded", basis: drift.explain };
+  }
+  return { coverage: "complete", basis: drift.explain };
+}
+
+function packPanel(packs: PacksResponse): string {
+  if (!packs.signing_configured) {
+    return [
+      '<div class="panel panel-warn">',
+      "  <h2>No content signing key is configured</h2>",
+      '  <p class="note">This server cannot publish detection content, so',
+      "   the fleet runs whatever it was built with and can only be updated",
+      "   by replacing the collector. Distribution is unavailable rather",
+      "   than unsigned — an unsigned pack is content a collector should",
+      "   refuse.</p>",
+      "</div>",
+    ].join("");
+  }
+
+  const { coverage, basis } = driftCoverage(packs.drift);
+  const rows = table<PackRow>(
+    [
+      { header: "version", cell: (p) => esc(p.version), numeric: true },
+      { header: "contents", cell: (p) => esc(p.summary) },
+      { header: "published", cell: (p) => esc(p.created_at.slice(0, 10)) },
+      { header: "by", cell: (p) => esc(p.published_by || "—") },
+      { header: "digest", cell: (p) => esc(p.digest.slice(0, 16)) },
+    ],
+    packs.packs.map((row) => ({
+      row,
+      coverage: row.version === packs.drift.latest
+        ? ("complete" as Coverage)
+        : ("degraded" as Coverage),
+      basis: row.version === packs.drift.latest
+        ? "the current pack"
+        : "superseded by version " + packs.drift.latest,
+    })),
+  );
+
+  const behind = packs.drift.behind.map(
+    (row) => "<li>" + esc(row.collector_id) + " on version "
+      + esc(row.version) + ", " + esc(row.behind_by) + " behind</li>",
+  );
+  const silent = packs.drift.unknown.map(
+    (id) => "<li>" + esc(id) + " has not reported a version</li>",
+  );
+
+  return [
+    "<h2>Detection content</h2>",
+    '<div class="metrics">',
+    metric("collectors on the current pack",
+      measured(packs.drift.current.length, coverage, basis)),
+    metric("published version",
+      measured(packs.drift.latest, coverage, basis)),
+    "</div>",
+    behind.length || silent.length
+      ? ['<div class="panel panel-warn">',
+         "  <h2>Not every collector is on the current pack</h2>",
+         '  <p class="note">A collector that refused or missed a pack keeps',
+         "   running the content it has. It stays safe and goes quiet about",
+         "   everything the new pack would have found, so the gap shows",
+         "   here rather than in its own output.</p>",
+         '  <ul class="warn-list">',
+         behind.join(""), silent.join(""),
+         "  </ul>",
+         "</div>"].join("")
+      : "",
+    rows,
+  ].join("");
+}
 
 /**
  * What a certificate's row is worth.
@@ -73,7 +172,7 @@ export async function render(api: EstateApi): Promise<string> {
   const certificates: CertificatesResponse = await api.certificates();
 
   if (!certificates.ca_configured) {
-    return ["<h1>Fleet identities</h1>", noCa()].join("");
+    return ["<h1>Fleet</h1>", noCa(), packPanel(await api.packs())].join("");
   }
 
   const rows = certificates.certificates;
@@ -96,8 +195,10 @@ export async function render(api: EstateApi): Promise<string> {
     rows.map((row) => ({ row, ...rowCoverage(row) })),
   );
 
+  const packs = await api.packs();
+
   return [
-    "<h1>Fleet identities</h1>",
+    "<h1>Fleet</h1>",
     '<div class="metrics">',
     metric("valid certificates", measured(valid.length, state, basis)),
     metric(
@@ -117,5 +218,6 @@ export async function render(api: EstateApi): Promise<string> {
     " the question after an incident is what this fleet has held rather than",
     " what it holds now.</p>",
     listing,
+    packPanel(packs),
   ].join("");
 }

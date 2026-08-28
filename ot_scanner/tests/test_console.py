@@ -445,7 +445,7 @@ def _payloads(directory, client=None):
 
     client = client or _app_with_operator()
     for name in ("coverage", "inventory", "vulnerabilities", "assets",
-                 "analysis", "zones", "certificates"):
+                 "analysis", "zones", "certificates", "packs"):
         body = client.get("/api/v1/estate/%s" % name).json()
         with open(os.path.join(directory, "%s.json" % name), "w",
                   encoding="utf-8") as fh:
@@ -534,6 +534,17 @@ class _PopulatedStore:
     def certificates(self, collector_id=None):
         return [dict(c) for c in self.certs
                 if collector_id in (None, c["collector_id"])]
+
+    # Content packs: none published, which is a state the fleet screen must
+    # draw rather than fail on.
+    def packs(self, kind=None):
+        return []
+
+    def latest_pack_version(self, kind):
+        return 0
+
+    def reported_pack_versions(self):
+        return {"pi-a": None}
 
     def active_certificates(self, collector_id):
         return []

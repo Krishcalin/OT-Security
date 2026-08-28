@@ -60,7 +60,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
-from . import enrolment, ingest, vulnmatch
+from . import enrolment, ingest, packs as pack_module, vulnmatch
 from .ingest import Decision, Verdict
 
 COLLECTOR_ID_HEADER = "X-Collector-Id"
@@ -234,6 +234,12 @@ def authenticate_collector(store, headers,
     return record["collector_id"]
 
 
+def _isoformat(value) -> str:
+    """Timestamps arrive as datetimes from PostgreSQL and as strings from a
+    double. Both have to render, and neither should crash a listing."""
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
 def _utcnow():
     import datetime
 
@@ -242,7 +248,7 @@ def _utcnow():
 
 def create_app(store, require_operator: Optional[Callable] = None,
                console_dir: Optional[str] = None, ca=None,
-               local_auth: bool = False):
+               local_auth: bool = False, signer=None):
     """Build the ASGI app. `store` is injected so the routes can be tested
     against a double without Postgres running.
 
@@ -255,13 +261,20 @@ def create_app(store, require_operator: Optional[Callable] = None,
     None leaves both off, and the enrolment routes answer 503 rather than
     accepting requests they cannot complete.
 
+    `signer` is the content signing key. Passing one opens the pack routes;
+    without it they answer 503, because a server that cannot sign content
+    must not distribute any — an unsigned pack is content a collector
+    should refuse, and offering it would only teach the fleet to accept
+    what it cannot check.
+
     `local_auth` mounts the built-in operator sign-in (OTS-SRV-006) and, unless
     `require_operator` was supplied, makes it the hook the estate plane
     authenticates against. It is an OPT-IN: a deployment fronted by its own
     identity provider injects `require_operator` and never creates a local
     operator, and a deployment that asks for neither still answers 503 on every
     estate route. Nothing here relaxes the fail-closed default; it fills it."""
-    from fastapi import Depends, FastAPI, Header, HTTPException, Request
+    from fastapi import (Depends, FastAPI, Header, HTTPException, Request,
+                         Response)
     from fastapi.responses import JSONResponse
 
     app = FastAPI(title="OT Sensor Fleet", version="0.1.0")
@@ -307,6 +320,15 @@ def create_app(store, require_operator: Optional[Callable] = None,
                 status_code=400,
                 detail="the request body must be a JSON object")
         return body
+
+    def _signer():
+        if signer is None:
+            raise HTTPException(
+                status_code=503,
+                detail="no content signing key is configured, so this server "
+                       "cannot publish or serve content packs. Distribution is "
+                       "unavailable rather than unsigned.")
+        return signer
 
     def _ca():
         if ca is None:
@@ -637,6 +659,11 @@ def create_app(store, require_operator: Optional[Callable] = None,
             "site": claim["site"],
             "certificate": issued.pem,
             "ca_certificate": authority.ca_pem,
+            # Both anchors in one exchange. The CA proves who the SERVER is;
+            # this proves what the CONTENT is, and they are separate keys on
+            # purpose. A collector that had to fetch the content key later would
+            # be fetching it over a channel it could not yet verify content on.
+            "content_key": signer.public_key_pem if signer is not None else "",
             "serial": issued.serial,
             "not_after": issued.not_after.isoformat(),
             "note": decision.reason,
@@ -793,6 +820,117 @@ def create_app(store, require_operator: Optional[Callable] = None,
                 detail="no unrevoked certificate with serial %r; it is either "
                        "unknown or already revoked" % serial)
         return {"serial": serial, "revoked": True, "reason": reason}
+
+    # -- content packs (Phase 6) -------------------------------------------
+    #
+    # `rules` packs are the only kind that reach a collector. The CVE corpus
+    # stays on the server under decision D3, which is why refreshing it needs no
+    # fleet involvement at all -- half of the two-cadence split comes free.
+
+    @app.get("/api/v1/packs/key")
+    def content_key():
+        """The public key packs are verified against.
+
+        Unauthenticated for the same reason `/api/v1/ca` is: a verification key
+        is useless to an attacker, and a collector needs it before it can check
+        anything at all. It is written at enrolment; this route is how a
+        collector recovers it without re-enrolling.
+        """
+        return {"public_key": _signer().public_key_pem, "algorithm": "Ed25519"}
+
+    @app.get("/api/v1/packs/latest")
+    def latest_pack(request: Request, kind: str = "rules", have: int = 0):
+        """The newest pack, for a collector that already holds `have`.
+
+        204 when there is nothing newer, so an up-to-date fleet costs one empty
+        response per cycle rather than a full pack. 404 when nothing has been
+        published at all, which is a different state and says so.
+        """
+        _identity(request)
+        if kind != pack_module.KIND_RULES:
+            # The corpus never leaves the server. A collector asking for it is
+            # misconfigured or probing; either way the answer is no.
+            raise HTTPException(
+                status_code=403,
+                detail="only 'rules' packs are distributed to collectors; the "
+                       "vulnerability corpus stays on the server (D3)")
+        _signer()
+        pack = store.latest_pack(kind)
+        if pack is None:
+            raise HTTPException(status_code=404,
+                                detail="no rules pack has been published")
+        if int(pack["version"]) <= int(have or 0):
+            return Response(status_code=204)
+        return {"kind": pack["kind"], "version": int(pack["version"]),
+                "created_at": _isoformat(pack["created_at"]),
+                "payload": pack["payload"], "signature": pack["signature"],
+                "digest": pack["digest"]}
+
+    @app.post("/api/v1/estate/packs")
+    async def publish_pack(request: Request):
+        """Sign and publish a pack.
+
+        The server signs it HERE rather than accepting a signature from the
+        caller. A route that took a pre-signed pack would accept whatever the
+        holder of any key produced, and the whole point of the key living on
+        this server is that this server decides what the fleet runs.
+        """
+        operator = _operator(request)
+        authority = _signer()
+        body = await _body(request)
+
+        kind = str(body.get("kind") or pack_module.KIND_RULES)
+        payload = body.get("payload")
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=400,
+                                detail="a pack needs a payload object")
+
+        # Monotonic, and chosen here rather than by the caller: a caller picking
+        # its own version could publish one the fleet refuses as a rollback, or
+        # collide with a version already issued and make "which content produced
+        # this finding" unanswerable.
+        version = store.latest_pack_version(kind) + 1
+        try:
+            pack = authority.sign(kind, version, payload)
+        except pack_module.PackError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        store.publish_pack(pack, published_by=operator)
+        return JSONResponse(status_code=201, content={
+            "kind": pack.kind, "version": pack.version, "digest": pack.digest,
+            "summary": pack_module.describe(pack),
+            "detail": "collectors apply this on their next check; the fleet "
+                      "view shows which are still behind"})
+
+    @app.get("/api/v1/estate/packs")
+    def list_packs(request: Request):
+        """Published packs, and which collectors are still behind.
+
+        Refusing a bad pack keeps a collector safe and leaves it running old
+        content. Safe and stale has to be VISIBLE, or the fleet quietly stops
+        detecting things nobody removed.
+        """
+        _operator(request)
+        rows = store.packs()
+        drift = pack_module.fleet_drift(
+            store.latest_pack_version(pack_module.KIND_RULES),
+            store.reported_pack_versions())
+        return {
+            "packs": [{"kind": row["kind"], "version": row["version"],
+                       "created_at": _isoformat(row["created_at"]),
+                       "digest": row["digest"],
+                       "published_by": row["published_by"],
+                       "summary": pack_module.describe(
+                           pack_module.SignedPack(
+                               kind=row["kind"], version=row["version"],
+                               created_at="", payload=row["payload"]))}
+                      for row in rows],
+            "signing_configured": signer is not None,
+            "drift": {"latest": drift.latest, "current": drift.current,
+                      "behind": drift.behind, "unknown": drift.unknown,
+                      "all_current": drift.all_current,
+                      "explain": drift.explain()},
+        }
 
     @app.get("/api/v1/estate/ca")
     def ca_certificate(request: Request):

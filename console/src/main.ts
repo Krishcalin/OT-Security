@@ -77,6 +77,10 @@ class PerDrawApi extends EstateApi {
     return this.once("certificates", () => super.certificates());
   }
 
+  override packs() {
+    return this.once("packs", () => super.packs());
+  }
+
   // Deliberately NOT cached: the account screen re-reads it after enrolling or
   // removing a factor, and a cached answer would show the state before the
   // change the operator just made.

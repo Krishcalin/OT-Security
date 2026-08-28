@@ -13,12 +13,13 @@ that honesty and then rendering a continuous timeline would discard it at the
 last step.
 """
 from . import (analysis, api, authn, authn_api, ca, enrolment, estate,
-               ingest, qr, schema, store, totp, vulnmatch, zones)
+               ingest, packs, qr, schema, store, totp, vulnmatch, zones)
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
                      asset_state, decide, summarise_coverage, validate)
 from .authn import (AuthError, PasswordPolicyError, decide_login,
                     hash_password, verify_password)
 from .ca import CaError, CertificateAuthority, IssuedCertificate
+from .packs import ContentSigner, PackError, SignedPack, fleet_drift
 from .enrolment import (EnrolmentError, MintedToken, decide_issue,
                         decide_renewal, hash_token, mint)
 from .schema import DDL, RETENTION_MONTHS, SCHEMA_VERSION
@@ -31,8 +32,9 @@ from .zones import (SiteTopology, ZoneBasis, ZoneConfidence,
                     derive as derive_zones, overall_confidence)
 
 __all__ = [
-    "api", "authn", "authn_api", "ca", "enrolment", "ingest", "qr",
-    "schema", "store", "totp",
+    "api", "authn", "authn_api", "ca", "enrolment", "ingest", "packs",
+    "qr", "schema", "store", "totp",
+    "ContentSigner", "PackError", "SignedPack", "fleet_drift",
     "AuthError", "PasswordPolicyError", "decide_login", "hash_password",
     "verify_password",
     "CaError", "CertificateAuthority", "IssuedCertificate",

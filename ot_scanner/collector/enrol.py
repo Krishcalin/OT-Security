@@ -80,6 +80,9 @@ from typing import Dict, List, Optional
 KEY_NAME = "collector-key.pem"
 CERT_NAME = "collector-cert.pem"
 CA_NAME = "ca-cert.pem"
+#: The content verification key, written beside the CA bundle. `content.py`
+#: reads it by this name and applies nothing without it.
+CONTENT_KEY_NAME = "content-key.pub"
 
 #: P-256. Small keys, fast handshakes on a Pi, and universally supported.
 CURVE = "prime256v1"
@@ -197,6 +200,9 @@ class EnrolmentResult:
     key_path: str
     cert_path: str
     ca_path: str
+    #: Empty when the server has no content signing key, which means this
+    #: collector cannot be updated remotely and will say so when asked to.
+    content_key_path: str = ""
 
 
 def _context(server_ca: Optional[str]):
@@ -323,7 +329,18 @@ def enrol(server_url: str, token: str, collector_id: str, dest: str,
 
     cert_path = os.path.join(dest, CERT_NAME)
     ca_path = os.path.join(dest, CA_NAME)
-    for path, content in ((cert_path, certificate), (ca_path, ca_certificate)):
+    written = [(cert_path, certificate), (ca_path, ca_certificate)]
+
+    # The content verification key, when the server has one. A server without a
+    # signing key distributes no content, so its absence here is not a failure —
+    # it is a fleet that will not be updated remotely, and `content.py` says so
+    # plainly rather than applying anything unverified.
+    content_key = str(body.get("content_key") or "")
+    content_key_path = os.path.join(dest, CONTENT_KEY_NAME)
+    if content_key:
+        written.append((content_key_path, content_key))
+
+    for path, content in written:
         with open(path, "w", encoding="ascii") as fh:
             fh.write(content if content.endswith("\n") else content + "\n")
 
@@ -332,7 +349,8 @@ def enrol(server_url: str, token: str, collector_id: str, dest: str,
         site=str(body.get("site") or ""),
         serial=str(body.get("serial") or ""),
         not_after=str(body.get("not_after") or ""),
-        key_path=key_path, cert_path=cert_path, ca_path=ca_path)
+        key_path=key_path, cert_path=cert_path, ca_path=ca_path,
+        content_key_path=content_key_path if content_key else "")
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
@@ -369,6 +387,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("  key         %s" % result.key_path)
     print("  certificate %s" % result.cert_path)
     print("  ca bundle   %s" % result.ca_path)
+    if result.content_key_path:
+        print("  content key %s" % result.content_key_path)
+    else:
+        print("  content key NOT ISSUED - this server signs no content, so "
+              "this collector cannot be updated remotely")
     print("\nThe token is now spent. Renew before the expiry above with "
           "`/api/v1/renew`; a certificate that has expired must be enrolled "
           "again, which puts a person back in the loop.")

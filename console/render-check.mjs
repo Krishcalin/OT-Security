@@ -31,6 +31,7 @@ const FILES = {
   "/api/v1/estate/analysis": "analysis.json",
   "/api/v1/estate/zones": "zones.json",
   "/api/v1/estate/certificates": "certificates.json",
+  "/api/v1/estate/packs": "packs.json",
 };
 
 // The console talks to the network and nothing else, so the network is the only

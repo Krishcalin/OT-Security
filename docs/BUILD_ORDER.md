@@ -8,10 +8,10 @@ record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
 > **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
-> (enrolment and certificate lifecycle done); the console signs operators
-> in with a second factor (D9). 516 tests passing without a
-> database; 22 more require one and are skipped without it (CI refuses that
-> skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
+> (enrolment, certificate lifecycle and signed content distribution done); the
+> console signs operators in with a second factor (D9). 558 tests passing
+> without a database; 25 more require one and are skipped without it (CI
+> refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
 
 ---
@@ -453,8 +453,33 @@ now read the estate" passed in the unit tests and returned 500 the first time it
 ran against a real server. The double is complete now — the same lesson as the
 one in Phase 6, arriving from the other direction.
 
-**Still to do in this phase.** Signed updates, rule-pack distribution and
-server-side health alarms. Once the fleet is stable, two borrowed capabilities
+### Signed content distribution · **DONE** (D10)
+
+`rulepack.py` could already say which logic produced a finding and could not
+change it. `ot_server/packs.py`, `collector/content.py` and the `/api/v1/packs`
+routes are the channel that changes it.
+
+The design came from reading how Dragos ships Knowledge Packs, and diverges from
+them in one place that matters: **their packs carry protocol dissection engines,
+and ours carry data only.** Delivering code to every collector in every
+substation and running it is a remote code execution path into the plant with
+one key in the way, and that key sits on this server. New dissectors still
+require a release, deliberately.
+
+Two other things fell out of the reading. Dragos split their packs into a fast
+lane and a slow one because a monolithic pack delayed the fast half — and **D3
+already gives us the better version of that split**, since the CVE corpus never
+ships to a Pi and refreshing it involves no collector at all. And every pack a
+server ever issues stays correctly signed forever, so a replayed old one is a
+rollback that a signature check alone cannot catch; the version is the control,
+and it is assigned by the server rather than the caller.
+
+Refusing a bad pack leaves a collector on old content, which is safe and
+silent. So the fleet view now reports who is behind and who has never announced
+a version — separate states, because only one of them is a collector to go and
+look at.
+
+**Still to do in this phase.** Server-side health alarms. Once the fleet is stable, two borrowed capabilities
 become candidates: learned communication zones (Claroty's virtual zones,
 extending the existing `topology/`) and process-variable baselining (Nozomi —
 the protocol parsers already decode the point values it needs).
@@ -471,6 +496,7 @@ the protocol parsers already decode the point values it needs).
 | **D6** | zones are derived per site | a mostly-defaulted derivation is refused; the engines stay `SKIPPED` and say which of the two empty states applies |
 | **D7** | the console is served by the server | one origin, so no CORS relaxation of the fail-closed estate plane; only `public/` and `dist/` are mounted |
 | **D8** | an identity is issued, not requested | the CSR's subject is discarded; every request is checked against the issuance record, so revocation denies |
+| **D10** | a content pack carries data, never code | no remote code execution path into the plant; a signed older pack is refused as a rollback |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |

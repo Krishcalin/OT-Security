@@ -26,6 +26,7 @@ answer from *"we haven't done that yet."*
 | **D7** | Where does the operator console live? | **In the server** — one origin, one deployable | `tests/test_console.py` |
 | **D8** | What decides a collector's identity? | **The server** — the CSR's own subject is discarded, and every request is checked against the issuance record | `tests/test_fleet_enrolment.py` |
 | **D9** | How does an operator sign in? | **Password + TOTP**, with no session issued until both are satisfied | `tests/test_operator_auth.py` |
+| **D10** | What may a content pack carry? | **Data, never code** — and a correctly signed older pack is refused as a rollback | `tests/test_content_packs.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -451,6 +452,81 @@ once against an empty operator table and ignored thereafter. A well-known
 default is a published credential on every install that forgets to change it,
 and auto-generating one to stdout puts a live credential in container logs that
 are aggregated, shipped and retained.
+
+---
+
+## D10 — A content pack carries data, never code
+
+**Asked because** `rulepack.py` could already say which logic produced a
+finding, and could not change it: updating a rule meant rebuilding the collector
+wheel and driving to the substation. Dragos solved the same problem with weekly
+Knowledge Packs, so the shape of the answer was available to copy.
+
+**Answer.** Two lanes, one of which never touches the fleet — and packs that
+carry declarative content rather than executable code.
+
+### Only one lane reaches a collector
+
+Dragos split their packs into a weekly lane carrying indicators and
+vulnerabilities and a quarterly lane carrying everything else, because a single
+monolithic pack was delaying the fast-moving half.
+
+**Decision D3 already gives us the better version of that split.** The CVE, KEV
+and EPSS corpus lives on the server and never ships to a Pi, so refreshing it
+re-prioritises the entire estate without contacting a single collector. The
+weekly lane costs the fleet nothing because the fleet is not involved in it.
+Only `rules` packs are distributed, and they are the only kind
+`/api/v1/packs/latest` will serve — a collector asking for the corpus gets a
+403.
+
+### Data, never code
+
+This is the deliberate departure from what Dragos ships. Their packs carry
+protocol dissection engines, which is to say executable code delivered to every
+sensor in every plant.
+
+A channel that delivers code to every collector in every substation and runs it
+is a remote code execution path into the plant, by design, with the signing key
+as the only thing standing in the way — and that key sits on the server this
+same codebase runs. The blast radius of one compromise becomes every controller
+network the fleet can see.
+
+So a pack carries indicators, signature definitions and advisory metadata, which
+a fixed interpreter on the collector applies. A pack carrying any other section
+is refused rather than partially applied: an unknown section is either a newer
+format than the interpreter understands or something being smuggled past it, and
+neither should be half-applied. New protocol *dissectors* still require a
+release, and that cost is the point — shipping a parser is shipping code.
+
+### The signing key is not the CA key
+
+One key doing both means anyone who can publish a detection update can also mint
+a collector identity, and anyone who can mint an identity can publish content
+the fleet will run. Separate keys, separate blast radii. Ed25519 rather than RSA
+or ECDSA-with-choices: one curve, one hash, nothing to configure weakly.
+
+Both anchors are handed over in one exchange at enrolment. A collector that had
+to fetch the content key later would be fetching it over a channel it could not
+yet verify content on.
+
+### A correctly signed older pack is an attack
+
+Every pack this server has ever issued stays correctly signed forever. An
+attacker who can answer a collector's fetch — or simply replay a recorded
+response — serves a genuine, valid, *old* pack, and a collector checking only
+the signature applies it happily and silently loses every detection added since.
+
+The signature is not the control here. The version is: monotonic, assigned by
+the server rather than the caller, and anything not strictly newer is refused.
+
+### Refusing is not enough — being behind has to be visible
+
+Every refusal leaves the collector running the content it already has, because a
+sensor that silently stops detecting looks exactly like a quiet plant. That
+makes "safe and stale" a reachable state, so the fleet view reports which
+collectors are behind and which have never announced a version at all. Those two
+are separate: *has not told us* and *is running an old version* are different
+problems, and only one of them is a collector to go and look at.
 
 ---
 

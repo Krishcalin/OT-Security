@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DDL: Tuple[str, ...] = (
     """
@@ -244,6 +244,24 @@ DDL: Tuple[str, ...] = (
         PRIMARY KEY (username, fingerprint)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS content_pack (
+        kind        TEXT NOT NULL,
+        -- Monotonic per kind. A collector refuses anything not strictly newer
+        -- than what it holds, because every pack this server ever issued stays
+        -- correctly signed forever and a replayed old one is a rollback.
+        version     BIGINT NOT NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        published_by TEXT NOT NULL DEFAULT '',
+        -- SHA-256 of the canonical body. Recorded on findings so a result can
+        -- be traced to the content that produced it.
+        digest      TEXT NOT NULL,
+        signature   TEXT NOT NULL,
+        payload     JSONB NOT NULL,
+        PRIMARY KEY (kind, version)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_pack_kind ON content_pack (kind, version DESC)",
     "CREATE INDEX IF NOT EXISTS ix_session_username ON operator_session (username)",
     "CREATE INDEX IF NOT EXISTS ix_session_expiry ON operator_session (expires_at)",
     "CREATE INDEX IF NOT EXISTS ix_certificate_collector ON certificate (collector_id)",
@@ -278,6 +296,11 @@ PRUNE: Tuple[str, ...] = (
     "DELETE FROM operator_session WHERE absolute_deadline < now()",
 )
 
+#: Deliberately absent from PRUNE: `content_pack`. A finding records the pack
+#: version that produced it, and a version nobody can look up turns "which rules
+#: found this" back into a question with no answer — which is the whole reason
+#: rulepack.py content-hashes anything.
+#:
 #: Deliberately absent from PRUNE: `certificate`. What was issued, to whom, and
 #: when it was revoked is the audit trail for the fleet's identities, and it has
 #: to outlive the certificates themselves — "no record" and "never issued" would

@@ -208,6 +208,38 @@ export interface TotpConfirmed {
   detail: string;
 }
 
+/** One published content pack. */
+export interface PackRow {
+  kind: string;
+  version: number;
+  created_at: string;
+  digest: string;
+  published_by: string;
+  summary: string;
+}
+
+/**
+ * Which collectors are running which pack.
+ *
+ * `unknown` is separate from `behind` on purpose: "has not told us" and "is
+ * running an old version" are different states, and only one of them is a
+ * collector to go and look at.
+ */
+export interface PackDrift {
+  latest: number;
+  current: string[];
+  behind: { collector_id: string; version: number; behind_by: number }[];
+  unknown: string[];
+  all_current: boolean;
+  explain: string;
+}
+
+export interface PacksResponse {
+  packs: PackRow[];
+  signing_configured: boolean;
+  drift: PackDrift;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -267,6 +299,10 @@ export class EstateApi {
 
   certificates(): Promise<CertificatesResponse> {
     return this.get("/api/v1/estate/certificates");
+  }
+
+  packs(): Promise<PacksResponse> {
+    return this.get("/api/v1/estate/packs");
   }
 
   // ── operator session (OTS-SRV-006) ──────────────────────────────────────

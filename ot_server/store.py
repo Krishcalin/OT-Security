@@ -298,6 +298,64 @@ class Store:
                      "last_seen": r[3], "observation_count": r[4],
                      "attributes": r[5]} for r in cur.fetchall()]
 
+    # ── content packs (Phase 6) ───────────────────────────────────────────
+
+    def publish_pack(self, pack, published_by: str = "") -> None:
+        """Store a signed pack. The primary key refuses a duplicate version,
+        which is the point: two different packs claiming the same version would
+        make "which content produced this" unanswerable."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO content_pack (kind, version, digest, signature, "
+                "payload, published_by) VALUES (%s, %s, %s, %s, %s, %s)",
+                (pack.kind, pack.version, pack.digest, pack.signature,
+                 _json(pack.payload), published_by))
+        self.conn.commit()
+
+    def latest_pack(self, kind: str) -> Optional[Dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT kind, version, created_at, digest, signature, payload, "
+                "published_by FROM content_pack WHERE kind = %s "
+                "ORDER BY version DESC LIMIT 1", (kind,))
+            row = cur.fetchone()
+        return _pack_row(row)
+
+    def latest_pack_version(self, kind: str) -> int:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT COALESCE(MAX(version), 0) FROM content_pack "
+                        "WHERE kind = %s", (kind,))
+            return int(cur.fetchone()[0])
+
+    def packs(self, kind: Optional[str] = None) -> List[Dict]:
+        sql = ("SELECT kind, version, created_at, digest, signature, payload, "
+               "published_by FROM content_pack")
+        params: List[Any] = []
+        if kind:
+            sql += " WHERE kind = %s"
+            params.append(kind)
+        sql += " ORDER BY kind, version DESC"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            return [_pack_row(row) for row in cur.fetchall()]
+
+    def reported_pack_versions(self) -> Dict[str, Any]:
+        """What each collector last said it was running, from its heartbeat.
+
+        A collector that has never reported one appears with None rather than 0:
+        "has not told us" and "is running version 0" are different states, and
+        only one of them is a collector to go and look at.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT collector_id, rulepack_version FROM collector")
+            out = {}
+            for collector_id, version in cur.fetchall():
+                try:
+                    out[collector_id] = int(version) if version else None
+                except (TypeError, ValueError):
+                    out[collector_id] = None
+            return out
+
     # ── operators, sessions and second factors (OTS-SRV-006) ──────────────
 
     def operator_count(self) -> int:
@@ -637,6 +695,14 @@ class Store:
                      "asset_key": r[2], "rule_id": r[3], "severity": r[4],
                      "last_coverage": r[5], "rulepack_version": r[6],
                      "attributes": r[7]} for r in cur.fetchall()]
+
+
+def _pack_row(row) -> Optional[Dict]:
+    if row is None:
+        return None
+    return {"kind": row[0], "version": int(row[1]), "created_at": row[2],
+            "digest": row[3], "signature": row[4], "payload": row[5],
+            "published_by": row[6]}
 
 
 def _certificate_row(row) -> Optional[Dict]:
