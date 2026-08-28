@@ -1,42 +1,149 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="OT / ICS Passive Network Scanner" width="100%">
+  <img src="console/public/otsec-logo.png" alt="OTSec — OT Security. Total Visibility." width="420">
 </p>
 
 <p align="center">
-  <strong>Purely passive, offline security scanners for Operational Technology &amp; Industrial Control Systems</strong><br>
+  <strong>Passive OT/ICS security: know every device on the plant network, without sending it a packet</strong><br>
   <sub>Asset discovery · Vulnerability detection · Purdue zone mapping · Compliance assessment · Threat detection · Attack path analysis · SIEM integration</sub>
 </p>
 
 <p align="center">
   <a href="https://github.com/Krishcalin/OT-Security/actions/workflows/ci.yml"><img src="https://github.com/Krishcalin/OT-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-791-22c55e?style=flat-square" alt="Tests"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square" alt="Python"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6c7086?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="#unified-ot-scanner-v20"><img src="https://img.shields.io/badge/version-2.0.0-22c55e?style=flat-square" alt="Version"></a>
-  <a href="#supported-protocols"><img src="https://img.shields.io/badge/protocols-16-3b82f6?style=flat-square" alt="Protocols"></a>
+  <a href="#supported-protocols"><img src="https://img.shields.io/badge/protocol%20analysers-21-3b82f6?style=flat-square" alt="Protocol analysers"></a>
   <a href="#vulnerability-detection"><img src="https://img.shields.io/badge/vuln%20rules-29-f97316?style=flat-square" alt="Rules"></a>
-  <a href="#ics-cve-database"><img src="https://img.shields.io/badge/ICS%20CVEs-90-ef4444?style=flat-square" alt="CVEs"></a>
+  <a href="#ics-cve-database"><img src="https://img.shields.io/badge/ICS%20CVEs-92-ef4444?style=flat-square" alt="CVEs"></a>
   <a href="#threat-detection--mitre-attck"><img src="https://img.shields.io/badge/malware%20sigs-9-dc2626?style=flat-square" alt="Malware Sigs"></a>
   <a href="#compliance-assessment"><img src="https://img.shields.io/badge/compliance-35%20controls-8b5cf6?style=flat-square" alt="Compliance"></a>
   <a href="#integration-ecosystem"><img src="https://img.shields.io/badge/exports-11%20formats-0ea5e9?style=flat-square" alt="Exports"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6c7086?style=flat-square" alt="License"></a>
 </p>
+
+---
+
+## Contents
+
+**Start here**
+- [Overview](#overview) — what OTSec is
+- [How it runs](#scanners) — a fleet of sensors, or one PCAP at a time
+- [Why passive scanning?](#why-passive-scanning) — the constraint everything else follows from
+- [Deployment: one server, many collectors](#deployment-one-server-many-collectors) — the Pi, the ring, the mirror port
+
+**Using it**
+- [Quick start](#quick-start)
+- [CLI reference](#cli-reference)
+- [Requirements](#requirements)
+
+**What it finds**
+- [Supported protocols](#supported-protocols) — 21 analysers
+- [Deep asset profiling](#deep-asset-profiling) — make, model, firmware, OS version
+- [ICS project file analysis](#ics-project-file-analysis) — ground truth from engineering files
+- [Vulnerability detection](#vulnerability-detection) — 29 rules
+- [ICS CVE database](#ics-cve-database) — 92 CVEs, KEV and EPSS aware
+- [Enhanced risk scoring](#enhanced-risk-scoring)
+- [Threat detection & MITRE ATT&CK](#threat-detection--mitre-attck)
+- [Attack path analysis](#attack-path-analysis)
+- [Secure access audit](#secure-access-audit)
+- [Configuration snapshot engine](#configuration-snapshot-engine) — drift over time
+- [Network policy engine](#network-policy-engine) — generated firewall rules
+- [Network topology (Purdue model)](#network-topology-purdue-model)
+- [Compliance assessment](#compliance-assessment) — 35 controls
+- [Integration ecosystem](#integration-ecosystem) — 11 export formats
+
+**Design and internals**
+- [Architecture](#architecture)
+- [Testing & CI](#testing--ci)
+- [Legacy scanners](#legacy-scanners)
+- [License](#license)
+
+**Deeper reading**
+
+| Document | What it answers |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the collector, server and console divide the work |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Every load-bearing decision, and what it cost |
+| [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md) | What was built when, and what broke |
+| [deploy/README.md](deploy/README.md) | Siting a collector; TLS termination; server sizing |
+| [docs/brand/README.md](docs/brand/README.md) | Brand assets, and why the lockup keeps its field |
 
 ---
 
 ## Overview
 
-A collection of **purely passive** OT/ICS security scanners that analyse captured network traffic (PCAP / PCAPNG) to discover industrial devices, detect vulnerabilities, map network topology to the Purdue model, and assess compliance against ICS security frameworks. **No packets are ever sent to the network** -- all analysis is offline, making these tools safe for use in live production environments where active scanning can trip protection relays or disrupt SCADA control loops.
+**OTSec discovers what is on an industrial network, what version it runs, and what is wrong with it — without ever sending it a packet.**
 
-The project includes a **unified scanner** (v2.0) that merges and extends two earlier single-purpose scanners, adding 9 advanced analysis modules: deep asset profiling, ICS project file parsing, firewall policy generation, composite risk scoring, ICS malware threat detection, multi-platform SIEM integration, secure access auditing, configuration snapshot management, and attack path analysis.
+It identifies PLCs, RTUs, FRTUs, IEDs, HMIs, gateways and the ring switches carrying them; matches their firmware against an ICS CVE corpus; maps the estate to the Purdue model; and assesses it against NERC CIP, IEC 62443 and NIST 800-82. Nothing is probed, nothing is scanned, nothing is asked — every answer comes from traffic the plant was already producing.
+
+The design principle underneath all of it is narrower than "find problems". It is that the tool must be able to tell **"we looked and saw nothing"** apart from **"we did not look"**, and must never present the second as the first. Coverage travels with every number, and a window that could not be measured is reported as unknown rather than clean.
 
 ## Scanners
 
-| Scanner | Directory | Version | Lines | Description |
-|---------|-----------|---------|------:|-------------|
-| **Unified OT Scanner** | [`ot_scanner/`](ot_scanner/) | 2.0.0 | ~22,700 | Full-featured scanner: 20 protocols, 29 vuln rules, 92 CVEs (+ CISA KEV auto-refresh), 10 malware sigs, 9 analysis engines, 11 export formats |
-| **PLC Passive Scanner** | [`plc_passive_scanner/`](plc_passive_scanner/) | 1.0 | ~1,500 | Device identification scanner for PLCs (7 protocols, vendor fingerprinting) |
-| **RTU Passive Scanner** | [`rtu_passive_scanner/`](rtu_passive_scanner/) | 1.0 | ~2,500 | Vulnerability scanner for RTUs/IEDs (21 vuln rules, GOOSE/MMS) |
+OTSec runs in two modes over one analysis core.
+
+| Mode | Entry point | What it is |
+|---|---|---|
+| **Sensor fleet** | `ot_collector.py` → `ot_server/` → `console/` | Raspberry Pi collectors capture continuously on SPAN ports, ship distilled observations to a central server, and an operator reads the estate in a browser. ~100 collectors per server. |
+| **Offline scanner** | `ot_scanner.py` | One PCAP in, reports out. 21 protocol analysers, 29 vuln rules, 92 CVEs, 9 analysis engines, 11 export formats. |
+
+Two earlier single-purpose scanners remain in the tree and still work; both are superseded.
+
+| Legacy scanner | Directory | Description |
+|---|---|---|
+| PLC Passive Scanner | [`plc_passive_scanner/`](plc_passive_scanner/) | 7 PLC protocols, vendor fingerprinting |
+| RTU Passive Scanner | [`rtu_passive_scanner/`](rtu_passive_scanner/) | 9 RTU/IED protocols, 21 vuln rules, GOOSE/MMS |
+
+---
+
+## Why Passive Scanning?
+
+Active network scanners are **dangerous in OT environments**: unexpected packets can crash PLCs, trip protection relays, disrupt real-time control loops, and break single-master SCADA sessions. Passive scanning eliminates all of these risks.
+
+Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sensors, or existing IDS/NDR appliances.
+
+---
+
+## Deployment: one server, many collectors
+
+OTSec runs as a hub and spoke. Raspberry Pi collectors sit on substation and
+ring-main-unit mirror ports; one server holds the estate and serves the console.
+
+```
+   substation / RMU ring (fibre, ERPS-protected)
+   ┌─────────┬─────────┬─────────┐
+   │ switch  │ switch  │ switch  │   MPLS-TP transport
+   └────┬────┴────┬────┴────┬────┘
+        │ RTU     │ FRTU    │ IED
+     [ SPAN port ]
+        │
+   ┌────▼─────────────────┐   tap NIC — promiscuous, no IP, never transmits
+   │ Raspberry Pi         │   mgmt NIC — mTLS to the server
+   │ OTSec collector      │
+   └────────┬─────────────┘
+            │ observation batches, not pcap
+   ┌────────▼─────────────┐
+   │ OTSec server+console │   PostgreSQL, 13-month retention
+   └──────────────────────┘
+```
+
+**Two NICs.** The Pi's own management traffic is excluded from analysis by MAC
+and IP, and the number of excluded frames is recorded rather than assumed.
+
+**Observations, not packets.** Collectors ship distilled asset, flow and
+detection records. Shipping pcap from a hundred collectors would be tens of
+MB/minute each across a utility WAN, and would centralise 13 months of plant
+process data for information the decoders have already extracted.
+
+**MPLS-TP.** Where a mirror sits on an NNI rather than an access port, the
+substation LAN arrives inside a label stack and a pseudowire control word. The
+collector opens it — and when it cannot, it says so, because a tap on the wrong
+side of a pseudowire produces a perfectly quiet, entirely empty estate.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+[deploy/README.md](deploy/README.md).
 
 ---
 
@@ -337,55 +444,6 @@ Device-identification-focused scanner for industrial PLCs (7 protocols). Outputs
 ### RTU Passive Scanner
 
 Vulnerability-detection-focused scanner for RTUs, FRTUs, and IEDs (9 protocols, 21 vulnerability checks, Layer-2 GOOSE/SV).
-
----
-
-## Why Passive Scanning?
-
-Active network scanners are **dangerous in OT environments**: unexpected packets can crash PLCs, trip protection relays, disrupt real-time control loops, and break single-master SCADA sessions. Passive scanning eliminates all of these risks.
-
-Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sensors, or existing IDS/NDR appliances.
-
----
-
-## Deployment: one server, many collectors
-
-OTSec runs as a hub and spoke. Raspberry Pi collectors sit on substation and
-ring-main-unit mirror ports; one server holds the estate and serves the console.
-
-```
-   substation / RMU ring (fibre, ERPS-protected)
-   ┌─────────┬─────────┬─────────┐
-   │ switch  │ switch  │ switch  │   MPLS-TP transport
-   └────┬────┴────┬────┴────┬────┘
-        │ RTU     │ FRTU    │ IED
-     [ SPAN port ]
-        │
-   ┌────▼─────────────────┐   tap NIC — promiscuous, no IP, never transmits
-   │ Raspberry Pi         │   mgmt NIC — mTLS to the server
-   │ OTSec collector      │
-   └────────┬─────────────┘
-            │ observation batches, not pcap
-   ┌────────▼─────────────┐
-   │ OTSec server+console │   PostgreSQL, 13-month retention
-   └──────────────────────┘
-```
-
-**Two NICs.** The Pi's own management traffic is excluded from analysis by MAC
-and IP, and the number of excluded frames is recorded rather than assumed.
-
-**Observations, not packets.** Collectors ship distilled asset, flow and
-detection records. Shipping pcap from a hundred collectors would be tens of
-MB/minute each across a utility WAN, and would centralise 13 months of plant
-process data for information the decoders have already extracted.
-
-**MPLS-TP.** Where a mirror sits on an NNI rather than an access port, the
-substation LAN arrives inside a label stack and a pseudowire control word. The
-collector opens it — and when it cannot, it says so, because a tap on the wrong
-side of a pseudowire produces a perfectly quiet, entirely empty estate.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
-[deploy/README.md](deploy/README.md).
 
 ---
 
