@@ -979,3 +979,121 @@ def test_an_absent_body_is_still_the_defaults(authority):
     response = client.post("/api/v1/estate/collectors/pi-a/enrolment-token")
     assert response.status_code == 201
     assert response.json()["allow_reissue"] is False
+
+
+# ── the terminator contract, in the server (DECISIONS D8) ──────────────────
+#
+# deploy/ carries reference nginx and HAProxy configs, and
+# tests/test_terminator.py proves them against a real nginx. These are the half
+# that must hold even when the terminator is wrong, and they run everywhere.
+
+def test_a_repeated_identity_header_is_refused(authority):
+    """The sharp edge of the whole contract, and one directive word away in a
+    real config: HAProxy's `add-header` instead of `set-header`, or a missing
+    `proxy_set_header` in nginx.
+
+    The request then carries the header TWICE — the caller's copy first,
+    because it was already in the request, and the terminator's after it.
+    `Headers.get()` returns the first, and the caller authenticates as whoever
+    it said it was. Nothing downstream looks wrong."""
+    _store, client, _body, fingerprint = _enrolled(authority)
+    response = client.post(
+        "/api/v1/heartbeat", json={},
+        headers=[("X-Client-Subject", "CN=attacker,O=Fleet"),
+                 ("X-Client-Subject", "CN=pi-a,O=Fleet"),
+                 ("X-Client-Fingerprint", fingerprint)])
+    assert response.status_code == 401
+    assert "STRIP" in response.json()["detail"]
+
+
+def test_the_first_of_a_repeated_header_would_have_been_the_callers():
+    """Why the refusal above is not paranoia."""
+    from starlette.datastructures import Headers
+
+    headers = Headers(raw=[(b"x-client-subject", b"CN=attacker,O=Fleet"),
+                           (b"x-client-subject", b"CN=pi-a,O=Fleet")])
+    assert headers.get("x-client-subject") == "CN=attacker,O=Fleet"
+
+
+def test_a_repeated_fingerprint_header_is_refused_too(authority):
+    _store, client, _body, fingerprint = _enrolled(authority)
+    response = client.post(
+        "/api/v1/heartbeat", json={},
+        headers=[("X-Client-Subject", "CN=pi-a,O=Fleet"),
+                 ("X-Client-Fingerprint", "00" * 32),
+                 ("X-Client-Fingerprint", fingerprint)])
+    assert response.status_code == 401
+    assert "STRIP" in response.json()["detail"]
+
+
+def test_the_verified_certificate_may_be_passed_instead_of_a_digest(authority):
+    """nginx has no SHA-256 fingerprint variable — `$ssl_client_fingerprint` is
+    SHA-1 — so stock nginx cannot produce the digest this server records. It
+    passes `$ssl_client_escaped_cert` instead and the server computes it, which
+    also means depending on the terminator for one thing rather than two."""
+    import urllib.parse
+
+    store = _FleetStore()
+    client = _client(store, ca=authority)
+    token = client.post("/api/v1/estate/collectors/pi-a/enrolment-token",
+                        json={}).json()["token"]
+    body = _enrol(client, token)[0].json()
+
+    escaped = urllib.parse.quote(body["certificate"], safe="")
+    response = client.post("/api/v1/heartbeat", json={},
+                           headers={"X-Client-Subject": "CN=pi-a,O=Fleet",
+                                    "X-Client-Cert": escaped})
+    assert response.status_code == 200, response.text
+
+
+def test_the_certificate_beats_a_fingerprint_the_caller_supplied(authority):
+    """If both arrive, the certificate wins: it is the stronger evidence, and a
+    terminator that sets one but not the other must not leave the caller's
+    value in play."""
+    import urllib.parse
+
+    store = _FleetStore()
+    client = _client(store, ca=authority)
+    token = client.post("/api/v1/estate/collectors/pi-a/enrolment-token",
+                        json={}).json()["token"]
+    body = _enrol(client, token)[0].json()
+    client.post("/api/v1/estate/certificates/%s/revoke" % body["serial"],
+                json={"reason": "stolen"})
+
+    # A revoked certificate, presented alongside a fingerprint the caller made
+    # up. The certificate decides, and it is revoked.
+    escaped = urllib.parse.quote(body["certificate"], safe="")
+    response = client.post("/api/v1/heartbeat", json={},
+                           headers={"X-Client-Subject": "CN=pi-a,O=Fleet",
+                                    "X-Client-Cert": escaped,
+                                    "X-Client-Fingerprint": "00" * 32})
+    assert response.status_code == 401
+    assert "revoked" in response.json()["detail"]
+
+
+def test_an_unreadable_certificate_header_is_refused_clearly(authority):
+    _store, client, _body, _fp = _enrolled(authority)
+    response = client.post("/api/v1/heartbeat", json={},
+                           headers={"X-Client-Subject": "CN=pi-a,O=Fleet",
+                                    "X-Client-Cert": "not-a-certificate"})
+    assert response.status_code == 401
+    assert "could not be read" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("shape", ["escaped", "quoted", "flattened"])
+def test_the_certificate_header_survives_what_proxies_do_to_it(shape,
+                                                               authority):
+    """Percent-encoded newlines, surrounding quotes, or flattened to one line.
+    A deployment whose shape simply failed to parse would look exactly like a
+    fleet that never enrolled, and would be debugged as one."""
+    import urllib.parse
+
+    csr, _key = _csr()
+    issued = authority.sign(csr, "pi-a")
+    if shape == "escaped":
+        value = urllib.parse.quote(issued.pem, safe="")
+    elif shape == "quoted":
+        value = '"' + urllib.parse.quote(issued.pem, safe="") + '"'
+    else:
+        value = urllib.parse.quote(
+            issued.pem.replace(chr(10), ""), safe="")

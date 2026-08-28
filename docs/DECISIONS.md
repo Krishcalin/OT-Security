@@ -274,11 +274,42 @@ certificates work, and the server cannot tell which of the two is the plant.
 
 ### What the deployment must do
 
-**The TLS terminator must strip client-supplied `X-Client-Subject` and
-`X-Client-Fingerprint` before setting its own.** Every identity claim in this
-server rests on those two headers being the terminator's words rather than the
-caller's. A terminator that merely adds them lets anyone who can reach the port
-name themselves, and the requests look ordinary.
+**The TLS terminator must strip client-supplied identity headers before setting
+its own.** Every identity claim in this server rests on those headers being the
+terminator's words rather than the caller's. A terminator that merely *adds*
+them leaves the caller's value in front of its own — because the caller's was
+already in the request — and a server reading the first value authenticates
+whoever asked to be authenticated. It is one directive word away: HAProxy's
+`add-header` instead of `set-header`, a missing `proxy_set_header` in nginx.
+
+`deploy/` carries reference configs for both, and they are executed rather than
+documented: `tests/test_terminator.py` starts the server, puts the nginx config
+in front of it in a container with mutual TLS, and attacks it from outside — an
+anonymous caller, a revoked certificate, and a caller supplying its own identity
+headers alongside a certificate it legitimately holds.
+
+**The server does not rely on the terminator getting this right.** A repeated
+identity header is refused rather than resolved, so a misconfiguration fails
+loudly instead of silently naming the caller. That is the net; the config is the
+floor.
+
+Writing the config changed the design twice, and neither was visible from the
+design alone:
+
+**nginx cannot produce the digest this server records.**
+`$ssl_client_fingerprint` is SHA-1, and nothing in stock nginx computes
+SHA-256. So the server now accepts the verified certificate itself
+(`X-Client-Cert`, from `$ssl_client_escaped_cert`) and computes the digest —
+which is the better division anyway: nginx is trusted for one thing, that the
+certificate validated against the fleet CA, rather than that plus agreeing about
+which hash to use. HAProxy can produce SHA-256 natively and may send it instead;
+when both arrive, the certificate wins.
+
+**The enrolment plane cannot sit behind `ssl_verify_client on`.** A collector
+arriving at a substation has no certificate, and obtaining one is what it is
+there for — so verification is `optional` at the server level and enforced per
+location. That is a very different config from the obvious one, and it would
+have been found by a failed deployment rather than by a test.
 
 ### A token is spent only when a certificate exists
 

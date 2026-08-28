@@ -66,21 +66,76 @@ from .ingest import Decision, Verdict
 COLLECTOR_ID_HEADER = "X-Collector-Id"
 CLIENT_SUBJECT_HEADER = "X-Client-Subject"      # set by the TLS terminator
 CLIENT_FINGERPRINT_HEADER = "X-Client-Fingerprint"   # likewise, sha256
+#: The verified client certificate itself, PEM, URL-escaped.
+#:
+#: nginx has no SHA-256 fingerprint variable — `$ssl_client_fingerprint` is
+#: SHA-1, and nothing in stock nginx will produce the digest this server
+#: records. That was found by writing the config rather than by designing it.
+#:
+#: Passing the certificate instead is the better answer anyway: the server
+#: computes the digest itself from the certificate the terminator actually
+#: verified, so it depends on the terminator for one thing (that the
+#: certificate was validated against the fleet CA) rather than two (that, plus
+#: agreeing about which hash to use).
+CLIENT_CERT_HEADER = "X-Client-Cert"
 
 
 class AuthError(RuntimeError):
     pass
 
 
-def collector_identity(headers: Dict[str, str],
-                       trust_header: bool = True) -> str:
+def header_values(headers, name: str) -> List[str]:
+    """Every value for a header, not just the first.
+
+    `Headers.get()` returns the FIRST occurrence, and a plain dict of headers
+    keeps only one. Both hide the case this function exists for.
+    """
+    getlist = getattr(headers, "getlist", None)
+    if getlist is not None:
+        return [value for value in getlist(name) if value]
+    value = headers.get(name) or headers.get(name.lower())
+    return [value] if value else []
+
+
+def single_header(headers, name: str) -> str:
+    """One value for an identity header, or a refusal.
+
+    A REPEATED identity header is a refusal, and this is the sharp edge of the
+    whole terminator contract.
+
+    The deployment rule is that the TLS terminator strips client-supplied
+    identity headers before setting its own. That rule is one directive word
+    away from being broken — HAProxy's `add-header` instead of `set-header`,
+    a missing `proxy_set_header` in nginx — and when it breaks the request
+    carries the header TWICE: the client's copy first, because it was already
+    in the request, and the terminator's after it. `Headers.get()` then returns
+    the client's, and the caller authenticates as whoever it said it was.
+
+    Nothing downstream looks wrong. The certificate was real, the request was
+    ordinary, and the inventory it poisons belongs to another plant.
+
+    So the server does not rely on the terminator getting it right. Two values
+    is not a value: it is a misconfiguration, and it fails loudly here instead
+    of silently naming the caller.
+    """
+    values = header_values(headers, name)
+    if len(values) > 1:
+        raise AuthError(
+            "%s appeared %d times in this request. The TLS terminator must "
+            "STRIP a client-supplied copy before setting its own; appending "
+            "leaves the caller's value in front of it, and the caller then "
+            "names itself. Refusing rather than picking one."
+            % (name, len(values)))
+    return values[0] if values else ""
+
+
+def collector_identity(headers, trust_header: bool = True) -> str:
     """Which collector this request is from.
 
     Taken from the verified client certificate subject, not the payload. The
     body is data the caller controls; the certificate is what mTLS established.
     """
-    subject = headers.get(CLIENT_SUBJECT_HEADER) or headers.get(
-        CLIENT_SUBJECT_HEADER.lower())
+    subject = single_header(headers, CLIENT_SUBJECT_HEADER)
     if not subject:
         raise AuthError(
             "no verified client identity — this endpoint is reachable only "
@@ -93,22 +148,40 @@ def collector_identity(headers: Dict[str, str],
     return subject
 
 
-def client_fingerprint(headers: Dict[str, str]) -> str:
-    """The presented certificate's fingerprint, as the terminator reports it.
+def client_fingerprint(headers) -> str:
+    """The presented certificate's fingerprint.
 
-    Normalised because terminators disagree about the shape — nginx writes
-    `SHA256:<base64>`, others write hex with or without colons. A deployment
-    whose format simply failed to match would look exactly like a fleet that had
-    never enrolled, and would be debugged as one.
+    Two ways in, because terminators differ:
+
+    `X-Client-Cert` — the certificate itself, URL-escaped PEM. Preferred, and
+    the only option on stock nginx, whose `$ssl_client_fingerprint` is SHA-1.
+    The digest is computed here from the certificate the terminator verified.
+
+    `X-Client-Fingerprint` — a SHA-256 the terminator computed (HAProxy's
+    `ssl_c_der,sha2(256),hex`, Envoy's `%DOWNSTREAM_PEER_FINGERPRINT_256%`).
+    Normalised, because they disagree about the shape: `SHA256:` prefixes,
+    colons, case. A deployment whose format simply failed to match would look
+    exactly like a fleet that had never enrolled, and would be debugged as one.
+
+    The certificate wins when both are present. It is the stronger evidence,
+    and a disagreement between them is a terminator wiring two different
+    certificates into one request — which `authenticate_collector` refuses.
     """
     from . import ca as fleet_ca
 
-    raw = (headers.get(CLIENT_FINGERPRINT_HEADER)
-           or headers.get(CLIENT_FINGERPRINT_HEADER.lower()) or "")
-    return fleet_ca.normalise_fingerprint(raw)
+    escaped = single_header(headers, CLIENT_CERT_HEADER)
+    if escaped:
+        try:
+            return fleet_ca.fingerprint_of_escaped_pem(escaped)
+        except Exception as exc:                           # noqa: BLE001
+            raise AuthError(
+                "the client certificate passed by the terminator could not be "
+                "read (%s). It is not decodeable PEM." % type(exc).__name__)
+    return fleet_ca.normalise_fingerprint(
+        single_header(headers, CLIENT_FINGERPRINT_HEADER))
 
 
-def authenticate_collector(store, headers: Dict[str, str],
+def authenticate_collector(store, headers,
                            enforce_certificate: bool) -> str:
     """Which collector this request is from, checked against what was issued.
 
@@ -124,11 +197,12 @@ def authenticate_collector(store, headers: Dict[str, str],
     fingerprint = client_fingerprint(headers)
     if not fingerprint:
         raise AuthError(
-            "a fleet CA is configured but this request carried no client "
-            "certificate fingerprint. The TLS terminator must pass %s; without "
-            "it no certificate can be checked against the issuance record and "
+            "a fleet CA is configured but this request identified no client "
+            "certificate. The TLS terminator must pass %s (the verified "
+            "certificate, URL-escaped PEM) or %s (its SHA-256); without one of "
+            "them nothing can be checked against the issuance record and "
             "revocation would not deny anything."
-            % CLIENT_FINGERPRINT_HEADER)
+            % (CLIENT_CERT_HEADER, CLIENT_FINGERPRINT_HEADER))
 
     record = store.certificate_by_fingerprint(fingerprint)
     if record is None:
@@ -186,7 +260,10 @@ def create_app(store, require_operator: Optional[Callable] = None,
 
     def _identity(request: Request) -> str:
         try:
-            return authenticate_collector(store, dict(request.headers),
+            # request.headers, NOT dict(request.headers): building a dict
+            # collapses a repeated header down to one value and throws away
+            # the evidence that it was repeated.
+            return authenticate_collector(store, request.headers,
                                           enforce_certificate=ca is not None)
         except AuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
@@ -567,7 +644,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
             raise HTTPException(status_code=400, detail="renewal needs a CSR")
 
         current = store.certificate_by_fingerprint(
-            client_fingerprint(dict(request.headers)))
+            client_fingerprint(request.headers))
         if current is None:                                # pragma: no cover
             raise HTTPException(status_code=401,
                                 detail="no issuance record for this certificate")

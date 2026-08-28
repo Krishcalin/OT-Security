@@ -309,6 +309,34 @@ def fingerprint_of_pem(pem: str) -> str:
     return fingerprint_of(x509.load_pem_x509_certificate(pem.encode("ascii")))
 
 
+def fingerprint_of_escaped_pem(value: str) -> str:
+    """The digest of a certificate a terminator passed in a header.
+
+    nginx's `$ssl_client_escaped_cert` is the PEM with newlines
+    percent-encoded, because a raw PEM cannot travel in an HTTP header at
+    all. Some deployments also flatten it to one line or wrap it in quotes;
+    both are tolerated, because the alternative is a deployment that looks
+    exactly like a fleet which never enrolled.
+    """
+    import urllib.parse
+
+    text = urllib.parse.unquote(value.strip().strip(chr(34)))
+    if "BEGIN CERTIFICATE" not in text:
+        raise CaError("this is not a PEM certificate")
+
+    newline = chr(10)
+    if newline not in text:
+        # Flattened somewhere in the chain. Rebuild the block.
+        body = (text.replace("-----BEGIN CERTIFICATE-----", "")
+                    .replace("-----END CERTIFICATE-----", "")
+                    .strip().replace(" ", ""))
+        wrapped = [body[i:i + 64] for i in range(0, len(body), 64)]
+        text = (("-----BEGIN CERTIFICATE-----" + newline)
+                + newline.join(wrapped)
+                + (newline + "-----END CERTIFICATE-----" + newline))
+    return fingerprint_of_pem(text)
+
+
 def normalise_fingerprint(value: str) -> str:
     """Accept the shapes a TLS terminator might send.
 

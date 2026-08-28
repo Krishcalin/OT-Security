@@ -8,7 +8,7 @@ record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
 > **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
-> (enrolment and certificate lifecycle done). 416 tests passing without a
+> (enrolment and certificate lifecycle done). 436 tests passing without a
 > database; 22 more require one and are skipped without it (CI refuses that
 > skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -386,6 +386,44 @@ The `cryptography` floor was checked the same way rather than reasoned about:
 and both `not_valid_before_utc` and `not_valid_after_utc` present. A test now
 asserts those accessors exist, so a wrong resolution fails with that sentence
 instead of an `AttributeError` inside `ca.sign()`.
+
+**The terminator contract is now executed, not documented.** Everything this
+server knows about who is calling comes from headers a TLS terminator sets, and
+no config in this repository had ever been run against it. `deploy/` carries
+reference nginx and HAProxy configs, and `tests/test_terminator.py` starts the
+server, puts the nginx one in front of it in a container with mutual TLS, and
+attacks it from outside.
+
+Writing the config changed the design twice, and running it changed a test.
+
+**nginx cannot produce the digest this server records.**
+`$ssl_client_fingerprint` is SHA-1, and nothing in stock nginx computes
+SHA-256 — so a contract that asked for one was not implementable on the most
+likely terminator. The server now accepts the verified certificate itself and
+computes the digest, which is the better division anyway: nginx is trusted for
+one thing rather than two.
+
+**The enrolment plane cannot sit behind `ssl_verify_client on`.** A collector
+arriving at a substation has no certificate, and obtaining one is what it is
+there for, so verification is `optional` at the server level and enforced per
+location. That would have been found by a failed deployment.
+
+**And a repeated identity header was a total bypass.** `Headers.get()` returns
+the FIRST of a repeated header. A terminator that appends rather than replaces —
+HAProxy's `add-header`, or a missing `proxy_set_header` — leaves the caller's
+value in front of its own, and the server authenticates whoever asked to be
+authenticated. Nothing downstream looks wrong: the certificate was real, the
+request was ordinary. The server now refuses a repeated identity header rather
+than resolving it, so a misconfiguration fails loudly. The config is the floor;
+this is the net.
+
+**One test claimed more than it proved.** `test_a_forged_fingerprint_header_is
+_not_honoured` was written as though the clearing directive defeated the attack.
+Deleting that directive failed nothing — the certificate wins when both arrive.
+Deleting the CERTIFICATE directive fails four tests, and makes the forged
+fingerprint succeed. So the clearing directive is redundant under the shipped
+nginx config and load-bearing under the fingerprint-only shape HAProxy runs in;
+the test now says that, and a separate check asserts both configs carry it.
 
 **Still to do in this phase.** Signed updates, rule-pack distribution and
 server-side health alarms. Once the fleet is stable, two borrowed capabilities

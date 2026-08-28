@@ -41,6 +41,13 @@ jobs:
 
     env:
       OT_TEST_DSN: postgresql://otfleet:ci-throwaway@localhost:5432/otfleet
+      # The terminator test puts deploy/nginx/ot-fleet.conf in front of the
+      # server in a container and attacks it. GitHub's ubuntu runners have
+      # Docker, so a skip here means something is wrong with the runner rather
+      # than with the test — and a skipped test on a summary page is
+      # indistinguishable from a passing one. tests/test_terminator.py raises
+      # at import when this is set and Docker is not usable.
+      OT_TERMINATOR_REQUIRED: "1"
 
     steps:
       - uses: actions/checkout@v4
