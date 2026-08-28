@@ -357,7 +357,7 @@ def _seed_assets() -> List[Dict]:
     return [
         _asset("pi-alderley-01", "ip:10.0.0.11", ip="10.0.0.11",
                mac="00:1b:1b:0a:11:01", vendor="Siemens", model="S7-1500",
-               role="plc", protocol="s7comm"),
+               firmware="V4.2", role="plc", protocol="s7comm"),
         _asset("pi-alderley-01", "ip:10.0.0.12", ip="10.0.0.12",
                mac="00:1b:1b:0a:11:02", vendor="Siemens", model="S7-1200",
                role="plc", protocol="s7comm"),
@@ -375,9 +375,14 @@ def _seed_assets() -> List[Dict]:
                window="w-38", mac="9c:b6:54:0a:61:01", vendor="Advantech",
                role="hmi", protocol="modbus"),
         # The same address at another plant. Two devices, not one.
+        # The model string is what the DEVICE announces, not a human
+        # shorthand: the CVE corpus matches on product patterns, and
+        # "Modicon M580" matches five advisories where "M580" matches none.
+        # Getting that wrong in seed data hid the withheld-correction path.
         _asset("pi-marchwood-01", "ip:10.0.0.11", ip="10.0.0.11",
-               mac="00:80:f4:0b:11:01", vendor="Schneider", model="M580",
-               role="plc", protocol="modbus", coverage="degraded"),
+               mac="00:80:f4:0b:11:01", vendor="Schneider",
+               model="Modicon M580", firmware="2.7", role="plc",
+               protocol="modbus", coverage="degraded"),
         _asset("pi-marchwood-01", "ip:10.0.0.40", ip="10.0.0.40",
                mac="00:80:f4:0b:40:01", vendor="Schneider", role="rtu",
                protocol="dnp3", coverage="degraded"),

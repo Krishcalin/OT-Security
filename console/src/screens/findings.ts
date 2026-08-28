@@ -12,6 +12,7 @@
 import {
   AnalysisResponse,
   ContainmentPlan,
+  Correction,
   EngineResultRow,
   EstateApi,
   VulnMatch,
@@ -119,12 +120,40 @@ function containmentChip(m: VulnMatch): string {
     + esc(plan.reason) + '">' + esc(plan.state) + "</span>";
 }
 
+/**
+ * How a correction reads on the row.
+ *
+ * A WITHHELD correction is rendered as loudly as an applied one and never as
+ * nothing. It means a lowering was justified by what was observed and refused
+ * by the coverage behind it — which is a statement about this estate's
+ * monitoring, and the operator should see that the tool declined rather than
+ * that it had nothing to say.
+ */
+function correctionNote(correction: Correction | undefined): string {
+  if (!correction) return "";
+  if (correction.state === "withheld") {
+    return ` <span class="${cls("chip", "chip-warn")}" title="${esc(correction.reason)}">`
+      + `withheld</span>`;
+  }
+  if (correction.state === "applied") {
+    const tone = correction.direction === "raised" ? "alarm" : "ok";
+    return ` <span class="${cls("chip", "chip-" + tone)}" title="${esc(correction.reason)}">`
+      + `${esc(correction.original)} &rarr; ${esc(correction.corrected)}</span>`;
+  }
+  if (correction.state === "refused") {
+    return ` <span class="${cls("chip", "chip-alarm")}" title="${esc(correction.reason)}">`
+      + `not corrected</span>`;
+  }
+  return "";
+}
+
 function hits(m: VulnMatch): string {
   if (!m.hits.length) return "—";
   const items = m.hits.map(
     (h) =>
       `<li><code>${esc(h.cve)}</code>` +
       (h.kev ? ` <span class="chip chip-alarm">KEV</span>` : "") +
+      correctionNote(h.correction) +
       ` <span class="hit-why">${esc(h.why)}</span></li>`,
   );
   return `<ul class="hit-list">${fragments(items)}</ul>`;
@@ -202,6 +231,14 @@ export async function render(api: EstateApi): Promise<string> {
     ` observation and a priority that fires on everything is one an operator`,
     ` stops reading.</p>`,
     rows,
+    `<h2>Corrected for where each device sits</h2>`,
+    `<p class="note">${esc(vulns.correction.explain)}</p>`,
+    `<p class="note">A correction that would <em>lower</em> urgency needs a`,
+    ` complete window behind it: not seeing a path into a device is not`,
+    ` evidence there is none, and lowering on a degraded window would`,
+    ` de-escalate a genuinely exposed relay because a collector dropped`,
+    ` frames. One that <em>raises</em> urgency does not wait \u2014 being wrong`,
+    ` upward costs attention, being wrong downward costs the finding.</p>`,
     `<h2>What to do about the ones you cannot patch</h2>`,
     `<p class="note">${esc(vulns.containment.explain)}</p>`,
     fragments(vulns.matches

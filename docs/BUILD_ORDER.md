@@ -9,7 +9,7 @@ says what exists.
 
 > **Status at 2026-08-28** — Phases 1–6 complete. The console signs operators
 > in with a second factor (D9), the fleet takes signed content (D10), and
-> coverage no longer counts a collector that has stopped reporting. 606 tests
+> coverage no longer counts a collector that has stopped reporting. 624 tests
 > passing without a database; 25 more require one and are skipped without it
 > (CI refuses that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -561,6 +561,26 @@ see is a CVE that never reaches NOW. And the corpus carried no version at all,
 which was read as the literal string `"shipped"` for every revision it would
 ever have; it is a content fingerprint now, for the reason `rulepack.py` gives.
 
+**Severity is corrected for position (D12).** With the pipeline actually
+matching, a raw priority became worth correcting: nine CVEs on a relay are the
+two that matter where that relay sits. The correction adjusts the band and shows
+its working, and it is deliberately asymmetric — a lowering needs a complete
+window behind it, because not seeing a path into a device is not evidence there
+is none, and lowering on a degraded window would de-escalate a genuinely exposed
+relay because a collector dropped frames. A lowering the observations justify and
+the coverage will not carry is WITHHELD, and shown as withheld.
+
+The demo estate shows both: a KEV finding at Alderley lowered to NEXT on a
+complete window, and the same class of finding at Marchwood held at NOW because
+that collector is dropping frames.
+
+**A seed-data lesson worth keeping.** The withheld path was invisible at first
+because the demo listed a Schneider PLC as model `M580`. The corpus matches on
+product patterns and wants `Modicon M580` — the string the device actually
+announces. Five advisories matched once the seed said what a collector would
+report, which is a reminder that fixture data shaped by a human is not fixture
+data shaped by a wire.
+
 **What this says about the test suite.** 599 tests passed over a pipeline that
 had never matched a CVE. They were not wrong — they exercised prioritisation
 thoroughly, over an input shape nothing in the product produces. Every test
@@ -586,6 +606,7 @@ the protocol parsers already decode the point values it needs).
 | **D8** | an identity is issued, not requested | the CSR's subject is discarded; every request is checked against the issuance record, so revocation denies |
 | **D10** | a content pack carries data, never code | no remote code execution path into the plant; a signed older pack is refused as a rollback |
 | **D11** | containment where patching is not an option | offered only where the zone was derived, never as a bare deny, always with what the allow-list cannot see |
+| **D12** | lowering urgency needs a complete window | raising does not; a lowering the coverage will not carry is withheld and shown |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |

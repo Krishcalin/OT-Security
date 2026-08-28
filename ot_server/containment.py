@@ -242,6 +242,47 @@ def _rules(ip: str, result: Containment, priority: str) -> List[Dict[str, Any]]:
     return rules
 
 
+def inbound_for(ip: str, topology, flows: List[Dict[str, Any]]
+                ) -> List[Dict[str, Any]]:
+    """Sources observed reaching one address, marked for zone crossing.
+
+    Exposed because `severity.py` needs the same answer to a different
+    question: containment asks what it would take to stop this traffic, and
+    severity asks what the traffic means for how urgent the finding is.
+    Computing it twice would be two answers to one question.
+    """
+    zone = _zone_for(ip, topology) if topology is not None else None
+    out: List[Dict[str, Any]] = []
+    for flow in flows or []:
+        if str(flow.get("dst_ip") or "") != ip:
+            continue
+        source = str(flow.get("src_ip") or "")
+        if not source:
+            continue
+        source_zone = _zone_for(source, topology)
+        out.append({
+            "src_ip": source,
+            "protocol": str(flow.get("protocol") or "").lower(),
+            "port": int(flow.get("port") or 0),
+            "crosses_zone": (zone is None or source_zone is None
+                             or getattr(source_zone, "zone_id", None)
+                             != getattr(zone, "zone_id", None)),
+        })
+    return out
+
+
+def zone_of(ip: str, topology):
+    """The zone an address sits in, and the basis of its Purdue level."""
+    if topology is None:
+        return None, "unknown"
+    zone = _zone_for(ip, topology)
+    if zone is None:
+        return None, "unknown"
+    basis = str((getattr(topology, "basis_by_zone", None) or {}).get(
+        str(getattr(zone, "zone_id", "") or ""), "unknown"))
+    return zone, basis
+
+
 def contain_estate(matches: List[Dict[str, Any]],
                    assets: List[Dict[str, Any]],
                    topologies: List[Any],

@@ -61,6 +61,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
 from . import containment as contain_module
+from . import severity as severity_module
 from . import enrolment, health as fleet_health, ingest
 from . import packs as pack_module
 from . import vulnmatch
@@ -570,9 +571,35 @@ def create_app(store, require_operator: Optional[Callable] = None,
         match_dicts = [m.to_dict() for m in matches]
         containments = contain_module.contain_estate(
             match_dicts, asset_dicts, topologies, flows_by_site)
+
+        # And the same two inputs, asked the other question: not what it would
+        # take to stop this traffic, but what the traffic means for how urgent
+        # the finding is. A correction that would LOWER urgency is withheld
+        # when the window behind it cannot carry the claim — see severity.py.
+        by_site_topology = {str(getattr(t, "site", "")): t
+                            for t in topologies}
+        by_id = {str(a.get("estate_id") or ""): a for a in asset_dicts}
+        corrections = []
         for match in match_dicts:
             found = containments.get(str(match.get("estate_id") or ""))
             match["containment"] = found.to_dict() if found else None
+
+            asset = by_id.get(str(match.get("estate_id") or ""))
+            if asset is None or not (match.get("hits") or []):
+                continue
+            topology = by_site_topology.get(str(asset.get("site") or ""))
+            ip = str(asset.get("ip") or "")
+            zone, basis = contain_module.zone_of(ip, topology)
+            inbound = contain_module.inbound_for(
+                ip, topology, flows_by_site.get(str(asset.get("site") or ""))
+                or [])
+            position = severity_module.position_from(asset, zone, basis,
+                                                     inbound)
+            for hit in match["hits"]:
+                correction = severity_module.correct(hit, position)
+                hit["corrected_priority"] = correction.corrected
+                hit["correction"] = correction.to_dict()
+                corrections.append(correction)
 
         return {
             "corpus_version": corpus.version,
@@ -583,6 +610,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
             "actionable": sum(1 for m in matches if m.actionable),
             "matches": match_dicts,
             "containment": contain_module.summarise(containments),
+            "correction": severity_module.summarise(corrections),
         }
 
     @app.get("/api/v1/estate/analysis")

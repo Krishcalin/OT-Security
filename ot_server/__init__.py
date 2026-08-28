@@ -14,7 +14,7 @@ last step.
 """
 from . import (analysis, api, authn, authn_api, ca, containment,
                enrolment, estate, health, ingest, packs, qr, schema,
-               store, totp, vulnmatch, zones)
+               severity, store, totp, vulnmatch, zones)
 from .ingest import (AssetState, CoverageSummary, Decision, Verdict,
                      asset_state, decide, summarise_coverage, validate)
 from .authn import (AuthError, PasswordPolicyError, decide_login,
@@ -34,7 +34,8 @@ from .zones import (SiteTopology, ZoneBasis, ZoneConfidence,
 
 __all__ = [
     "api", "authn", "authn_api", "ca", "containment", "enrolment",
-    "health", "ingest", "packs", "qr", "schema", "store", "totp",
+    "health", "ingest", "packs", "qr", "schema", "severity", "store",
+    "totp",
     "ContentSigner", "PackError", "SignedPack", "fleet_drift",
     "AuthError", "PasswordPolicyError", "decide_login", "hash_password",
     "verify_password",

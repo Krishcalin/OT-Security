@@ -28,6 +28,7 @@ answer from *"we haven't done that yet."*
 | **D9** | How does an operator sign in? | **Password + TOTP**, with no session issued until both are satisfied | `tests/test_operator_auth.py` |
 | **D10** | What may a content pack carry? | **Data, never code** — and a correctly signed older pack is refused as a rollback | `tests/test_content_packs.py` |
 | **D11** | What do we say about a vulnerability nobody will patch? | **The segmentation that would contain it** — offered only where the boundary was derived, always with what it cannot see | `tests/test_containment.py` |
+| **D12** | May we lower a severity? | **Only on a complete window** — raising needs less evidence than lowering, and a withheld lowering is shown | `tests/test_severity.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -575,6 +576,57 @@ When coverage was degraded or unmeasurable it says so louder, and at unknown
 coverage it says outright that this is a starting point for a conversation with
 operations rather than a change to apply. Handing somebody a firewall change
 without that is handing them an outage with a delay fuse.
+
+---
+
+## D12 — Lowering urgency costs more evidence than raising it
+
+**Asked because** a CVSS score is a property of the vulnerability, and what an
+operator needs is the property of that vulnerability *on this device, in this
+plant*. A critical remote code execution on a relay nothing outside its zone has
+ever reached is a different problem from the same CVE on a historian half the
+site talks to.
+
+**Answer.** Correct the priority band for position, and make the correction
+inspectable rather than authoritative.
+
+Dragos publishes xOT-corrected CVSS from their own researchers and asks you to
+trust them. That is a reasonable thing for them to sell and not a reasonable
+thing to copy — nobody has a reason to trust a correction from this codebase. So
+every adjustment names the observations that moved it, in the same idiom a
+zone's Purdue level names its basis, and one resting on a guessed boundary is
+refused outright.
+
+### The asymmetry
+
+Lowering urgency and raising it are not the same act and must not need the same
+evidence.
+
+**Lowering requires complete coverage.** The reason to lower is that no path
+into the device was observed from outside its zone — and on a degraded or
+unmeasurable window, not observing a path is not evidence that none exists. It
+is the sentence this whole system is built on, arriving at prioritisation.
+Lowering there would quietly de-escalate a genuinely exposed relay because a
+collector dropped frames, which is the worst direction for this system to be
+wrong in.
+
+**Raising does not.** Being wrong upward costs an operator attention; being
+wrong downward costs them the finding.
+
+So a lowering that the observations justify and the coverage will not carry is
+**withheld** — and shown as withheld, with its reasoning, rather than silently
+not applied. "We could have lowered this and would not" is a statement about the
+estate's monitoring, and the operator should see that the tool declined rather
+than that it had nothing to say.
+
+### What it will not do
+
+It does not invent a number. There is no recomputed CVSS vector, because this
+system has no basis for one; it adjusts the band an operator acts on.
+
+It never lowers anything to `never`. That means the finding does not apply to
+the observed firmware, which is a matching judgement — exposure has nothing to
+say about it. The most a correction may do downward is NOW to NEXT.
 
 ---
 

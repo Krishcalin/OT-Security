@@ -65,7 +65,14 @@ export interface VulnMatch {
   corpus_version: string;
   observation_coverage: Coverage;
   note: string;
-  hits: { cve: string; kev: boolean; priority: string; why: string }[];
+  hits: {
+    cve: string;
+    kev: boolean;
+    priority: string;
+    why: string;
+    corrected_priority?: string;
+    correction?: Correction;
+  }[];
   /** Null when nothing matched — there is nothing to contain. */
   containment: ContainmentPlan | null;
 }
@@ -108,6 +115,31 @@ export interface ContainmentPlan {
   caveat: string;
 }
 
+/**
+ * One CVE's priority, corrected for where the device sits.
+ *
+ * `state` matters more than `corrected`. A `withheld` correction did not move
+ * the priority and is not the same as one that had nothing to say: it means a
+ * lowering was justified by the observations and refused by the coverage.
+ */
+export interface Correction {
+  cve: string;
+  original: string;
+  corrected: string;
+  state: "applied" | "refused" | "withheld" | "unchanged";
+  direction: "raised" | "lowered" | "unchanged";
+  basis: string[];
+  reason: string;
+}
+
+export interface CorrectionSummary {
+  raised: number;
+  lowered: number;
+  withheld: number;
+  refused: number;
+  explain: string;
+}
+
 export interface ContainmentSummary {
   proposed: number;
   refused: number;
@@ -122,6 +154,7 @@ export interface VulnerabilitiesResponse {
   actionable: number;
   matches: VulnMatch[];
   containment: ContainmentSummary;
+  correction: CorrectionSummary;
 }
 
 /** One collector's own view of an asset, before the estate merge (OTS-SRV-005). */
