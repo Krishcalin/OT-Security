@@ -8,7 +8,7 @@ record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
 > **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
-> (enrolment and certificate lifecycle done). 411 tests passing without a
+> (enrolment and certificate lifecycle done). 416 tests passing without a
 > database; 22 more require one and are skipped without it (CI refuses that
 > skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
 > [Live commissioning](#live-commissioning).
@@ -359,6 +359,33 @@ production answered 500. Two guards now: every `store.<method>` the API calls
 must exist on the real `Store`, and every method the double implements must
 exist there too, so a rename cannot leave the double answering for something
 that is gone.
+
+**A postscript, from checking rather than assuming.** The console job added in
+Phase 5 was reported here as unproven on a runner. It was not: it has passed on
+both pushes since. What the check did find is that CI had been RED for the three
+commits before it — every Python leg failing at "Run tests" — because
+`starlette.testclient` imports `httpx`, nothing in the dependency tree requires
+it, and `requirements-dev.txt` did not name it. On a developer machine it was
+present for some other reason; on a clean runner every API test raised at
+import. The Phase 5 commit fixed that as a side effect of declaring `httpx`.
+
+Two things were wrong, and only one of them was the dependency.
+
+`requirements-dev.txt` opens by claiming exactly the property it lacked —
+"without them the server tests do not fail, they ERROR at import, which reads as
+a broken checkout rather than a missing install". Nothing checked the claim, so
+`tests/test_dependencies.py` now does: an HTTP client must be named, and
+`fastapi.testclient` must really import wherever fastapi does.
+
+And nobody saw the red. The README carries a **CI badge** now, which is the
+cheaper half of the fix.
+
+The `cryptography` floor was checked the same way rather than reasoned about:
+48.0 raised requires-python to `>=3.9`, so pip on the 3.8 leg resolves to
+47.0.0 and stays there — a `cp38-abi3` wheel, no Rust toolchain on the runner,
+and both `not_valid_before_utc` and `not_valid_after_utc` present. A test now
+asserts those accessors exist, so a wrong resolution fails with that sentence
+instead of an `AttributeError` inside `ca.sign()`.
 
 **Still to do in this phase.** Signed updates, rule-pack distribution and
 server-side health alarms. Once the fleet is stable, two borrowed capabilities

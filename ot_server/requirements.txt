@@ -15,7 +15,14 @@ psycopg[binary]>=3.1        # Q1: PostgreSQL only
 # this dependency — it shells out to openssl, which ships with Raspberry Pi OS,
 # so ot_scanner.collector.manifest.RUNTIME_REQUIRES stays at dpkt alone.
 # The floor is 42.0 for a reason: `not_valid_before_utc` /
-# `not_valid_after_utc` arrive there, and the naive-datetime accessors
-# they replace return values that compare wrongly against the
-# timezone-aware timestamps PostgreSQL hands back.
+# `not_valid_after_utc` arrive there, and the naive-datetime accessors they
+# replace return values that compare wrongly against the timezone-aware
+# timestamps PostgreSQL hands back. tests/test_dependencies.py fails with that
+# sentence rather than letting a bad resolution surface as an AttributeError
+# inside ca.sign().
+#
+# No ceiling is needed for the 3.8 leg of the CI matrix, and this was checked
+# rather than assumed: 48.0 raised requires-python to >=3.9, so pip on 3.8
+# resolves to 47.0.0 and stays there. That release ships a cp38-abi3 wheel (no
+# Rust toolchain on the runner) and still carries both accessors.
 cryptography>=42.0

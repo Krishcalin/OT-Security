@@ -8,6 +8,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Krishcalin/OT-Security/actions/workflows/ci.yml"><img src="https://github.com/Krishcalin/OT-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+</p>
+
+<p align="center">
   <a href="#unified-ot-scanner-v20"><img src="https://img.shields.io/badge/version-2.0.0-22c55e?style=flat-square" alt="Version"></a>
   <a href="#supported-protocols"><img src="https://img.shields.io/badge/protocols-16-3b82f6?style=flat-square" alt="Protocols"></a>
   <a href="#vulnerability-detection"><img src="https://img.shields.io/badge/vuln%20rules-29-f97316?style=flat-square" alt="Rules"></a>
@@ -346,7 +350,7 @@ Captures can be collected via network TAPs, port mirroring (SPAN), dedicated sen
 
 ## Testing & CI
 
-**411 tests** run without a database; 22 more cover the PostgreSQL store and
+**416 tests** run without a database; 22 more cover the PostgreSQL store and
 need one. The table below covers the standalone scanner only — the collector,
 server and console suites added by the sensor-fleet re-architecture are
 described in [docs/BUILD_ORDER.md](docs/BUILD_ORDER.md).

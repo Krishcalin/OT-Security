@@ -12,17 +12,28 @@ fastapi>=0.110
 psycopg[binary]>=3.1
 
 # starlette's TestClient imports httpx, and neither fastapi nor starlette
-# depends on it. Without this the API tests do not skip — they ERROR at import,
-# which on a summary page looks like an infrastructure problem rather than an
-# untested estate plane. It is installed here explicitly rather than relied on
-# as somebody else's transitive dependency.
+# depends on it. Undeclared, the API tests do not skip — they RAISE at import,
+# and three commits landed on main red for exactly that reason before anyone
+# looked. tests/test_dependencies.py now checks both halves: that a client is
+# named here, and that TestClient really imports wherever fastapi does.
+#
+# Coming migration: starlette warns that using httpx here is deprecated in
+# favour of httpx2. Left on httpx until httpx2 is the version fastapi's own
+# matrix tests against, so the pin does not run ahead of the framework.
 httpx>=0.27
 
 # The fleet CA (Phase 6, decision Q4). Server-side only: the collector shells
 # out to openssl so manifest.RUNTIME_REQUIRES stays at dpkt alone, and
 # tests/test_collector_manifest.py fails if that changes.
 # The floor is 42.0 for a reason: `not_valid_before_utc` /
-# `not_valid_after_utc` arrive there, and the naive-datetime accessors
-# they replace return values that compare wrongly against the
-# timezone-aware timestamps PostgreSQL hands back.
+# `not_valid_after_utc` arrive there, and the naive-datetime accessors they
+# replace return values that compare wrongly against the timezone-aware
+# timestamps PostgreSQL hands back. tests/test_dependencies.py fails with that
+# sentence rather than letting a bad resolution surface as an AttributeError
+# inside ca.sign().
+#
+# No ceiling is needed for the 3.8 leg of the CI matrix, and this was checked
+# rather than assumed: 48.0 raised requires-python to >=3.9, so pip on 3.8
+# resolves to 47.0.0 and stays there. That release ships a cp38-abi3 wheel (no
+# Rust toolchain on the runner) and still carries both accessors.
 cryptography>=42.0
