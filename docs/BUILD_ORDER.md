@@ -7,9 +7,9 @@ Specification: **OTS-SRS-001**. This document is the *order of work* and the
 record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
-> **Status at 2026-08-28** — Phases 1 and 2 complete (`dd6d7b5`).
-> 188 tests passing. One requirement, `OTS-NFR-001`, is **unverified** and can
-> only be closed on real hardware — see [Open on hardware](#open-on-hardware).
+> **Status at 2026-08-28** — Phases 1 and 2 complete (`7372b69`).
+> 188 tests passing. `OTS-NFR-001` is **deferred to live commissioning** on the
+> Pi — see [Live commissioning](#live-commissioning).
 
 ---
 
@@ -212,12 +212,19 @@ keep; days are a measurement it must publish.
 
 ---
 
-## Open on hardware
+## Live commissioning
 
-**`OTS-NFR-001` is unverified.** The target — a Pi 5 with capture on attached
-USB SSD sustaining **50 Mbps with zero measured loss** — cannot be measured on a
-development machine, because there are no drop counters to read. The CLI refuses
-to certify what it could not measure:
+One requirement cannot be closed on a development machine, and is **scheduled
+for live testing** rather than left open.
+
+### `OTS-NFR-001` — sustained throughput
+
+**Target.** A Raspberry Pi 5 with capture on attached USB SSD sustaining
+**50 Mbps** of mirrored OT traffic with **zero measured loss**, per Q2/Q3.
+
+**Why it cannot be done here.** There are no drop counters to read without a
+capture interface, so the collector reports `UNKNOWN` coverage and the benchmark
+refuses to certify:
 
 ```
 $ ot_collector --interface eth0 --measure
@@ -226,11 +233,58 @@ $ ot_collector --interface eth0 --measure
                      this is a processing rate, not a capacity claim.
 ```
 
-Run that on the Pi against a live SPAN port to close it. Until then the figure
-is an intention, not a measurement, and the SRS says it must be measured and
-published rather than asserted.
+"We processed 50 Mbps" and "we processed *all* 50 Mbps that arrived" are
+different statements, and only the second is a capacity claim.
 
----
+### On the day
+
+Before anything else, confirm the interface is safe to capture on. This should
+pass with no `FAIL` lines; an IP address on the capture port is a refusal to
+start, not a warning:
+
+```
+ot_collector --preflight-only --interface eth0
+```
+
+Then run against the live SPAN port, with self-exclusion configured so the
+collector does not inventory itself:
+
+```
+ot_collector --interface eth0 \
+  --collector-id <site>-01 \
+  --mgmt-mac <eth1 MAC> --server-ip <server> \
+  --capture-dir /mnt/ssd/capture \
+  --duration 3600 --measure
+```
+
+**What to record**, because these are the numbers `OTS-NFR-001` is written
+against and the ones that size the next site:
+
+| | |
+|---|---|
+| verdict | `PASS` / `FAIL` / below-target, and the headroom figure |
+| sustained rate | Mbps, and the offered rate from the switch's own counters |
+| loss | interface-dropped and capture-dropped, **separately** — different failures, different fixes |
+| coverage mix | how many windows were `COMPLETE` vs `DEGRADED` vs `UNKNOWN` |
+| retention | the `holding N days` line, which converts the 512 GiB budget into a real forensic window at this site's actual traffic |
+| self-exclusion | whether the filter matched anything — if it matched nothing, either the SPAN does not mirror the management VLAN, or the identity is wrong |
+
+**A below-target result is not automatically a failure of the Pi.** If loss is
+zero and the rate is under 50 Mbps, the site simply may not be offering 50 Mbps
+— the collector says so rather than concluding the hardware is inadequate. Offer
+more traffic before drawing that conclusion.
+
+If loss is non-zero, the two counters say which fix applies: interface drops
+point at the NIC ring or the link, capture drops at analysis speed or buffer
+size.
+
+### Also worth doing on the day
+
+- **Confirm the SPAN actually mirrors what you think it does.** Compare the
+  collector's asset list against the site's own inventory; a mirror configured
+  on the wrong VLAN produces a confident, quiet, partial answer.
+- **Check the pcap landed on the SSD**, not the boot card — the collector warns
+  at start-up if the path looks like boot media (`OTS-OPS-002`).
 
 ## Testing
 
