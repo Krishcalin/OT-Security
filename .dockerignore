@@ -1,0 +1,11 @@
+# The console is BUILT in the image from src/, so a developer's node_modules and
+# dist/ must not travel into the build context — they would make the image
+# depend on whatever was last built on somebody's laptop.
+console/node_modules
+console/dist
+**/__pycache__
+**/*.pyc
+.git
+.pytest_cache
+reports
+evidence

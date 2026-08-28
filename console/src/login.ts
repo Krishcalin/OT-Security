@@ -211,22 +211,54 @@ async function detail(response: Response): Promise<{
   }
 }
 
+interface Entered {
+  username: string;
+  password: string;
+  code: string;
+  newPassword: string;
+  confirm: string;
+}
+
+/**
+ * Everything the operator typed, read in one go.
+ *
+ * BEFORE any `draw()`. `draw()` replaces the container's innerHTML, which
+ * destroys the inputs and builds fresh empty ones — so reading a field after
+ * drawing reads the new empty box, and the request goes out with an empty
+ * username. The server answers "invalid username or password", correctly, and
+ * the page tells the operator their password is wrong when it never sent it.
+ *
+ * That is exactly what happened the first time a person tried to sign in. Every
+ * test drove the API directly and none of them typed into the form.
+ */
+function entered(): Entered {
+  return {
+    username: value("username").trim(),
+    password: value("password"),
+    code: value("code").trim(),
+    newPassword: value("new-password"),
+    confirm: value("confirm-password"),
+  };
+}
+
 async function submit(): Promise<void> {
+  const typed = entered();
+
   state.error = "";
   state.notice = "";
   state.busy = true;
   draw();
 
   if (state.mode === "change") {
-    await submitChange();
+    await submitChange(typed);
     return;
   }
 
   if (state.mode === "signin") {
-    state.username = value("username").trim();
-    state.password = value("password");
+    state.username = typed.username;
+    state.password = typed.password;
   }
-  const code = state.mode === "totp" ? value("code").trim() : "";
+  const code = state.mode === "totp" ? typed.code : "";
 
   const response = await post("/api/v1/auth/login", {
     username: state.username,
@@ -256,12 +288,12 @@ async function submit(): Promise<void> {
   draw();
 }
 
-async function submitChange(): Promise<void> {
-  const username = value("username").trim();
-  const current = value("password");
-  const replacement = value("new-password");
-  const confirm = value("confirm-password");
-  const code = value("code").trim();
+async function submitChange(typed: Entered): Promise<void> {
+  const username = typed.username;
+  const current = typed.password;
+  const replacement = typed.newPassword;
+  const confirm = typed.confirm;
+  const code = typed.code;
 
   if (replacement !== confirm) {
     state.busy = false;

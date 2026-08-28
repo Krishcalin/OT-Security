@@ -664,3 +664,37 @@ def test_the_console_sends_an_expired_session_to_the_form():
     """Not a panel explaining that the operator should go and find it."""
     src = _read("router.ts")
     assert "/login.html" in src and "401" in src
+
+
+def test_the_sign_in_form_sends_what_was_typed_into_it(tmp_path):
+    """The test that was missing, and the reason it was missing.
+
+    Every test of the sign-in path drove `/api/v1/auth/login` directly. They all
+    passed while the page was incapable of signing anyone in: `submit()` called
+    `draw()` first, which replaces innerHTML and destroys the inputs, and THEN
+    read their values — so it posted an empty username and password every time.
+    The server answered "invalid username or password", correctly, and the page
+    told the operator their password was wrong when it had never sent it.
+
+    A person found that in about four seconds. `form-check.mjs` types into the
+    form the way a person does and asserts on what reaches the network; putting
+    the read back after the redraw fails four of its checks.
+    """
+    node = shutil.which("node") or shutil.which("node.exe")
+    if node is None:
+        pytest.skip("node not on PATH")
+
+    build = _tsc()
+    assert build.returncode == 0, build.stdout[-2000:]
+
+    proc = subprocess.run([node, "form-check.mjs"], cwd=CONSOLE,
+                          capture_output=True, text=True, timeout=300)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_the_form_check_would_notice_an_empty_submission():
+    """A harness nobody has seen fail is a harness nobody knows works."""
+    with open(os.path.join(CONSOLE, "form-check.mjs"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "EMPTY — the bug" in src
+    assert "it carried the password that was typed" in src
