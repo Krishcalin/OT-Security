@@ -150,6 +150,31 @@ export interface ZonesResponse {
   state: "none" | "derived" | "rejected";
 }
 
+/** One issued certificate, as the lifecycle endpoint reports it. */
+export interface CertificateRow {
+  serial: string;
+  collector_id: string;
+  subject: string;
+  fingerprint: string;
+  not_before: string;
+  not_after: string;
+  revoked: boolean;
+  revocation_reason: string;
+  state: "valid" | "revoked" | "expired";
+  expiring_soon: boolean;
+}
+
+export interface CertificatesResponse {
+  certificates: CertificateRow[];
+  count: number;
+  /**
+   * Without a CA there is no issuance record, so no identity is verifiable and
+   * revocation does not exist. An empty list then means "we cannot tell you",
+   * not "this fleet holds nothing".
+   */
+  ca_configured: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -205,6 +230,10 @@ export class EstateApi {
 
   zones(): Promise<ZonesResponse> {
     return this.get("/api/v1/estate/zones");
+  }
+
+  certificates(): Promise<CertificatesResponse> {
+    return this.get("/api/v1/estate/certificates");
   }
 }
 

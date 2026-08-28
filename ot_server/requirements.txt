@@ -9,3 +9,13 @@
 fastapi>=0.110
 uvicorn>=0.27
 psycopg[binary]>=3.1        # Q1: PostgreSQL only
+
+# The fleet CA (decision Q4). Enrolment and revocation stay inside the product,
+# so the server signs collector certificates itself. The COLLECTOR does not get
+# this dependency — it shells out to openssl, which ships with Raspberry Pi OS,
+# so ot_scanner.collector.manifest.RUNTIME_REQUIRES stays at dpkt alone.
+# The floor is 42.0 for a reason: `not_valid_before_utc` /
+# `not_valid_after_utc` arrive there, and the naive-datetime accessors
+# they replace return values that compare wrongly against the
+# timezone-aware timestamps PostgreSQL hands back.
+cryptography>=42.0

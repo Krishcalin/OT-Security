@@ -17,6 +17,25 @@ certificate's subject, supplied by the TLS terminator. A collector that could
 name itself in the payload could impersonate another site and poison its
 inventory — and the request would look perfectly ordinary.
 
+AND, ONCE A CA IS CONFIGURED, FROM THE ISSUANCE RECORD
+──────────────────────────────────────────────────────
+A subject alone cannot be revoked. Nothing in `CN=pi-substation-01` changes when
+an operator revokes that collector's certificate, so a server that authenticates
+on the name keeps accepting the revoked holder — while the console shows the
+certificate as revoked. Revocation that does not deny is worse than no
+revocation at all, because it is believed.
+
+So where a fleet CA is configured, the terminator must also pass the client
+certificate's SHA-256 fingerprint (`X-Client-Fingerprint`), and the server looks
+it up in `certificate`: unknown, revoked, expired, or naming a different
+collector than the subject are each a refusal, each with its own reason. The
+identity returned is the one on the issuance record, not the one parsed out of
+the subject line.
+
+Deployments with no CA configured fall back to the subject alone. That is the
+pre-enrolment state, and it is a state in which revocation does not exist — the
+enrolment endpoints say so with a 503 rather than pretending otherwise.
+
 WHAT 409 MEANS HERE
 ───────────────────
 Success. A collector retrying after a lost acknowledgement resends the same
@@ -36,15 +55,17 @@ logged as one, or every healthy fleet will look like it is failing.
 # The lazy fastapi import is kept on purpose: collector_identity() and the
 # module's constants stay importable, and testable, without the framework.
 
+import json
 import os
 from typing import Any, Callable, Dict, List, Optional
 
 from . import estate as estate_merge
-from . import ingest, vulnmatch
+from . import enrolment, ingest, vulnmatch
 from .ingest import Decision, Verdict
 
 COLLECTOR_ID_HEADER = "X-Collector-Id"
 CLIENT_SUBJECT_HEADER = "X-Client-Subject"      # set by the TLS terminator
+CLIENT_FINGERPRINT_HEADER = "X-Client-Fingerprint"   # likewise, sha256
 
 
 class AuthError(RuntimeError):
@@ -72,14 +93,92 @@ def collector_identity(headers: Dict[str, str],
     return subject
 
 
+def client_fingerprint(headers: Dict[str, str]) -> str:
+    """The presented certificate's fingerprint, as the terminator reports it.
+
+    Normalised because terminators disagree about the shape — nginx writes
+    `SHA256:<base64>`, others write hex with or without colons. A deployment
+    whose format simply failed to match would look exactly like a fleet that had
+    never enrolled, and would be debugged as one.
+    """
+    from . import ca as fleet_ca
+
+    raw = (headers.get(CLIENT_FINGERPRINT_HEADER)
+           or headers.get(CLIENT_FINGERPRINT_HEADER.lower()) or "")
+    return fleet_ca.normalise_fingerprint(raw)
+
+
+def authenticate_collector(store, headers: Dict[str, str],
+                           enforce_certificate: bool) -> str:
+    """Which collector this request is from, checked against what was issued.
+
+    Every refusal names its own cause. "We do not know this certificate" and
+    "we revoked this certificate" are different events for whoever reads the
+    log, and collapsing them into one 401 loses the only signal that says
+    somebody is still using a credential that was taken away.
+    """
+    subject_id = collector_identity(headers)
+    if not enforce_certificate:
+        return subject_id
+
+    fingerprint = client_fingerprint(headers)
+    if not fingerprint:
+        raise AuthError(
+            "a fleet CA is configured but this request carried no client "
+            "certificate fingerprint. The TLS terminator must pass %s; without "
+            "it no certificate can be checked against the issuance record and "
+            "revocation would not deny anything."
+            % CLIENT_FINGERPRINT_HEADER)
+
+    record = store.certificate_by_fingerprint(fingerprint)
+    if record is None:
+        raise AuthError(
+            "this client certificate was not issued by this server. It may be "
+            "signed by a CA the terminator trusts, but it is not in the fleet "
+            "issuance record, so there is nothing to revoke it by and no "
+            "operator authorised it.")
+    if record.get("revoked_at") is not None:
+        raise AuthError(
+            "this certificate was revoked (%s). It is still cryptographically "
+            "valid, which is exactly why the check is against the issuance "
+            "record rather than the signature."
+            % (record.get("revocation_reason") or "no reason recorded"))
+
+    not_after = record.get("not_after")
+    if not_after is not None and not_after <= _utcnow():
+        raise AuthError(
+            "this certificate expired on %s; re-enrol rather than renewing, so "
+            "a person sees a device nobody has heard from since then."
+            % not_after.isoformat())
+
+    if record["collector_id"] != subject_id:
+        # The terminator is wiring two different certificates into one request,
+        # or somebody is presenting one certificate and claiming another's name.
+        raise AuthError(
+            "the presented certificate was issued to %r but the subject header "
+            "says %r" % (record["collector_id"], subject_id))
+    return record["collector_id"]
+
+
+def _utcnow():
+    import datetime
+
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 def create_app(store, require_operator: Optional[Callable] = None,
-               console_dir: Optional[str] = None):
+               console_dir: Optional[str] = None, ca=None):
     """Build the ASGI app. `store` is injected so the routes can be tested
     against a double without Postgres running.
 
     `console_dir` overrides where the operator console is served from;
     None means the repository's `console/`, and a deployment without one
-    simply serves no static files."""
+    simply serves no static files.
+
+    `ca` is the fleet certificate authority. Passing one turns on certificate
+    enforcement for the ingest plane and opens the enrolment endpoints; passing
+    None leaves both off, and the enrolment routes answer 503 rather than
+    accepting requests they cannot complete."""
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.responses import JSONResponse
 
@@ -87,9 +186,51 @@ def create_app(store, require_operator: Optional[Callable] = None,
 
     def _identity(request: Request) -> str:
         try:
-            return collector_identity(dict(request.headers))
+            return authenticate_collector(store, dict(request.headers),
+                                          enforce_certificate=ca is not None)
         except AuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
+
+    async def _body(request: Request, allow_empty: bool = False) -> Dict:
+        """The request body, or a 400.
+
+        `await request.json()` raises on malformed input, which reaches the
+        client as a 500 — and a 500 says the server is broken when the truth is
+        that the request was. On `/api/v1/enrol`, the one route reachable
+        without a client certificate, that is also the wrong thing to tell an
+        unauthenticated caller about their own mistake.
+
+        `allow_empty` is for routes whose fields are all optional. NO body and
+        MALFORMED body are still different: swallowing a malformed one would
+        hand an operator the defaults for a request they thought they had
+        parameterised — a 24-hour token for someone who asked for one hour and
+        mistyped the JSON around it.
+        """
+        raw = await request.body()
+        if not raw.strip():
+            if allow_empty:
+                return {}
+            raise HTTPException(status_code=400,
+                                detail="this request needs a JSON body")
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except Exception:                                  # noqa: BLE001
+            raise HTTPException(status_code=400,
+                                detail="the request body is not valid JSON")
+        if not isinstance(body, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="the request body must be a JSON object")
+        return body
+
+    def _ca():
+        if ca is None:
+            raise HTTPException(
+                status_code=503,
+                detail="no fleet CA is configured, so this server cannot issue "
+                       "or revoke collector identities. Enrolment is "
+                       "unavailable rather than approximated.")
+        return ca
 
     def _operator(request: Request) -> str:
         if require_operator is None:
@@ -103,7 +244,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
     @app.post("/api/v1/ingest")
     async def ingest_batch(request: Request):
         collector = _identity(request)
-        payload = await request.json()
+        payload = await _body(request)
 
         # The payload cannot name a different collector than the certificate.
         claimed = payload.get("collector_id")
@@ -138,7 +279,7 @@ def create_app(store, require_operator: Optional[Callable] = None,
     @app.post("/api/v1/heartbeat")
     async def heartbeat(request: Request):
         collector = _identity(request)
-        payload = await request.json()
+        payload = await _body(request)
         payload["collector_id"] = collector
         store.record_heartbeat(payload)
         return {"status": "ok"}
@@ -318,6 +459,252 @@ def create_app(store, require_operator: Optional[Callable] = None,
             "state": ("none" if confidence.zones == 0
                       else "derived" if confidence.usable else "rejected"),
         }
+
+    # ── enrolment plane (Phase 6) ─────────────────────────────────────────
+    #
+    # `/api/v1/enrol` is the ONLY route in this server not behind mutual TLS,
+    # and it cannot be otherwise: a collector arriving at a substation has no
+    # certificate yet, which is the whole reason it is here. A one-time token
+    # stands in front of it.
+    @app.get("/api/v1/ca")
+    def public_ca():
+        """The fleet CA certificate, unauthenticated.
+
+        A CA certificate is public by construction — it is the trust anchor
+        every party needs before it can verify anything, and it travels in the
+        clear in every TLS handshake. Serving it here is what lets a collector
+        check the fingerprint an operator gave it BEFORE spending its one-time
+        token.
+
+        That ordering was not obvious until the flow was run end to end: with
+        the check on the response instead, a mistyped fingerprint spent the
+        token, left an issued certificate nobody holds, and blocked the next
+        legitimate enrolment of that collector with "it already has one". The
+        token is the scarce thing here, so it is offered last.
+        """
+        return {"ca_certificate": _ca().ca_pem}
+
+    @app.post("/api/v1/enrol")
+    async def enrol(request: Request):
+        authority = _ca()
+        payload = await _body(request)
+        token = str(payload.get("token") or "")
+        csr = str(payload.get("csr") or "")
+        if not token or not csr:
+            raise HTTPException(status_code=400,
+                                detail="enrolment needs a token and a CSR")
+
+        claim = store.redeem_enrolment_token(enrolment.hash_token(token))
+        if claim is None:
+            # One message for unknown, expired and already-redeemed. This is the
+            # one place in this server that deliberately does NOT distinguish
+            # its refusals: the caller is unauthenticated, and telling them
+            # which tokens exist would turn this into an oracle.
+            raise HTTPException(
+                status_code=403,
+                detail="this enrolment token is not valid. It may never have "
+                       "existed, it may have expired, or it may already have "
+                       "been redeemed — each is final.")
+
+        # From here on the token is CLAIMED but not yet SPENT. Anything that
+        # ends without a certificate releases it again: a one-time credential
+        # consumed by a request that produced nothing sends the engineer at the
+        # cabinet back to an operator for another one, and a malformed CSR is
+        # the likeliest thing to go wrong in the field.
+        token_hash = enrolment.hash_token(token)
+        collector_id = claim["collector_id"]
+
+        active = [c["serial"] for c in store.active_certificates(collector_id)]
+        decision = enrolment.decide_issue(active, claim["allow_reissue"])
+        if not decision.ok:
+            store.release_enrolment_token(token_hash)
+            raise HTTPException(status_code=409, detail=decision.reason)
+
+        try:
+            issued = authority.sign(csr, collector_id, claim["site"])
+        except Exception as exc:                           # noqa: BLE001
+            store.release_enrolment_token(token_hash)
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        for serial in decision.supersede:
+            store.revoke_certificate(
+                serial, "superseded by %s at re-enrolment" % issued.serial)
+
+        store.ensure_collector(collector_id)
+        if claim["site"]:
+            store.set_site(collector_id, claim["site"])
+        store.record_certificate(issued)
+        # Spent, now and permanently: `release_enrolment_token` refuses to
+        # un-claim a token once this is set.
+        store.record_token_serial(token_hash, issued.serial)
+
+        return JSONResponse(status_code=201, content={
+            "collector_id": collector_id,
+            "site": claim["site"],
+            "certificate": issued.pem,
+            "ca_certificate": authority.ca_pem,
+            "serial": issued.serial,
+            "not_after": issued.not_after.isoformat(),
+            "note": decision.reason,
+        })
+
+    @app.post("/api/v1/renew")
+    async def renew(request: Request):
+        """Exchange a valid certificate for a fresh one.
+
+        Authenticated by the certificate being renewed, so no token is needed —
+        the holder has already proven it is the collector. A renewal does NOT
+        revoke the old certificate: if the response never reaches the Pi, a
+        collector that had just invalidated its only identity would be
+        unreachable in a substation, and recovering it means a site visit. The
+        old one lapses on its own schedule instead.
+        """
+        authority = _ca()
+        collector = _identity(request)
+        payload = await _body(request)
+        csr = str(payload.get("csr") or "")
+        if not csr:
+            raise HTTPException(status_code=400, detail="renewal needs a CSR")
+
+        current = store.certificate_by_fingerprint(
+            client_fingerprint(dict(request.headers)))
+        if current is None:                                # pragma: no cover
+            raise HTTPException(status_code=401,
+                                detail="no issuance record for this certificate")
+        decision = enrolment.decide_renewal(
+            current["not_after"], current.get("revoked_at") is not None)
+        if not decision.ok:
+            raise HTTPException(status_code=409, detail=decision.reason)
+
+        sites = store.collector_sites()
+        try:
+            issued = authority.sign(csr, collector, sites.get(collector, ""))
+        except Exception as exc:                           # noqa: BLE001
+            raise HTTPException(status_code=400, detail=str(exc))
+        store.record_certificate(issued)
+
+        # The overlap is deliberate but must be BOUNDED. Renewing repeatedly
+        # would otherwise leave a collector holding five, ten, twenty valid
+        # identities, and "one identity, one holder" — the rule the enrolment
+        # path refuses to break — would be undone one renewal at a time by the
+        # path that does not go through it. Every active certificate except the
+        # one just renewed from, and the one just issued, is retired here.
+        retired = []
+        for row in store.active_certificates(collector):
+            if row["serial"] in (issued.serial, current["serial"]):
+                continue
+            if store.revoke_certificate(
+                    row["serial"], "retired: superseded by two later renewals"):
+                retired.append(row["serial"])
+
+        return JSONResponse(status_code=201, content={
+            "collector_id": collector,
+            "certificate": issued.pem,
+            "ca_certificate": authority.ca_pem,
+            "serial": issued.serial,
+            "not_after": issued.not_after.isoformat(),
+            "superseded": current["serial"],
+            "retired": retired,
+            "note": "the previous certificate stays valid until it expires, so "
+                    "a lost response does not strand a collector"
+                    + (issued.note and "; " + issued.note),
+        })
+
+    # ── certificate lifecycle, operator side ──────────────────────────────
+
+    @app.post("/api/v1/estate/collectors/{collector_id}/enrolment-token")
+    async def mint_token(collector_id: str, request: Request):
+        """Mint a one-time enrolment token.
+
+        The plaintext is returned HERE AND NOWHERE ELSE. Only its hash is
+        stored, so it cannot be recovered from the database or shown again on a
+        later screen; a token an operator can look up twice is a token that
+        lives in the system as a standing credential.
+        """
+        _operator(request)
+        _ca()
+        payload = await _body(request, allow_empty=True)
+        # `payload.get("ttl_hours") or DEFAULT` would read an explicit 0 as
+        # "not supplied" and quietly mint a 24-hour token for an operator who
+        # asked for none. A refusal they can see beats a default they cannot.
+        ttl = payload.get("ttl_hours")
+        try:
+            minted = enrolment.mint(
+                collector_id,
+                site=str(payload.get("site") or ""),
+                ttl_hours=(int(ttl) if ttl is not None
+                           else enrolment.DEFAULT_TOKEN_TTL_HOURS),
+                allow_reissue=bool(payload.get("allow_reissue")))
+        except (enrolment.EnrolmentError, ValueError, TypeError) as exc:
+            # A rejected mint is the operator's mistake to see, not a server
+            # fault: a 500 here reads as "the fleet server is broken" when the
+            # actual problem is a ttl of "soon".
+            raise HTTPException(status_code=400, detail=str(exc))
+        store.create_enrolment_token(minted)
+        return JSONResponse(status_code=201, content={
+            "collector_id": minted.collector_id,
+            "site": minted.site,
+            "token": minted.token,
+            "expires_at": minted.expires_at.isoformat(),
+            "allow_reissue": minted.allow_reissue,
+            "note": "this token is shown once and stored only as a hash",
+        })
+
+    @app.get("/api/v1/estate/certificates")
+    def list_certificates(request: Request, collector_id: Optional[str] = None):
+        """Every certificate ever issued, including revoked and expired ones.
+
+        Not filtered to the valid ones: "no record" and "never issued" would
+        otherwise be the same answer, and the question an operator asks after an
+        incident is what this fleet has held, not what it holds now.
+        """
+        _operator(request)
+        rows = store.certificates(collector_id)
+        now = _utcnow()
+        out = []
+        for row in rows:
+            expired = row["not_after"] <= now
+            revoked = row.get("revoked_at") is not None
+            out.append({
+                "serial": row["serial"],
+                "collector_id": row["collector_id"],
+                "subject": row["subject"],
+                "fingerprint": row["fingerprint"],
+                "not_before": row["not_before"].isoformat(),
+                "not_after": row["not_after"].isoformat(),
+                "revoked": revoked,
+                "revocation_reason": row["revocation_reason"],
+                "state": ("revoked" if revoked
+                          else "expired" if expired else "valid"),
+                "expiring_soon": (not revoked and not expired
+                                  and enrolment.expiring_within(
+                                      row["not_after"], 14, now)),
+            })
+        return {"certificates": out, "count": len(out),
+                "ca_configured": ca is not None}
+
+    @app.post("/api/v1/estate/certificates/{serial}/revoke")
+    async def revoke(serial: str, request: Request):
+        _operator(request)
+        _ca()
+        payload = await _body(request, allow_empty=True)
+        reason = str(payload.get("reason") or "revoked by operator")
+        changed = store.revoke_certificate(serial, reason)
+        if not changed:
+            # Either it does not exist or it was already revoked. Both mean the
+            # operator's intent already holds, so this is not an error — but it
+            # must not report a revocation that did not happen here.
+            raise HTTPException(
+                status_code=409,
+                detail="no unrevoked certificate with serial %r; it is either "
+                       "unknown or already revoked" % serial)
+        return {"serial": serial, "revoked": True, "reason": reason}
+
+    @app.get("/api/v1/estate/ca")
+    def ca_certificate(request: Request):
+        """The CA certificate, for building a collector's trust bundle."""
+        _operator(request)
+        return {"ca_certificate": _ca().ca_pem}
 
     _mount_console(app, console_dir)
     return app

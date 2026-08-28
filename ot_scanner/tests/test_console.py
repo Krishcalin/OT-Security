@@ -186,7 +186,7 @@ def test_engine_limitations_are_rendered_not_hidden():
 
 # ── the shell and the screens (OTS-CON-001..006) ───────────────────────────
 
-SCREENS = ("estate", "assets", "findings", "topology", "change")
+SCREENS = ("estate", "assets", "findings", "topology", "change", "fleet")
 PUBLIC = os.path.join(CONSOLE, "public")
 
 
@@ -434,7 +434,7 @@ def test_a_coverage_badge_does_not_assert_a_cause_it_cannot_know():
 
 # ── the screens actually render (OTS-CON-001..006) ─────────────────────────
 
-def _payloads(directory):
+def _payloads(directory, client=None):
     """Real API responses, dumped from the real app.
 
     Hand-written fixtures would drift from the server and keep passing while the
@@ -442,16 +442,16 @@ def _payloads(directory):
     """
     import json
 
-    client = _app_with_operator()
+    client = client or _app_with_operator()
     for name in ("coverage", "inventory", "vulnerabilities", "assets",
-                 "analysis", "zones"):
+                 "analysis", "zones", "certificates"):
         body = client.get("/api/v1/estate/%s" % name).json()
         with open(os.path.join(directory, "%s.json" % name), "w",
                   encoding="utf-8") as fh:
             json.dump(body, fh)
 
 
-def _app_with_operator():
+def _app_with_operator(store=None, ca=None):
     pytest.importorskip("fastapi")
     if _ROOT not in sys.path:
         sys.path.insert(0, _ROOT)
@@ -459,9 +459,9 @@ def _app_with_operator():
 
     from ot_server.api import create_app
 
-    return TestClient(create_app(_PopulatedStore(),
+    return TestClient(create_app(store or _PopulatedStore(),
                                  require_operator=lambda request: "operator",
-                                 console_dir=CONSOLE))
+                                 console_dir=CONSOLE, ca=ca))
 
 
 class _PopulatedStore:
@@ -520,6 +520,67 @@ class _PopulatedStore:
     def latest_window(self, collector_id):
         return "w-1"
 
+    # ── fleet identities (Phase 6) ────────────────────────────────────────
+    def __init__(self):
+        self.certs = []
+
+    def ensure_collector(self, collector_id):
+        pass
+
+    def set_site(self, collector_id, site):
+        pass
+
+    def certificates(self, collector_id=None):
+        return [dict(c) for c in self.certs
+                if collector_id in (None, c["collector_id"])]
+
+    def active_certificates(self, collector_id):
+        return []
+
+    def record_certificate(self, issued):
+        self.certs.append({
+            "serial": issued.serial, "collector_id": issued.collector_id,
+            "subject": issued.subject, "fingerprint": issued.fingerprint,
+            "not_before": issued.not_before, "not_after": issued.not_after,
+            "revoked_at": None, "revocation_reason": ""})
+
+
+def _with_a_fleet_identity(tmp_path):
+    """A store holding one real issued certificate, so the fleet screen renders
+    its lifecycle rather than its no-CA explanation.
+
+    Falls back to no CA when `cryptography` is absent — which exercises the
+    other half of that screen, and is why render-check accepts an explanation in
+    place of a chip.
+    """
+    if _ROOT not in sys.path:
+        sys.path.insert(0, _ROOT)
+    try:
+        from ot_server import ca as fleet_ca
+    except Exception:                                      # noqa: BLE001
+        return _PopulatedStore(), None
+    if not fleet_ca.available():
+        return _PopulatedStore(), None
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+
+    authority = fleet_ca.CertificateAuthority.create(
+        os.path.join(str(tmp_path), "ca"))
+    key = ec.generate_private_key(ec.SECP256R1())
+    csr = (x509.CertificateSigningRequestBuilder()
+           .subject_name(x509.Name([
+               x509.NameAttribute(NameOID.COMMON_NAME, "ignored")]))
+           .sign(key, hashes.SHA256()))
+    issued = authority.sign(
+        csr.public_bytes(serialization.Encoding.PEM).decode("ascii"),
+        "pi-a", site="Substation A")
+    store = _PopulatedStore()
+    store.record_certificate(issued)
+    return store, authority
+
 
 def test_every_screen_renders_against_real_api_responses(tmp_path):
     """The type checker proves a screen cannot render a number without its
@@ -538,7 +599,8 @@ def test_every_screen_renders_against_real_api_responses(tmp_path):
     build = _tsc()
     assert build.returncode == 0, build.stdout[-2000:]
 
-    _payloads(str(tmp_path))
+    store, authority = _with_a_fleet_identity(tmp_path)
+    _payloads(str(tmp_path), _app_with_operator(store, authority))
     proc = subprocess.run([node, "render-check.mjs", str(tmp_path)],
                           cwd=CONSOLE, capture_output=True, text=True,
                           timeout=300)
@@ -550,5 +612,5 @@ def test_the_render_check_would_notice_a_screen_that_drew_nothing():
     with open(os.path.join(CONSOLE, "render-check.mjs"), encoding="utf-8") as fh:
         src = fh.read()
     assert "rendered nothing" in src
-    assert "rendered no coverage chip" in src
+    assert "rendered no coverage chip and no explanation" in src
     assert "[object Object]" in src

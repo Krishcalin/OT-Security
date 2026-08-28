@@ -24,6 +24,7 @@ answer from *"we haven't done that yet."*
 | **D5** | Do packet payloads leave the plant? | **No** — records carry conclusions, not bytes | `tests/test_collector_analysis.py` |
 | **D6** | Are Purdue zones derived across the estate? | **No** — per site, and a mostly-guessed derivation is refused | `tests/test_server_zones.py` |
 | **D7** | Where does the operator console live? | **In the server** — one origin, one deployable | `tests/test_console.py` |
+| **D8** | What decides a collector's identity? | **The server** — the CSR's own subject is discarded, and every request is checked against the issuance record | `tests/test_fleet_enrolment.py` |
 | **Q1** | Server datastore | **PostgreSQL only** | Phase 3 |
 | **Q2** | Scale | **<50 Mbps per site, <10 collectors** | `OTS-NFR-001` |
 | **Q3** | Hardware | **Pi 5, rolling pcap on USB SSD** | `OTS-OPS-002` |
@@ -218,6 +219,109 @@ files that were never meant to be served.
   a failure message rather than a spinner or a blank page: a blank page reads as
   a plant with nothing in it, which is the failure this system exists to
   prevent, arriving at the last step where a person actually reads it.
+
+---
+
+## D8 — An identity is issued, not requested
+
+**Asked because** `TransportConfig` has always refused to start without a
+private key, a certificate and a CA bundle, and nothing in the product could
+produce any of them. The fleet could not be deployed.
+
+**Answer.** The server names the collector; the collector proves it holds a key.
+
+### The CSR's subject is discarded
+
+A certificate signing request carries a subject, and the obvious implementation
+signs it. Then a collector requests `CN=pi-substation-01`, receives a
+certificate that authenticates it as another site's collector, and reports
+assets into that site's inventory. Every request afterwards looks perfectly
+ordinary, because the identity really was issued by this CA.
+
+So the CSR is used for exactly one thing — its public key, and the proof that
+the requester holds the matching private key. The name comes from the enrolment
+token an operator minted. This is the same rule as `api.collector_identity`
+("the identity comes from the certificate, not the body"), one layer lower.
+
+The CA also refuses: a CSR whose self-signature does not verify (otherwise a
+certificate can be issued over somebody else's public key), RSA below 2048 bits
+and curves outside P-256/P-384, `serverAuth` (a collector certificate that could
+authenticate a server could terminate TLS for the ingest endpoint and the fleet
+would report to it), and `CA:TRUE`.
+
+### Revocation has to deny, or it is theatre
+
+Nothing in `CN=pi-substation-01` changes when that certificate is revoked. A
+server that authenticates on the subject keeps accepting the revoked holder
+while the console shows the certificate as revoked — which is worse than not
+revoking at all, because somebody stops looking.
+
+So where a CA is configured, the TLS terminator must also pass the client
+certificate's SHA-256 fingerprint, and the server checks it against
+`certificate`. Unknown, revoked, expired, or naming a different collector than
+the subject are each refused, each with its own reason: "we do not know this
+certificate" and "we revoked this certificate" are different events for whoever
+reads the log.
+
+### One identity, one holder
+
+Enrolling a collector that already holds a valid certificate is **refused**
+unless the operator allowed reissue when minting the token — and when they did,
+the previous certificates are revoked as part of issuing rather than left
+alongside. Otherwise a token stolen from a mailbox and replayed mints a second
+valid identity for a collector that has been running for a year: both
+certificates work, and the server cannot tell which of the two is the plant.
+
+### What the deployment must do
+
+**The TLS terminator must strip client-supplied `X-Client-Subject` and
+`X-Client-Fingerprint` before setting its own.** Every identity claim in this
+server rests on those two headers being the terminator's words rather than the
+caller's. A terminator that merely adds them lets anyone who can reach the port
+name themselves, and the requests look ordinary.
+
+### A token is spent only when a certificate exists
+
+The redemption is atomic so a replay cannot pass a check a concurrent request
+has already passed. But claiming a token and then refusing to issue — a
+malformed CSR, a collector that already holds a certificate — consumes a
+one-time credential on a request that produced nothing, and the engineer at the
+cabinet goes back to an operator for another one. Enrolment releases the claim
+on every path that does not end in a certificate, and `used_serial` makes the
+release one-way: a token that worked stays spent forever.
+
+The same rule shapes the renewal overlap. A renewal does not revoke the
+certificate it renews, because a response lost on the way to a substation would
+otherwise strand a collector that had just invalidated its only identity. Left
+unbounded, that would undo "one identity, one holder" one renewal at a time, so
+each renewal retires every active certificate except the one it renewed from and
+the one it issued. Two, never more.
+
+### The one endpoint without mutual TLS
+
+`/api/v1/enrol` cannot require a client certificate: obtaining one is what the
+caller is there for. A single-use token stands in front of it, stored only as a
+SHA-256, redeemed by one conditional UPDATE so a replay cannot pass a check that
+a concurrent request has already passed.
+
+`/api/v1/ca` is also unauthenticated, and deliberately so — a CA certificate is
+the trust anchor everyone needs before verifying anything, and it travels in the
+clear in every TLS handshake. Publishing it is what lets a collector check the
+fingerprint an operator gave it **before** spending its token. That ordering was
+not obvious until the flow was run end to end: checking the enrolment response
+instead meant one mistyped fingerprint spent the token, left the server holding
+a certificate nobody had, and blocked the next legitimate enrolment of that
+collector with "it already holds a valid certificate".
+
+### And the collector still carries only dpkt
+
+Key generation and CSR creation shell out to `openssl`, which ships with
+Raspberry Pi OS. `manifest.RUNTIME_REQUIRES` stays `("dpkt>=1.9.8",)` and the
+test asserting that exact tuple still passes. The private key is generated on
+the Pi and never leaves it: a server that generated the pair and sent it back
+would be simpler and would put every collector's private key on the network,
+which is what "the CA private key never leaves the server" was written to
+prevent, applied to the wrong key.
 
 ---
 

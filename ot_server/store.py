@@ -298,6 +298,137 @@ class Store:
                      "last_seen": r[3], "observation_count": r[4],
                      "attributes": r[5]} for r in cur.fetchall()]
 
+    # ── enrolment and certificates (Phase 6) ──────────────────────────────
+
+    def create_enrolment_token(self, minted) -> None:
+        """Store a minted token by its hash. The plaintext never arrives here."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO enrolment_token (token_hash, collector_id, site,
+                       expires_at, allow_reissue)
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (minted.token_hash, minted.collector_id, minted.site,
+                 minted.expires_at, minted.allow_reissue))
+        self.conn.commit()
+
+    def redeem_enrolment_token(self, token_hash: str) -> Optional[Dict]:
+        """Claim a token, exclusively, in ONE statement.
+
+        Check-then-use is two statements, and a second request can pass the
+        check between them. Two collectors would then hold valid certificates
+        naming the same identity, both would report, and the console would show
+        one collector whose inventory matches neither plant.
+
+        The conditional UPDATE is the claim: a returned row means this caller
+        redeemed it, and every other caller gets None. Expiry is evaluated in
+        the same statement for the same reason.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """UPDATE enrolment_token SET used_at = now()
+                   WHERE token_hash = %s
+                     AND used_at IS NULL
+                     AND expires_at > now()
+                   RETURNING collector_id, site, allow_reissue""",
+                (token_hash,))
+            row = cur.fetchone()
+        self.conn.commit()
+        if row is None:
+            return None
+        return {"collector_id": row[0], "site": row[1], "allow_reissue": row[2]}
+
+    def release_enrolment_token(self, token_hash: str) -> bool:
+        """Un-claim a token whose enrolment did not produce a certificate.
+
+        The redemption is atomic so that a replay cannot pass a check a
+        concurrent request has already passed. But claiming it and then refusing
+        to issue — a malformed CSR, a collector that already holds a certificate
+        — spends a one-time credential on a request that produced nothing, and
+        the engineer standing at the cabinet has to go back to an operator for
+        another one.
+
+        Released ONLY while `used_serial` is empty. A token that produced a
+        certificate stays spent forever, whatever else happens afterwards.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE enrolment_token SET used_at = NULL "
+                "WHERE token_hash = %s AND used_serial = ''", (token_hash,))
+            changed = cur.rowcount
+        self.conn.commit()
+        return bool(changed)
+
+    def record_token_serial(self, token_hash: str, serial: str) -> None:
+        """Which certificate a token produced. Kept so an issued identity can be
+        traced back to the person who authorised it."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE enrolment_token SET used_serial = %s WHERE token_hash = %s",
+                (serial, token_hash))
+        self.conn.commit()
+
+    def record_certificate(self, issued) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO certificate (serial, collector_id, subject,
+                       fingerprint, not_before, not_after)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (issued.serial, issued.collector_id, issued.subject,
+                 issued.fingerprint, issued.not_before, issued.not_after))
+        self.conn.commit()
+
+    def certificate_by_fingerprint(self, fingerprint: str) -> Optional[Dict]:
+        """The record every authenticated request is checked against.
+
+        Returned whether or not it is revoked or expired: the caller must be
+        able to say WHY an identity was refused, and "unknown certificate" and
+        "revoked certificate" are different events for whoever reads the log.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT serial, collector_id, subject, fingerprint, not_before, "
+                "not_after, revoked_at, revocation_reason FROM certificate "
+                "WHERE fingerprint = %s", (fingerprint,))
+            row = cur.fetchone()
+        return _certificate_row(row)
+
+    def active_certificates(self, collector_id: str) -> List[Dict]:
+        """Unrevoked and unexpired certificates held by one collector."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT serial, collector_id, subject, fingerprint, not_before, "
+                "not_after, revoked_at, revocation_reason FROM certificate "
+                "WHERE collector_id = %s AND revoked_at IS NULL "
+                "AND not_after > now() ORDER BY not_after DESC",
+                (collector_id,))
+            rows = cur.fetchall()
+        return [_certificate_row(row) for row in rows]
+
+    def certificates(self, collector_id: Optional[str] = None) -> List[Dict]:
+        sql = ("SELECT serial, collector_id, subject, fingerprint, not_before, "
+               "not_after, revoked_at, revocation_reason FROM certificate")
+        params: List[Any] = []
+        if collector_id:
+            sql += " WHERE collector_id = %s"
+            params.append(collector_id)
+        sql += " ORDER BY not_after DESC"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
+        return [_certificate_row(row) for row in rows]
+
+    def revoke_certificate(self, serial: str, reason: str) -> bool:
+        """Revoke, once. Re-revoking does not overwrite the original reason or
+        timestamp — the first revocation is the one that happened."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE certificate SET revoked_at = now(), "
+                "revocation_reason = %s WHERE serial = %s AND revoked_at IS NULL",
+                (reason, serial))
+            changed = cur.rowcount
+        self.conn.commit()
+        return bool(changed)
+
     def all_detections(self, limit: int = 20000) -> List[Dict]:
         """Every collector's detections, unfiltered.
 
@@ -312,11 +443,24 @@ class Store:
             cur.execute(
                 "SELECT detection_key, collector_id, asset_key, rule_id, "
                 "severity, last_coverage, rulepack_version, attributes "
-                "FROM detection ORDER BY severity DESC LIMIT %s", (limit,))
+                # NOT `ORDER BY severity`: it is TEXT, so the ordering is
+                # alphabetical — 'medium' before 'low' before 'high' — and the
+                # LIMIT would then drop the high-severity rows first while
+                # looking like it had kept the important ones.
+                "FROM detection ORDER BY last_seen DESC NULLS LAST LIMIT %s",
+                (limit,))
             return [{"detection_key": r[0], "collector_id": r[1],
                      "asset_key": r[2], "rule_id": r[3], "severity": r[4],
                      "last_coverage": r[5], "rulepack_version": r[6],
                      "attributes": r[7]} for r in cur.fetchall()]
+
+
+def _certificate_row(row) -> Optional[Dict]:
+    if row is None:
+        return None
+    return {"serial": row[0], "collector_id": row[1], "subject": row[2],
+            "fingerprint": row[3], "not_before": row[4], "not_after": row[5],
+            "revoked_at": row[6], "revocation_reason": row[7]}
 
 
 def _json(value: Any) -> str:

@@ -19,6 +19,7 @@ import * as assets from "./screens/assets.js";
 import * as change from "./screens/change.js";
 import * as estate from "./screens/estate.js";
 import * as findings from "./screens/findings.js";
+import * as fleet from "./screens/fleet.js";
 import * as topology from "./screens/topology.js";
 
 /**
@@ -70,6 +71,10 @@ class PerDrawApi extends EstateApi {
   override zones() {
     return this.once("zones", () => super.zones());
   }
+
+  override certificates() {
+    return this.once("certificates", () => super.certificates());
+  }
 }
 
 const api = new PerDrawApi();
@@ -104,6 +109,12 @@ const SCREENS: readonly Screen[] = [
     label: "Change",
     question: "What changed, and what stopped being observed.",
     render: () => change.render(api),
+  },
+  {
+    id: "fleet",
+    label: "Fleet",
+    question: "Which collectors hold which identities, and which were revoked.",
+    render: () => fleet.render(api),
   },
 ];
 

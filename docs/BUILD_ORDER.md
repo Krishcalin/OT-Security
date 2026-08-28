@@ -7,10 +7,11 @@ Specification: **OTS-SRS-001**. This document is the *order of work* and the
 record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
-> **Status at 2026-08-28** — Phases 1–5 complete. 343 tests passing without
-> a database; 22 more require one and are skipped without it (CI refuses
-> that skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi
-> — see [Live commissioning](#live-commissioning).
+> **Status at 2026-08-28** — Phases 1–5 complete; Phase 6 in progress
+> (enrolment and certificate lifecycle done). 411 tests passing without a
+> database; 22 more require one and are skipped without it (CI refuses that
+> skip). `OTS-NFR-001` is **deferred to live commissioning** on the Pi — see
+> [Live commissioning](#live-commissioning).
 
 ---
 
@@ -283,13 +284,87 @@ have left `OTS-CON-004` enforced by nothing behind a green badge.
 `OT_CONSOLE_REQUIRED` turns that skip into a hard error in the job that exists
 to run it.
 
-### Phase 6 — Fleet operations
+### Phase 6 — Fleet operations · **ENROLMENT AND LIFECYCLE DONE**
 
 Enrolment, certificate lifecycle, signed updates, rule-pack distribution, health
-alarms. Once the fleet is stable, two borrowed capabilities become candidates:
-learned communication zones (Claroty's virtual zones, extending the existing
-`topology/`) and process-variable baselining (Nozomi — the protocol parsers
-already decode the point values it needs).
+alarms.
+
+**Enrolment came first because nothing could be deployed without it.**
+`TransportConfig` has always refused to start without a key, a certificate and a
+CA bundle, and no part of the product could produce them. The fleet CA (Q4) now
+does: `ot_server/ca.py` signs, `ot_server/enrolment.py` holds the token policy,
+`collector/enrol.py` is the collector side, and `POST /api/v1/enrol` is the one
+route in this server not behind mutual TLS — obtaining a certificate is what the
+caller is there for.
+
+The design is **D8**: the server names the collector and the collector proves it
+holds a key. The CSR's own subject is discarded, because signing it would let a
+collector be issued as another site's collector and report into that plant's
+inventory with a certificate this CA really did issue.
+
+**Revocation has to deny.** Nothing in a subject line changes when a certificate
+is revoked, so a server authenticating on the name keeps accepting the revoked
+holder while the console shows it as revoked — worse than not revoking, because
+somebody stops looking. Where a CA is configured, every request is checked
+against the issuance record by fingerprint, and unknown / revoked / expired /
+name-mismatch are four refusals with four reasons rather than one 401.
+
+**Two defects surfaced by running it rather than reading it.**
+
+A mistyped CA fingerprint spent the token, left the server holding a certificate
+nobody had, and blocked that collector's next legitimate enrolment with "it
+already holds a valid certificate" — three problems from one typo. The anchor is
+now checked against `GET /api/v1/ca` before the token is offered; the token is
+the scarce thing in the exchange, so everything checkable without it is checked
+first.
+
+And refusing to enrol over any existing key made a retry harder than the first
+attempt. A key with a certificate beside it is a live identity and is protected;
+a key on its own is the debris of an enrolment that failed partway — a laptop
+balanced on a cabinet — and is reused.
+
+**The console shows the lifecycle**, because a revocation nobody can see is one
+nobody can audit. With no CA configured the counts are `unknown` rather than
+zero: a deployment without one has no issuance record, so "0 revoked" would be a
+confident statement about identities nobody is tracking.
+
+**An audit of the slice found nine more, and they had a shape.** Six of
+them are the same mistake as the two above: a failure that costs more than
+it should, because the expensive thing was consumed before the cheap check ran.
+
+| | the defect | what it cost |
+|---|---|---|
+| 1 | the token was claimed before the CSR was parsed | a malformed CSR — the likeliest field failure — spent a one-time credential and sent the engineer back to an operator |
+| 2 | the same, for a policy refusal | enrolling a collector that already held a certificate spent the token to be told no |
+| 3 | `payload.get("ttl_hours") or DEFAULT` | an operator asking for a 0-hour token silently got 24 |
+| 4 | a rejected mint raised | 500, which reads as "the fleet server is broken" when the problem was a ttl of `"soon"` |
+| 5 | no length check at mint time | a name over X.509's 64-character cap minted fine and failed in a substation, with the token spent |
+| 6 | renewal never retired anything | the overlap that protects against a lost response, unbounded, let one collector accumulate five, ten, twenty valid identities — undoing "one identity, one holder" one renewal at a time |
+| 7 | the CA could sign past its own expiry | certificates that verify against nothing, failing as a TLS handshake error in a substation with nothing pointing back here |
+| 8 | `ORDER BY severity` on a TEXT column, under a `LIMIT` | alphabetical: `medium`, `low`, `high` — so the limit dropped the high-severity detections first while looking like it kept the important ones |
+| 9 | a malformed JSON body | a 500 from the one route reachable without a client certificate; and on the mint route, silently the defaults for a request the operator thought they had parameterised |
+
+A token is now released whenever enrolment ends without a certificate, and
+spent for good the moment one is issued: `release_enrolment_token` refuses to un-claim a
+token once `used_serial` is set. Renewal retires every active certificate except
+the one renewed from and the one just issued, so the overlap stays at two. The
+CA refuses to sign once expired, and shortens — visibly, in a `note` the
+response carries — rather than issuing past its own expiry.
+
+**And one defect about the tests themselves.** `_FleetStore` stands in for
+`Store`, and when the API grew a call the double did not have, the double raised
+`AttributeError` — which surfaced only because a test happened to reach that
+branch. On a branch no test reached, the double would have stayed quiet while
+production answered 500. Two guards now: every `store.<method>` the API calls
+must exist on the real `Store`, and every method the double implements must
+exist there too, so a rename cannot leave the double answering for something
+that is gone.
+
+**Still to do in this phase.** Signed updates, rule-pack distribution and
+server-side health alarms. Once the fleet is stable, two borrowed capabilities
+become candidates: learned communication zones (Claroty's virtual zones,
+extending the existing `topology/`) and process-variable baselining (Nozomi —
+the protocol parsers already decode the point values it needs).
 
 ---
 
@@ -302,6 +377,7 @@ already decode the point values it needs).
 | **D3** | volatile facts live on the server | `cvedb/` never ships to a collector; a KEV addition re-prioritises the estate without touching a Pi |
 | **D6** | zones are derived per site | a mostly-defaulted derivation is refused; the engines stay `SKIPPED` and say which of the two empty states applies |
 | **D7** | the console is served by the server | one origin, so no CORS relaxation of the fail-closed estate plane; only `public/` and `dist/` are mounted |
+| **D8** | an identity is issued, not requested | the CSR's subject is discarded; every request is checked against the issuance record, so revocation denies |
 | **Q1** | PostgreSQL only | one dialect, one set of migrations |
 | **Q2** | under 50 Mbps per site, fewer than 10 collectors | `COMPLETE` coverage is the expected normal state, so `DEGRADED` is a real signal |
 | **Q3** | Raspberry Pi 5, rolling pcap on attached USB SSD | SD card stays boot-only |

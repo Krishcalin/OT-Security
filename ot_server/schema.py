@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 DDL: Tuple[str, ...] = (
     """
@@ -152,6 +152,43 @@ DDL: Tuple[str, ...] = (
         PRIMARY KEY (flow_key, collector_id)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS enrolment_token (
+        -- The PRIMARY KEY is the hash, because the plaintext is never stored.
+        -- A copy of this database yields no working enrolment credential.
+        token_hash    TEXT PRIMARY KEY,
+        -- Fixed at mint time and never taken from the enrolment request: a
+        -- collector that could name itself could enrol into another plant's
+        -- site scope, and everything it reported would merge there.
+        collector_id  TEXT NOT NULL,
+        site          TEXT NOT NULL DEFAULT '',
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at    TIMESTAMPTZ NOT NULL,
+        -- Set by the single conditional UPDATE that claims the token. Two
+        -- statements here would let a replayed token be redeemed twice.
+        used_at       TIMESTAMPTZ,
+        used_serial   TEXT NOT NULL DEFAULT '',
+        allow_reissue BOOLEAN NOT NULL DEFAULT FALSE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS certificate (
+        serial            TEXT PRIMARY KEY,
+        collector_id      TEXT NOT NULL,
+        subject           TEXT NOT NULL,
+        -- What every request is actually checked against. A subject is a name
+        -- and names get reissued; the fingerprint identifies the one
+        -- certificate that revocation revokes.
+        fingerprint       TEXT NOT NULL UNIQUE,
+        not_before        TIMESTAMPTZ NOT NULL,
+        not_after         TIMESTAMPTZ NOT NULL,
+        issued_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+        revoked_at        TIMESTAMPTZ,
+        revocation_reason TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_certificate_collector ON certificate (collector_id)",
+    "CREATE INDEX IF NOT EXISTS ix_certificate_expiry ON certificate (not_after)",
     "CREATE INDEX IF NOT EXISTS ix_window_collector ON observation_window (collector_id, received_at DESC)",
     "CREATE INDEX IF NOT EXISTS ix_window_coverage ON observation_window (coverage)",
     "CREATE INDEX IF NOT EXISTS ix_asset_collector ON asset (collector_id)",
@@ -172,4 +209,14 @@ PRUNE: Tuple[str, ...] = (
     % RETENTION_MONTHS,
     "DELETE FROM delivery_gap WHERE received_at < now() - INTERVAL '%d months'"
     % RETENTION_MONTHS,
+    # An expired, unredeemed token can never be used again, so keeping it is
+    # keeping a hash of a credential for no reason. Redeemed ones stay: they are
+    # the record of which token produced which certificate.
+    "DELETE FROM enrolment_token WHERE used_at IS NULL "
+    "AND expires_at < now() - INTERVAL '30 days'",
 )
+
+#: Deliberately absent from PRUNE: `certificate`. What was issued, to whom, and
+#: when it was revoked is the audit trail for the fleet's identities, and it has
+#: to outlive the certificates themselves — "no record" and "never issued" would
+#: otherwise be the same answer.

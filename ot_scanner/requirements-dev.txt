@@ -17,3 +17,12 @@ psycopg[binary]>=3.1
 # untested estate plane. It is installed here explicitly rather than relied on
 # as somebody else's transitive dependency.
 httpx>=0.27
+
+# The fleet CA (Phase 6, decision Q4). Server-side only: the collector shells
+# out to openssl so manifest.RUNTIME_REQUIRES stays at dpkt alone, and
+# tests/test_collector_manifest.py fails if that changes.
+# The floor is 42.0 for a reason: `not_valid_before_utc` /
+# `not_valid_after_utc` arrive there, and the naive-datetime accessors
+# they replace return values that compare wrongly against the
+# timezone-aware timestamps PostgreSQL hands back.
+cryptography>=42.0

@@ -30,6 +30,7 @@ const FILES = {
   "/api/v1/estate/assets": "assets.json",
   "/api/v1/estate/analysis": "analysis.json",
   "/api/v1/estate/zones": "zones.json",
+  "/api/v1/estate/certificates": "certificates.json",
 };
 
 // The console talks to the network and nothing else, so the network is the only
@@ -63,11 +64,17 @@ for (const name of screens) {
     failures.push(`${name}: rendered nothing`);
     continue;
   }
-  // Every screen presents counts or clean states, so every screen must show the
-  // coverage they rest on. A screen that rendered without a single chip has
+  // Every screen presents counts or clean states, so every screen must show
+  // the coverage they rest on. A screen that rendered without a single chip has
   // found a way around OTS-CON-004 that the type checker cannot see.
-  if (!html.includes("chip-")) {
-    failures.push(`${name}: rendered no coverage chip`);
+  //
+  // Unless it is presenting NOTHING — no zones could be derived, no CA is
+  // configured — in which case it must say why instead. Those two are the only
+  // acceptable states: a figure with its coverage, or an explanation of why
+  // there is no figure. Silence is neither.
+  const explains = html.includes("panel-alarm") || html.includes("panel-warn");
+  if (!html.includes("chip-") && !explains) {
+    failures.push(`${name}: rendered no coverage chip and no explanation`);
   }
   if (html.includes("undefined") || html.includes("[object Object]")) {
     failures.push(`${name}: rendered a placeholder value into the page`);
