@@ -1,23 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 560" role="img"
-     aria-label="Power NetView">
-  <title>Power NetView</title>
+     aria-label="OTSec">
+  <title>OTSec</title>
+  <!--
+    INTERIM ARTWORK. This is a drawn stand-in, not the supplied logo. To ship
+    the real thing see docs/brand/README.md — and read the note there about
+    keeping the artwork's own field before you key anything out.
+  -->
   <defs>
-    <linearGradient id="pnv-bevel" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="ots-bevel" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#e8ecf3"/>
       <stop offset="0.5" stop-color="#9aa7bb"/>
       <stop offset="1" stop-color="#c9d3e0"/>
     </linearGradient>
-    <linearGradient id="pnv-face" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="ots-face" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#141a2c"/>
       <stop offset="1" stop-color="#0a0f1c"/>
     </linearGradient>
-    <radialGradient id="pnv-iris" cx="0.5" cy="0.5" r="0.5">
+    <radialGradient id="ots-iris" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0.28" stop-color="#0b1020"/>
       <stop offset="0.32" stop-color="#1e6fe0"/>
       <stop offset="0.72" stop-color="#4aa8ff"/>
       <stop offset="1" stop-color="#0d3f8a"/>
     </radialGradient>
-    <clipPath id="pnv-eye">
+    <clipPath id="ots-eye">
       <path d="M120 250 C175 176 345 176 400 250 C345 324 175 324 120 250 Z"/>
     </clipPath>
   </defs>
@@ -33,9 +38,9 @@
 
   <!-- Shield: bevel, then face -->
   <path d="M260 20 L470 78 V276 C470 386 380 452 260 500 C140 452 50 386 50 276
-           V78 Z" fill="url(#pnv-bevel)"/>
+           V78 Z" fill="url(#ots-bevel)"/>
   <path d="M260 44 L446 95 V276 C446 372 366 432 260 476 C154 432 74 372 74 276
-           V95 Z" fill="url(#pnv-face)"/>
+           V95 Z" fill="url(#ots-face)"/>
 
   <!-- Circuit traces above and below the eye -->
   <g stroke="#3f7fd6" stroke-width="3" fill="none" opacity="0.9"
@@ -62,9 +67,9 @@
 
   <!-- The eye -->
   <path d="M120 250 C175 176 345 176 400 250 C345 324 175 324 120 250 Z"
-        fill="#070b16" stroke="url(#pnv-bevel)" stroke-width="9"/>
-  <g clip-path="url(#pnv-eye)">
-    <circle cx="260" cy="250" r="66" fill="url(#pnv-iris)"/>
+        fill="#070b16" stroke="url(#ots-bevel)" stroke-width="9"/>
+  <g clip-path="url(#ots-eye)">
+    <circle cx="260" cy="250" r="66" fill="url(#ots-iris)"/>
     <g stroke="#8ec6ff" stroke-width="2.5" opacity="0.85">
       <path d="M260 190 V214 M260 286 V310 M200 250 H224 M296 250 H320
                M217 207 L234 224 M286 266 L303 283 M303 217 L286 234
@@ -73,9 +78,12 @@
     <circle cx="260" cy="250" r="24" fill="#05070d"/>
   </g>
 
-  <!-- Wordmark -->
-  <g fill="#dbe4f2" font-family="ui-sans-serif, system-ui, 'Segoe UI', sans-serif">
-    <text x="260" y="536" text-anchor="middle" font-size="54"
-          font-weight="700" letter-spacing="1">Power NetView</text>
+  <!-- Wordmark. "OT" takes the circuit blue, "Sec" the page ink, so the
+       lockup reads as one word and still separates the domain from the job. -->
+  <g font-family="ui-sans-serif, system-ui, 'Segoe UI', sans-serif"
+     font-size="78" font-weight="700" letter-spacing="1">
+    <text x="260" y="546" text-anchor="middle">
+      <tspan fill="#6fb2ff">OT</tspan><tspan fill="#dbe4f2">Sec</tspan>
+    </text>
   </g>
 </svg>

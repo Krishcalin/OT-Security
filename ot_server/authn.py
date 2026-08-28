@@ -12,7 +12,7 @@ WHY THIS IS A PROVIDER, NOT A REPLACEMENT FOR THE HOOK
 one, with the instruction that a real deployment must inject a hook mapping the
 authenticated caller to an operator. This module is one such hook — the built-in
 one, for a plant with no identity provider in front of it. An operator who
-fronts Power NetView with their own SSO injects theirs instead and never creates
+fronts OTSec with their own SSO injects theirs instead and never creates
 a local account.
 
 So the fail-closed posture is unchanged. Local authentication is wired
@@ -29,8 +29,8 @@ useless. The two usual answers are both wrong:
   * Auto-generating one and printing it to stdout puts a live credential in
     container logs, which are aggregated, shipped and retained.
 
-So the first operator comes from `POWERNETVIEW_BOOTSTRAP_USER` and
-`POWERNETVIEW_BOOTSTRAP_PASSWORD`, applied ONCE against an empty operator table
+So the first operator comes from `OTSEC_BOOTSTRAP_USER` and
+`OTSEC_BOOTSTRAP_PASSWORD`, applied ONCE against an empty operator table
 and ignored entirely afterwards. The deployment chooses the secret, it never
 appears in a log line, and re-running with the variables still set cannot
 silently reset a password that has since been changed.
@@ -271,8 +271,8 @@ def decide_login(stored_hash: str, password: str, *, status: str,
 
 # ── bootstrap ──────────────────────────────────────────────────────────────
 
-BOOTSTRAP_USER_ENV = "POWERNETVIEW_BOOTSTRAP_USER"
-BOOTSTRAP_PASSWORD_ENV = "POWERNETVIEW_BOOTSTRAP_PASSWORD"
+BOOTSTRAP_USER_ENV = "OTSEC_BOOTSTRAP_USER"
+BOOTSTRAP_PASSWORD_ENV = "OTSEC_BOOTSTRAP_PASSWORD"
 
 
 def bootstrap_credentials() -> Optional[tuple]:

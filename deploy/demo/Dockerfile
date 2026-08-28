@@ -1,12 +1,12 @@
-# A preview of the Power NetView console. See deploy/demo/app.py for what this
+# A preview of the OTSec console. See deploy/demo/app.py for what this
 # is and, more importantly, what it is not — it runs the real server and the
 # real bundle over an in-memory estate, with no TLS terminator in front of it.
 #
-#   docker build -f deploy/demo/Dockerfile -t power-netview-demo .
+#   docker build -f deploy/demo/Dockerfile -t otsec-demo .
 #   docker run --rm -p 8080:8080 \
-#     -e POWERNETVIEW_BOOTSTRAP_USER=operator \
-#     -e POWERNETVIEW_BOOTSTRAP_PASSWORD='choose something' \
-#     power-netview-demo
+#     -e OTSEC_BOOTSTRAP_USER=operator \
+#     -e OTSEC_BOOTSTRAP_PASSWORD='choose something' \
+#     otsec-demo
 
 # ── the console is BUILT here, not copied from a developer's machine ────────
 # A `dist/` shipped from a laptop is a bundle nobody can reproduce, and it is
@@ -44,15 +44,15 @@ COPY --from=console /console/dist ./console/dist
 # fleet's certificates verifiable across restarts; without one, every restart
 # issues a new CA and orphans what came before — which is fine for a preview and
 # would not be for a plant.
-RUN mkdir -p /var/lib/power-netview/ca
-VOLUME ["/var/lib/power-netview"]
+RUN mkdir -p /var/lib/otsec/ca
+VOLUME ["/var/lib/otsec"]
 
 EXPOSE 8080
 ENV PORT=8080 PYTHONUNBUFFERED=1
 
 # Not root. This holds a CA private key.
-RUN useradd --system --uid 10001 netview \
- && chown -R netview:netview /var/lib/power-netview
-USER netview
+RUN useradd --system --uid 10001 otsec \
+ && chown -R otsec:otsec /var/lib/otsec
+USER otsec
 
 CMD ["python", "deploy/demo/app.py"]

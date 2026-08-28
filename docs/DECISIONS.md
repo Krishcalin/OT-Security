@@ -450,7 +450,7 @@ not a trade worth a round trip.
 
 ### There is no default password
 
-`POWERNETVIEW_BOOTSTRAP_USER` and `POWERNETVIEW_BOOTSTRAP_PASSWORD`, applied
+`OTSEC_BOOTSTRAP_USER` and `OTSEC_BOOTSTRAP_PASSWORD`, applied
 once against an empty operator table and ignored thereafter. A well-known
 default is a published credential on every install that forgets to change it,
 and auto-generating one to stdout puts a live credential in container logs that

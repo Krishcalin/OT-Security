@@ -101,10 +101,10 @@ def verify_signature(public_key_path: str, canonical: bytes,
 
     sig_file = data_file = None
     try:
-        handle, sig_file = tempfile.mkstemp(prefix="pnv-sig-")
+        handle, sig_file = tempfile.mkstemp(prefix="otsec-sig-")
         with os.fdopen(handle, "wb") as fh:
             fh.write(signature)
-        handle, data_file = tempfile.mkstemp(prefix="pnv-body-")
+        handle, data_file = tempfile.mkstemp(prefix="otsec-body-")
         with os.fdopen(handle, "wb") as fh:
             fh.write(canonical)
         proc = subprocess.run(
@@ -173,7 +173,7 @@ def apply_pack(directory: str, pack: Dict[str, Any],
 
     os.makedirs(directory, exist_ok=True)
     target = os.path.join(directory, PACK_NAME)
-    handle, staged = tempfile.mkstemp(prefix="pnv-pack-", dir=directory)
+    handle, staged = tempfile.mkstemp(prefix="otsec-pack-", dir=directory)
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as fh:
             json.dump(pack, fh, sort_keys=True)

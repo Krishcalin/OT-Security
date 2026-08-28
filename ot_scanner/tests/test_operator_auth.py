@@ -76,7 +76,7 @@ def test_a_secret_is_base32_a_human_can_type():
 def test_the_provisioning_uri_names_this_product():
     uri = totp.provisioning_uri("ABCDEFGHIJKLMNOP", "operator")
     assert uri.startswith("otpauth://totp/")
-    assert "Power%20NetView" in uri
+    assert "OTSec" in uri
     # Microsoft and Google Authenticator ignore `algorithm` and assume SHA-1;
     # advertising anything else produces codes that never match.
     assert "algorithm=SHA1" in uri and "digits=6" in uri and "period=30" in uri
@@ -464,7 +464,7 @@ def test_a_correct_password_opens_a_session():
                                  "password": PASSWORD})
     assert response.status_code == 200, response.text
     assert response.json()["username"] == "control-room"
-    assert client.cookies.get("pnv_session")
+    assert client.cookies.get("otsec_session")
 
 
 def test_the_session_cookie_is_not_readable_by_script():
@@ -483,7 +483,7 @@ def test_only_the_fingerprint_of_a_session_is_stored():
     client, store = _auth_client()
     client.post("/api/v1/auth/login",
                 json={"username": "control-room", "password": PASSWORD})
-    token = client.cookies.get("pnv_session")
+    token = client.cookies.get("otsec_session")
     assert token not in store.sessions
     assert authn.session_fingerprint(token) in store.sessions
 
@@ -500,7 +500,7 @@ def test_every_failure_answers_the_same_way(body):
     response = client.post("/api/v1/auth/login", json=body)
     assert response.status_code == 401
     assert response.json()["detail"] == "invalid username or password"
-    assert not client.cookies.get("pnv_session")
+    assert not client.cookies.get("otsec_session")
 
 
 def test_the_estate_plane_is_reachable_once_signed_in():
@@ -599,7 +599,7 @@ def test_no_session_is_issued_until_the_code_is_supplied():
                                  "password": PASSWORD})
     assert response.status_code == 401
     assert response.json()["second_factor_required"] is True
-    assert not client.cookies.get("pnv_session")
+    assert not client.cookies.get("otsec_session")
     assert client.get("/api/v1/estate/certificates").status_code == 401
 
 

@@ -401,7 +401,7 @@ def test_the_shell_is_served_from_the_same_origin_as_the_api():
     just to make it reachable."""
     response = _app().get("/")
     assert response.status_code == 200
-    assert "Power NetView" in response.text
+    assert "OTSec" in response.text
 
 
 def test_serving_the_console_does_not_open_the_estate_plane():
@@ -693,7 +693,7 @@ def test_the_render_check_would_notice_a_screen_that_drew_nothing():
 def test_the_sign_in_page_is_served():
     response = _app().get("/login.html")
     assert response.status_code == 200
-    assert "Power NetView" in response.text
+    assert "OTSec" in response.text
 
 
 def test_the_sign_in_page_starts_as_a_refusal_not_an_inert_form():
@@ -711,14 +711,18 @@ def test_the_product_is_identified_before_a_password_is_asked_for():
     branding above it is exactly what a phishing page looks like."""
     with open(os.path.join(PUBLIC, "login.html"), encoding="utf-8") as fh:
         page = fh.read()
-    assert "login-brand-side" in page and "logo.svg" in page
+    assert "login-brand-side" in page and "otsec-logo.svg" in page
     with open(os.path.join(PUBLIC, "console.css"), encoding="utf-8") as fh:
         css = fh.read()
     assert "order: -1" in css, "the brand does not come first on a small screen"
 
 
-def test_the_logo_is_served():
-    response = _app().get("/logo.svg")
+@pytest.mark.parametrize("asset", ["/otsec-logo.svg", "/otsec-mark.svg"])
+def test_the_brand_artwork_is_served(asset):
+    """Two files, because the 26px header slot and the 22rem sign-in panel want
+    different drawings. `tests/test_branding.py` checks the pages reference the
+    right one of the two; this checks the server hands them over."""
+    response = _app().get(asset)
     assert response.status_code == 200
     assert "svg" in response.headers.get("content-type", "")
 
