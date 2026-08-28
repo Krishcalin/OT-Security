@@ -140,6 +140,14 @@ except Exception:  # pragma: no cover - optional
         return "unknown"
 
 try:
+    from .protocols.ring import BPDU_MULTICAST, ETH_CFM, RingAnalyzer
+    _OPTIONAL_L2_ANALYZERS.append(("RingAnalyzer", RingAnalyzer))
+except Exception:  # pragma: no cover - optional
+    BPDU_MULTICAST = "01:80:C2:00:00:00"
+    ETH_CFM = 0x8902
+    RingAnalyzer = None
+
+try:
     from .protocols.snmp import SNMPAnalyzer
     _OPTIONAL_IP_ANALYZERS.append(("SNMPAnalyzer", SNMPAnalyzer))
 except Exception:  # pragma: no cover - optional
@@ -266,6 +274,7 @@ class PCAPAnalyzer:
         # ── IP-transport analyzers ───────────────────────────────────────
         # Always-available core analyzers
         self._lldp_analyzer    = LLDPAnalyzer() if LLDPAnalyzer else None
+        self._ring_analyzer    = RingAnalyzer() if RingAnalyzer else None
         self._modbus_analyzer  = ModbusAnalyzer()
         self._s7comm_analyzer  = S7CommAnalyzer()
         self._enip_analyzer    = EtherNetIPAnalyzer()
@@ -587,7 +596,14 @@ class PCAPAnalyzer:
         eth_type: int, payload: bytes,
         ts: datetime,
     ) -> None:
-        """Dispatch Layer-2 frames to GOOSE, SV, PROFINET DCP and LLDP."""
+        """Dispatch L2 frames to GOOSE, SV, PROFINET DCP, LLDP and ring."""
+        if self._ring_analyzer and (
+                eth_type == ETH_CFM
+                or (eth_type < 0x0600 and dst_mac.upper() == BPDU_MULTICAST)):
+            self._ring_analyzer.analyze_frame(
+                src_mac, dst_mac, eth_type, payload, ts)
+            return
+
         if eth_type == ETH_LLDP and self._lldp_analyzer:
             advert = self._lldp_analyzer.analyze_frame(
                 src_mac, dst_mac, eth_type, payload, ts)

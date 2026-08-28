@@ -54,7 +54,13 @@ if os.path.dirname(_HERE) not in sys.path:
 # others do not need: it is the ONLY passive source that names the ring
 # switches carrying the MPLS-TP transport. They speak no industrial protocol,
 # and their management traffic may never cross the mirror at all.
-L2_ETHERTYPES = (0x88B8, 0x88BA, 0x8892, 0x88CC)
+L2_ETHERTYPES = (0x88B8, 0x88BA, 0x8892, 0x88CC, 0x8902)
+
+#: 802.1D spanning-tree BPDUs carry an 802.3 LENGTH where an EtherType would
+#: be, so no ethertype list can select them. They are identified by their
+#: destination — the bridge group address — and they matter because a topology
+#: change moves traffic, and traffic that moves may move out of earshot.
+BRIDGE_GROUP_ADDRESS = "01:80:C2:00:00:00"
 
 
 @dataclass
@@ -184,6 +190,17 @@ class IncrementalAnalyzer:
         src_mac = ":".join("%02X" % b for b in eth.src)
         dst_mac = ":".join("%02X" % b for b in eth.dst)
 
+        if (eth.type < 0x0600
+                and dst_mac.upper() == BRIDGE_GROUP_ADDRESS):
+            # An 802.3 frame to the bridge group address: a BPDU. Forwarded on
+            # its destination rather than its type, because it has no type.
+            self._analyzer._handle_l2_frame(
+                src_mac, dst_mac, eth.type, bytes(eth.data), ts)
+            self.stats.frames_l2 += 1
+            self.stats.frames_decoded += 1
+            self._window.decoded += 1
+            return
+
         if eth.type in L2_ETHERTYPES:
             self._analyzer._handle_l2_frame(
                 src_mac, dst_mac, eth.type, bytes(eth.data), ts)
@@ -220,6 +237,22 @@ class IncrementalAnalyzer:
         self._window.decoded += 1
 
     # ── readability accounting ────────────────────────────────────────────
+    def take_ring_state(self):
+        """This window's ring protection activity, then reset.
+
+        Pulled per window like the decode counters, and for the same reason:
+        the question a window answers is "could this window hear the estate",
+        and last window's protection switch says nothing about this one.
+
+        Returns None when no ring analyser is present, which is not the same as
+        a stable ring — a collector that cannot see R-APS has not established
+        that the ring did not protect.
+        """
+        analyzer = getattr(self._analyzer, "_ring_analyzer", None)
+        if analyzer is None:
+            return None
+        return analyzer.take_state()
+
     def take_decode_counters(self) -> DecodeCounters:
         """This window's decode outcome, and reset for the next one.
 
