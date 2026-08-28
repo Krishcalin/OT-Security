@@ -258,3 +258,46 @@ def _json(value: Any) -> str:
     import json
 
     return json.dumps(value, separators=(",", ":"), default=str)
+
+
+    # ── estate-wide reads (Phase 4) ───────────────────────────────────────
+    def collector_sites(self) -> Dict[str, str]:
+        """collector_id -> site. The scope every IP identity is merged within.
+
+        A collector with no site recorded is returned as an empty string, which
+        `estate.merge` maps to its own `<unassigned>` scope rather than folding
+        it in with another unsited collector.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT collector_id, site FROM collector")
+            return {row[0]: row[1] or "" for row in cur.fetchall()}
+
+    def collector_ids(self) -> List[str]:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT collector_id FROM collector ORDER BY collector_id")
+            return [row[0] for row in cur.fetchall()]
+
+    def set_site(self, collector_id: str, site: str) -> None:
+        self.ensure_collector(collector_id)
+        with self.conn.cursor() as cur:
+            cur.execute("UPDATE collector SET site = %s WHERE collector_id = %s",
+                        (site, collector_id))
+        self.conn.commit()
+
+    def all_assets(self, limit: int = 5000) -> List[Dict]:
+        """Every collector's asset rows, for the estate merge."""
+        return self.assets(collector_id=None, limit=limit)
+
+    def detections_for(self, asset_keys: Iterable[str]) -> List[Dict]:
+        keys = list(asset_keys)
+        if not keys:
+            return []
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT detection_key, collector_id, asset_key, rule_id, "
+                "severity, last_coverage, rulepack_version, attributes "
+                "FROM detection WHERE asset_key = ANY(%s)", (keys,))
+            return [{"detection_key": r[0], "collector_id": r[1],
+                     "asset_key": r[2], "rule_id": r[3], "severity": r[4],
+                     "last_coverage": r[5], "rulepack_version": r[6],
+                     "attributes": r[7]} for r in cur.fetchall()]

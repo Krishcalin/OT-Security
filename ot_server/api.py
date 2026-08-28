@@ -24,12 +24,23 @@ content-derived batch id; answering 409 lets it clear its queue instead of
 resending forever (`OTS-TRN-004`). It is not an error condition and must not be
 logged as one, or every healthy fleet will look like it is failing.
 """
-from __future__ import annotations
+# NOTE: deliberately no `from __future__ import annotations` here.
+#
+# FastAPI resolves route annotations to decide what is a path/query parameter
+# and what is injected. With postponed evaluation the annotations are strings,
+# and `Request` is imported inside create_app() so it is not resolvable at
+# module scope — FastAPI then treats `request: Request` as a QUERY PARAMETER and
+# every route answers 422 Field required. It looks like a routing bug and is an
+# annotation-resolution one.
+#
+# The lazy fastapi import is kept on purpose: collector_identity() and the
+# module's constants stay importable, and testable, without the framework.
 
 import os
 from typing import Any, Callable, Dict, List, Optional
 
-from . import ingest
+from . import estate as estate_merge
+from . import ingest, vulnmatch
 from .ingest import Decision, Verdict
 
 COLLECTOR_ID_HEADER = "X-Collector-Id"
@@ -160,6 +171,81 @@ def create_app(store, require_operator: Optional[Callable] = None):
             row["state"] = state.value
             out.append(row)
         return {"assets": out, "latest_window": latest, "count": len(out)}
+
+    @app.get("/api/v1/estate/coverage")
+    def estate_coverage(request: Request):
+        """What the estate view as a whole is worth (OTS-SRV-004).
+
+        The weakest link, not an average. Four healthy collectors and one blind
+        one is not 80% trustworthy — it is an answer with a hole in it, and the
+        hole is exactly where nobody is looking.
+        """
+        _operator(request)
+        summaries = [
+            ingest.summarise_coverage(cid, store.recent_windows(cid),
+                                      store.recent_gaps(cid))
+            for cid in store.collector_ids()]
+        cov = estate_merge.estate_coverage(summaries)
+        return {
+            "collectors": cov.collectors,
+            "trustworthy_collectors": cov.trustworthy_collectors,
+            "blind_collectors": sorted(cov.blind_collectors),
+            "degraded_collectors": sorted(cov.degraded_collectors),
+            "collectors_with_gaps": sorted(cov.collectors_with_gaps),
+            "trustworthy": cov.trustworthy,
+            "explain": cov.explain(),
+            "per_collector": [
+                {"collector_id": s.collector_id, "windows": s.windows,
+                 "complete": s.complete, "degraded": s.degraded,
+                 "unknown": s.unknown, "delivery_gaps": s.gaps,
+                 "records_lost": s.records_lost,
+                 "trustworthy": s.trustworthy}
+                for s in summaries],
+        }
+
+    @app.get("/api/v1/estate/inventory")
+    def estate_inventory(request: Request):
+        """The merged asset inventory (OTS-SRV-001).
+
+        IP identities are scoped to a site and MAC identities are global, so the
+        same private address at two plants stays two devices. See estate.py for
+        why merging them would be unrecoverable.
+        """
+        _operator(request)
+        assets = estate_merge.merge(store.all_assets(), store.collector_sites())
+        summaries = [
+            ingest.summarise_coverage(cid, store.recent_windows(cid),
+                                      store.recent_gaps(cid))
+            for cid in store.collector_ids()]
+        cov = estate_merge.estate_coverage(summaries)
+        return {
+            "assets": [a.to_dict() for a in assets],
+            "count": len(assets),
+            # The count means nothing without this, so it is not a separate call.
+            "coverage": {"trustworthy": cov.trustworthy,
+                         "explain": cov.explain()},
+        }
+
+    @app.get("/api/v1/estate/vulnerabilities")
+    def estate_vulnerabilities(request: Request):
+        """CVE / KEV / EPSS matched server-side (OTS-SRV-002, decision D3).
+
+        Computed from the CURRENT corpus over stored observations, so a KEV
+        addition re-prioritises the estate without a collector being contacted.
+        """
+        _operator(request)
+        corpus = vulnmatch.load_corpus()
+        assets = estate_merge.merge(store.all_assets(), store.collector_sites())
+        matches = vulnmatch.match_estate([a.to_dict() for a in assets], corpus)
+        return {
+            "corpus_version": corpus.version,
+            "corpus_loaded": corpus.available,
+            # Without a corpus every asset is UNKNOWN, never clean — a server
+            # that has not looked has not established anything.
+            "assessed": len(matches),
+            "actionable": sum(1 for m in matches if m.actionable),
+            "matches": [m.to_dict() for m in matches],
+        }
 
     return app
 

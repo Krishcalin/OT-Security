@@ -7,9 +7,9 @@ Specification: **OTS-SRS-001**. This document is the *order of work* and the
 record of what is actually built — the SRS says what the system must do, this
 says what exists.
 
-> **Status at 2026-08-28** — Phases 1 and 2 complete (`7372b69`).
-> 188 tests passing. `OTS-NFR-001` is **deferred to live commissioning** on the
-> Pi — see [Live commissioning](#live-commissioning).
+> **Status at 2026-08-28** — Phases 1–4 complete. 273 tests passing (263
+> without a database). `OTS-NFR-001` is **deferred to live commissioning** on
+> the Pi — see [Live commissioning](#live-commissioning).
 
 ---
 
@@ -127,7 +127,7 @@ collector starts cleanly and reports nothing. So completeness is proved by
 assemble -> run isolated -> compare assets and findings with the full tree
 ```
 
-### Phase 3 — Transport and ingest · **NEXT**
+### Phase 3 — Transport and ingest · **COMPLETE**
 
 The first phase with a server in it, and the first that needs a database.
 
@@ -142,20 +142,60 @@ The first phase with a server in it, and the first that needs a database.
 - `OTS-TRN-006` raw pcap stays local unless explicitly requested per incident
 - FastAPI ingest endpoints and the **PostgreSQL** schema (Q1)
 
-**Suggested order within the phase:** the collector's transport half first. It
-can be proved end to end against a stub server without Postgres running, the
-same way the capture loop was proved without a NIC.
+Built collector-half first (`85fbaf7`), then the server (`5d9b505`).
 
-### Phase 4 — Server analysis
+**A delivery gap is a coverage gap.** A spool has a disk ceiling, so a long
+outage eventually forces data loss — and losing observations *quietly* is the
+failure, not losing them. The collector counts every eviction with the interval
+it spans and announces the gap **before** the batches that follow, so the server
+never reads a resumed stream as continuous. The server then counts that gap
+against trustworthiness: a collector whose windows were all complete but which
+lost data in transit is **not** reported clean.
 
-- Estate asset merge — the same device seen by two collectors is one asset
-- Server-side CVE / KEV / EPSS matching, so a corpus refresh re-prioritises the
-  estate without re-ingest (decision D3)
-- Compliance, risk, attack-path, drift and policy engines over merged data
-- `OTS-SRV-004` coverage accounting surfaced through the API
-- `OTS-SRV-005` an asset absent from the latest window is **not observed**,
-  never silently removed — a passive sensor cannot distinguish a decommissioned
-  device from an unseen one
+mTLS has no off switch — `TransportConfig` refuses `http://`, missing
+certificates, and `verify=False`. The SQL is tested against a real PostgreSQL
+rather than an in-memory double, because a double is a second implementation
+that passes while production fails.
+
+### Phase 4 — Server analysis · **MOSTLY COMPLETE**
+
+Estate merge, server-side CVE matching and coverage through the API are built.
+The five analysis engines (`OTS-SRV-003`) remain — see below.
+
+**The merge had a trap in it.** Collectors emit `ip:10.0.0.1`, and private
+ranges overlap across plants: a PLC at Substation A and an unrelated one at
+Substation B are both very likely 10.0.0.1. Merging on that key fuses two
+devices into one, after which one plant's findings appear against the other's
+asset, the count silently drops, and nothing in the output looks wrong — and it
+is unrecoverable, because un-merging needs provenance that has already been
+averaged away.
+
+So **IP identities are scoped to a site; MAC identities are global.**
+
+| | |
+|---|---|
+| same IP, two sites | 2 assets, always |
+| same IP, one site | 1 asset (overlapping SPANs) |
+| same MAC, two sites | 1 asset **+ a warning** — moved device, or spoofing |
+
+Related decisions: a merged asset takes the **weakest** coverage of its
+contributions, never an average, or a healthy collector launders a blind one's
+silence. Estate coverage is likewise not a percentage — four healthy collectors
+and one blind one is not 80% trustworthy, it is an answer with a hole in it.
+Conflicting attributes are reported rather than overwritten.
+
+**CVE matching is the payoff for keeping `cvedb` off the Pi** (D3).
+`reprioritise()` re-runs against a new corpus over stored observations and
+reports what moved: *"corpus 2026-08-27 → 2026-08-28: 1 escalated, 0
+de-escalated, with no collector contacted."* `NOW` means known-exploited only —
+high EPSS alone is `NEXT`, because EPSS is a probability rather than an
+observation, and a priority that fires on everything is one an operator stops
+reading. No corpus loaded yields `UNKNOWN`, never "clean".
+
+**Still to build — `OTS-SRV-003`.** Compliance, risk, attack-path, drift and
+policy engines exist in `scanner/` and are server-side by the partition, but are
+not yet wired to merged estate data. Each needs an adapter from `EstateAsset` to
+the shape it expects; they were left rather than half-wired.
 
 ### Phase 5 — Console
 
